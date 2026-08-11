@@ -217,7 +217,7 @@
   <p>필기는 <b>날짜별로 자동 저장</b>됩니다. 내일 같은 파일을 열면 오늘 판서는 그대로 보관되고 빈 화면에서 시작합니다.<br>
      펜으로 쓰고, 손바닥으로 밀어 화면을 옮깁니다. 끝까지 밀면 다음 쪽으로 넘어갑니다.<br>인터넷 연결 없이 동작하며, 파일은 이 컴퓨터 밖으로 나가지 않습니다.</p>
   <button class="primary big" id="btnOpen2">📂 PDF 열기</button>
-  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 3.7</div>
+  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 3.8</div>
   <div id="modeBadge"></div>
   <div class="recent" id="recent">
     <div class="libbar">
@@ -1409,13 +1409,18 @@ function goFull(){
     .catch(()=>toast('F11 키를 눌러 전체화면으로 바꿔 주세요'));
 }
 $('btnClose').onclick=async()=>{
-  if(!confirm('판서노트를 닫을까요?\n필기는 이미 저장되어 있습니다.'))return;
+  if(!confirm('판서노트를 닫을까요?\n오늘 판서를 파일로 저장한 뒤 닫습니다.'))return;
+  const btn=$('btnClose'),label=btn.textContent;
+  btn.textContent='저장 중…';btn.disabled=true;
   await saveNow();
   await Backup.write(true);
   await Backup.writePdf();
   await AutoDL.run(true);
-  window.close();
-  setTimeout(()=>toast('창 오른쪽 위 ✕ 로 닫아 주세요'),500);
+  btn.textContent=label;btn.disabled=false;
+  setTimeout(()=>{                       /* 저장이 끝날 시간을 준 뒤 닫습니다 */
+    window.close();
+    setTimeout(()=>toast('저장했습니다 — 창 오른쪽 위 ✕ 로 닫으셔도 됩니다'),400);
+  },1200);
 };
 $('btnFull').onclick=()=>{
   if(document.fullscreenElement){setWantFull(false);document.exitFullscreen()}
@@ -1637,6 +1642,7 @@ if('serviceWorker' in navigator&&location.protocol.startsWith('http'))
 $('btnOpen').onclick=$('btnOpen2').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
+  if(S.doc){await saveNow();await AutoDL.run(true)}   /* 자료를 바꾸기 전에 저장 */
   await loadPdf(await f.arrayBuffer(),f.name);
   e.target.value='';
 };
@@ -1742,19 +1748,23 @@ const AutoDL={
     this.dirty=true;
     if(Backup.ok||!this.on())return;      /* 폴더가 연결돼 있으면 그쪽이 우선 */
     clearTimeout(this.timer);
-    this.timer=setTimeout(()=>this.run(),180000);   /* 필기가 3분 멈추면 */
+    this.timer=setTimeout(()=>this.run(),90000);    /* 필기가 1분 30초 멈추면 */
   },
   async run(force){
     if(!S.doc||S.busy||Backup.ok||!this.on())return;
-    if(!this.dirty)return;
-    if(!force&&Date.now()-this.at<480000)return;    /* 너무 자주 받지 않도록 */
+    if(!force){
+      if(!this.dirty)return;
+      if(Date.now()-this.at<300000)return;          /* 자동 저장은 너무 자주 하지 않도록 */
+    }
+    if(!S.pageHas.size)return;                      /* 판서가 아예 없으면 건너뜀 */
     try{
       const doc=await buildPdf();
       if(!doc)return;
       doc.save(`판서노트_${baseName()}_${S.date}.pdf`);
       this.dirty=false;this.at=Date.now();
-      toast('오늘 판서를 다운로드 폴더에 저장했습니다');
-    }catch(e){}
+      toast('판서를 다운로드 폴더에 저장했습니다');
+      return true;
+    }catch(e){toast('자동 저장에 실패했습니다: '+e.message)}
   }
 };
 
