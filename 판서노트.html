@@ -17,6 +17,7 @@
     --radius:10px;--bar:76px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  [hidden]{display:none!important}
   html,body{height:100%;margin:0;overflow:hidden;touch-action:none;overscroll-behavior:none}
   body{background:var(--ink);color:var(--text);
     font-family:'Pretendard Variable',Pretendard,-apple-system,'Malgun Gothic','맑은 고딕',sans-serif;
@@ -261,6 +262,7 @@
       <input id="libSearch" class="search" type="search" placeholder="자료 검색" autocomplete="off">
       <button id="btnSort" class="mini" title="정렬 바꾸기">최근순</button>
       <button id="btnView" class="mini" title="보기 바꾸기">☰</button>
+      <button id="btnSync" class="mini" title="저장 폴더와 맞추기">🔄</button>
       <button id="btnNewFolder" class="mini">＋ 폴더</button>
       <button id="btnRenameFolder" class="mini" hidden>이름</button>
 
@@ -1602,6 +1604,28 @@ async function renderFolders(){
 
 }
 $('btnUp').onclick=()=>{S.lib='';renderFolders();renderRecent()};
+/* 탐색기에서 지운 폴더를 서재에서도 없앱니다 */
+$('btnSync').onclick=async()=>{
+  if(!Backup.ok){await renderFolders();await renderRecent();toast('새로고침했습니다');return}
+  try{
+    const root=await Backup.root(),onDisk=new Set();
+    for await (const [nm,h] of root.entries())if(h.kind==='directory')onDisk.add(nm);
+    const before=await getFolders();
+    const after=before.filter(x=>onDisk.has(Backup.safe(x)));
+    const gone=before.filter(x=>!onDisk.has(Backup.safe(x)));
+    if(gone.length){
+      if(!confirm(`저장 폴더에 없는 폴더 ${gone.length}개를 서재에서도 없앱니다.\n(${gone.join(', ')})\n자료와 필기는 남고 "전체"로 옮겨집니다.`))return;
+      await setFolders(after);
+      for(const fl of await Store.allFiles()){
+        if(fl&&fl.folder&&gone.includes(fl.folder)){fl.folder='';await Store.putFile(fl)}
+      }
+      if(gone.includes(S.folder))S.folder='';
+      if(gone.includes(S.lib))S.lib='';
+    }
+    await renderFolders();await renderRecent();
+    toast(gone.length?`${gone.length}개를 정리했습니다`:'저장 폴더와 같습니다');
+  }catch(e){toast('저장 폴더를 읽지 못했습니다')}
+};
 $('libSearch').oninput=e=>{S.q=e.target.value.trim().toLowerCase();renderRecent()};
 $('btnSort').onclick=()=>{
   S.sort=S.sort==='recent'?'folder':'recent';
@@ -1978,7 +2002,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='5.5';
+const APP_VER='5.6';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 function renderUpdBox(){
   $('updBox').innerHTML=
