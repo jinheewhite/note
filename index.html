@@ -250,7 +250,7 @@
   <p>필기는 <b>날짜별로 자동 저장</b>됩니다. 내일 같은 파일을 열면 오늘 판서는 그대로 보관되고 빈 화면에서 시작합니다.<br>
      펜으로 쓰고, 손바닥으로 밀어 화면을 옮깁니다. 끝까지 밀면 다음 쪽으로 넘어갑니다.<br>인터넷 연결 없이 동작하며, 파일은 이 컴퓨터 밖으로 나가지 않습니다.</p>
   <button class="primary big" id="btnOpen2">📂 PDF 열기</button>
-  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 4.3</div>
+  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 4.5</div>
   <div id="saveWhere" class="where"></div>
   <div id="modeBadge"></div>
   <div class="recent" id="recent">
@@ -944,15 +944,16 @@ const Backup={
       if(await h.requestPermission({mode:'readwrite'})!=='granted')return false;
       this.handle=h;this.ok=true;
       await Store.putFile({id:DIR_KEY,name:h.name,opened:Date.now(),handle:h});
+      const made=await this.syncFolders();
       await this.write(true);
-      toast(`"${h.name}" 폴더에 자동 백업을 시작합니다`);
+      toast(`${h.name} > jinnote 폴더를 만들었습니다${made?` (하위 폴더 ${made}개 포함)`:''}`);
       return true;
     }catch(e){return false}
   },
   async reauth(){
     if(!this.handle)return false;
     try{ this.ok=(await this.handle.requestPermission({mode:'readwrite'}))==='granted' }catch(e){ this.ok=false }
-    if(this.ok)await this.write(true);
+    if(this.ok){await this.syncFolders();await this.write(true)}
     return this.ok;
   },
   async disconnect(){
@@ -964,11 +965,29 @@ const Backup={
     clearTimeout(this.timer);
     this.timer=setTimeout(()=>this.write(),8000);   /* 필기가 멈추면 8초 뒤 폴더에 기록 */
   },
-  /* 폴더에 넣지 않은 자료는 jinnote 폴더에 저장됩니다 */
-  async dir(){
-    const nm=(S.folder||'jinnote').replace(/[\\/:*?"<>|]/g,'_');
-    try{ return await this.handle.getDirectoryHandle(nm,{create:true}) }
+  /* 고른 폴더 안에 jinnote 를 만들고, 그 아래에 앱의 폴더들을 그대로 만듭니다 */
+  safe(s){ return String(s).replace(/[\\/:*?"<>|]/g,'_').trim()||'기타' },
+  async root(){
+    try{ return await this.handle.getDirectoryHandle('jinnote',{create:true}) }
     catch(e){ return this.handle }
+  },
+  async dir(){
+    const r=await this.root();
+    if(!S.folder)return r;
+    try{ return await r.getDirectoryHandle(this.safe(S.folder),{create:true}) }
+    catch(e){ return r }
+  },
+  async syncFolders(){
+    if(!this.ok||!this.handle)return 0;
+    try{
+      const r=await this.root(),list=await getFolders();
+      for(const nm of list)await r.getDirectoryHandle(this.safe(nm),{create:true});
+      return list.length;
+    }catch(e){return 0}
+  },
+  async addFolder(name){
+    if(!this.ok||!this.handle)return;
+    try{ const r=await this.root(); await r.getDirectoryHandle(this.safe(name),{create:true}) }catch(e){}
   },
   async write(force){
     if(!this.ok||!this.handle)return;
@@ -979,10 +998,10 @@ const Backup={
       const files=(await Store.allFiles()).filter(x=>x&&!String(x.id).startsWith('__'))
         .map(({id,name})=>({id,name}));
       const body=JSON.stringify({app:'panseo-note',v:1,at:new Date().toISOString(),files,notes});
-      const dir=await this.dir();
+      const dir=await this.dir(),root=await this.root();
       for(const nm of ['판서노트_백업.json', S.fileName?`${S.fileName.replace(/\.pdf$/i,'')}_${S.date}.json`:null]){
         if(!nm)continue;
-        const fh=await (nm.startsWith('판서노트_백업')?this.handle:dir).getFileHandle(nm,{create:true});
+        const fh=await (nm.startsWith('판서노트_백업')?root:dir).getFileHandle(nm,{create:true});
         const w=await fh.createWritable();
         await w.write(body);await w.close();
       }
@@ -1005,8 +1024,8 @@ const Backup={
       const fh=await (await this.dir()).getFileHandle(name,{create:true});
       const w=await fh.createWritable();
       await w.write(doc.output('arraybuffer'));await w.close();
-      markSaved();
-    }catch(e){}
+      markSaved();return true;
+    }catch(e){toast('폴더에 저장하지 못했습니다 — 저장 폴더를 다시 연결해 주세요')}
   }
 };
 
@@ -1582,6 +1601,7 @@ $('btnRenameFolder').onclick=async()=>{
     if(fl&&fl.folder===old){fl.folder=name;await Store.putFile(fl)}
   }
   if(S.folder===old)S.folder=name;
+  await Backup.addFolder(name);
   S.lib=name;await renderFolders();await renderRecent();
   toast(`"${name}" 으로 바꿨습니다`);
 };
@@ -1601,8 +1621,9 @@ $('btnNewFolder').onclick=async()=>{
   const list=await getFolders();
   if(list.includes(name)){toast('같은 이름의 폴더가 있습니다');return}
   list.push(name);await setFolders(list);
+  await Backup.addFolder(name);
   S.lib=name;await renderFolders();await renderRecent();
-  toast(`"${name}" 폴더를 만들었습니다`);
+  toast(Backup.ok?`"${name}" 폴더를 만들었습니다 (jinnote 안에도 생성)`:`"${name}" 폴더를 만들었습니다`);
 };
 async function pickFolder(file){
   const list=await getFolders(),box=$('folderPick');
@@ -1638,9 +1659,10 @@ async function renderRecent(){
   list.innerHTML='';
   let count=0;
 
-  /* 검색 중에는 모든 폴더를 가로질러 찾습니다 */
-  if(!S.lib&&!S.q){
+  /* 첫 화면에서는 만든 폴더가 모두 보입니다 */
+  if(!S.lib){
     for(const nm of await getFolders()){
+      if(S.q&&!nm.toLowerCase().includes(S.q))continue;
       const inside=all.filter(x=>x.folder===nm).length;
       const c=document.createElement('div');c.className='card';
       c.innerHTML=`<button class="cover"><span class="fold">📁<span>${inside}개</span></span></button>`+
@@ -1832,9 +1854,14 @@ $('btnPdf').onclick=async()=>{
   const btn=$('btnPdf'),label=btn.textContent;
   S.busy=true;btn.textContent='만드는 중…';btn.disabled=true;
   try{
-    const doc=await buildPdf();
-    if(!doc)toast('저장할 판서가 없습니다');
-    else{doc.save(`판서노트_${baseName()}_${S.date}.pdf`);toast('PDF로 저장했습니다');}
+    if(Backup.ok){                       /* 연결한 폴더에 바로 저장 — 창이 뜨지 않습니다 */
+      await Backup.writePdf();
+      toast(`${Backup.handle.name} > jinnote${S.folder?' > '+S.folder:''} 에 저장했습니다`);
+    }else{
+      const doc=await buildPdf();
+      if(!doc)toast('저장할 판서가 없습니다');
+      else{doc.save(`판서노트_${baseName()}_${S.date}.pdf`);toast('다운로드 폴더에 저장했습니다');}
+    }
   }catch(e){toast('PDF를 만들지 못했습니다: '+e.message)}
   S.busy=false;btn.textContent=label;btn.disabled=false;
 };
@@ -1917,10 +1944,12 @@ function renderWhere(){
   const box=$('saveWhere');if(!box)return;
   let txt;
   if(Backup.ok)
-    txt=`파일 저장 위치 · <b>${Backup.handle.name} 폴더</b><small>필기가 멈추면 판서 PDF와 백업이 자동으로 들어갑니다</small>`;
+    txt=`파일 저장 위치 · <b>${Backup.handle.name} &rsaquo; jinnote</b>`+
+        '<small>필기가 멈추면 판서 PDF가 자동으로 들어갑니다 · 서재의 폴더가 그대로 만들어집니다</small>';
   else if(AutoDL.on())
     txt='파일 저장 위치 · <b>다운로드 폴더</b>'+
-        '<small>판서노트_자료이름_날짜.pdf 로 자동 저장됩니다 · 폴더를 지정하면 그리로 바뀝니다</small>';
+        '<small>저장할 때마다 창이 뜬다면 크롬 설정 → 다운로드에서 "저장 위치 확인"을 꺼 주세요 · '+
+        '폴더를 한 번 고르면 창 없이 jinnote 폴더로 바로 저장됩니다</small>';
   else
     txt='<b>파일로 저장되지 않습니다</b><small>필기는 앱 안에만 남습니다 · 저장 위치를 지정해 주세요</small>';
   const label=Backup.supported()?'📁 저장 폴더 고르기':'저장 위치 안내';
