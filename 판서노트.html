@@ -207,7 +207,7 @@
   <p>필기는 <b>날짜별로 자동 저장</b>됩니다. 내일 같은 파일을 열면 오늘 판서는 그대로 보관되고 빈 화면에서 시작합니다.<br>
      펜으로 쓰고, 손바닥으로 밀어 화면을 옮깁니다. 끝까지 밀면 다음 쪽으로 넘어갑니다.<br>인터넷 연결 없이 동작하며, 파일은 이 컴퓨터 밖으로 나가지 않습니다.</p>
   <button class="primary big" id="btnOpen2">📂 PDF 열기</button>
-  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 2.9</div>
+  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 3.1</div>
   <div id="modeBadge"></div>
   <div class="recent" id="recent" hidden>
     <h3>최근에 연 파일</h3>
@@ -239,6 +239,9 @@
 
     <h4>이 파일의 판서 날짜</h4>
     <div class="datelist" id="dateList"><span style="color:var(--text-dim);font-size:14px">아직 없습니다</span></div>
+
+    <h4>브라우저 밖에 저장 (권장)</h4>
+    <div id="dirBox"></div>
 
     <h4>백업</h4>
     <p>브라우저 사용 기록을 지우면 판서도 함께 사라집니다. 학기 중 한 번씩 백업 파일을 받아 두세요.</p>
@@ -861,6 +864,68 @@ const MODE_TEXT={
 };
 
 /* ══════════════════════════════════════════════════════════
+   1-b. 브라우저 밖 저장 — 폴더에 자동 백업
+   ────────────────────────────────────────────────────────
+   크롬이 "사이트 데이터"를 지워도 폴더에 남은 파일은 그대로입니다.
+   ══════════════════════════════════════════════════════════ */
+const DIR_KEY='__backupDir';
+const Backup={
+  handle:null, ok:false, timer:null, at:0,
+  supported(){return typeof window.showDirectoryPicker==='function'},
+  async load(){
+    const rec=await Store.getFile(DIR_KEY);
+    if(!rec||!rec.handle)return;
+    this.handle=rec.handle;
+    try{ this.ok=(await this.handle.queryPermission({mode:'readwrite'}))==='granted' }catch(e){ this.ok=false }
+  },
+  async connect(){
+    if(!this.supported()){toast('이 기기에서는 폴더 저장을 지원하지 않습니다');return false}
+    try{
+      const h=await window.showDirectoryPicker({mode:'readwrite'});
+      if(await h.requestPermission({mode:'readwrite'})!=='granted')return false;
+      this.handle=h;this.ok=true;
+      await Store.putFile({id:DIR_KEY,name:h.name,opened:Date.now(),handle:h});
+      await this.write(true);
+      toast(`"${h.name}" 폴더에 자동 백업을 시작합니다`);
+      return true;
+    }catch(e){return false}
+  },
+  async reauth(){
+    if(!this.handle)return false;
+    try{ this.ok=(await this.handle.requestPermission({mode:'readwrite'}))==='granted' }catch(e){ this.ok=false }
+    if(this.ok)await this.write(true);
+    return this.ok;
+  },
+  async disconnect(){
+    this.handle=null;this.ok=false;
+    await Store.delFile(DIR_KEY);
+  },
+  schedule(){
+    if(!this.ok)return;
+    clearTimeout(this.timer);
+    this.timer=setTimeout(()=>this.write(),8000);   /* 필기가 멈추면 8초 뒤 폴더에 기록 */
+  },
+  async write(force){
+    if(!this.ok||!this.handle)return;
+    if(!force&&Date.now()-this.at<5000)return;
+    try{
+      const notes=(await Store.allNotes()).filter(x=>x&&x.strokes&&x.strokes.length)
+        .map(({key,file,date,page,strokes})=>({key,file,date,page,strokes}));
+      const files=(await Store.allFiles()).filter(x=>x&&!String(x.id).startsWith('__'))
+        .map(({id,name})=>({id,name}));
+      const body=JSON.stringify({app:'panseo-note',v:1,at:new Date().toISOString(),files,notes});
+      for(const nm of ['판서노트_백업.json', S.fileName?`${S.fileName.replace(/\.pdf$/i,'')}_${S.date}.json`:null]){
+        if(!nm)continue;
+        const fh=await this.handle.getFileHandle(nm,{create:true});
+        const w=await fh.createWritable();
+        await w.write(body);await w.close();
+      }
+      this.at=Date.now();
+    }catch(e){ this.ok=false }
+  }
+};
+
+/* ══════════════════════════════════════════════════════════
    2. 상태
    ══════════════════════════════════════════════════════════ */
 const S={
@@ -1224,7 +1289,7 @@ async function saveNow(){
   if(S.strokes.length)await Store.putNote({key,file:S.fileId,date:S.date,page:S.page,strokes:S.strokes,at:Date.now()});
   else await Store.delNote(key);
   if(S.strokes.length)S.pageHas.add(S.page);else S.pageHas.delete(S.page);
-  buildRail();markSaved();
+  buildRail();markSaved();Backup.schedule();
 }
 async function refreshMarks(){
   S.pageHas=new Set();
@@ -1232,7 +1297,7 @@ async function refreshMarks(){
     if(n&&n.file===S.fileId&&n.date===S.date&&n.strokes&&n.strokes.length)S.pageHas.add(n.page);
   });
 }
-window.addEventListener('beforeunload',()=>{if(S.strokes.length)saveNow()});
+window.addEventListener('beforeunload',()=>{if(S.strokes.length){saveNow();Backup.write(true)}});
 
 /* ══════════════════════════════════════════════════════════
    5. 화면 구성
@@ -1296,6 +1361,7 @@ function goFull(){
 $('btnClose').onclick=async()=>{
   if(!confirm('판서노트를 닫을까요?\n필기는 이미 저장되어 있습니다.'))return;
   await saveNow();
+  await Backup.write(true);
   window.close();
   setTimeout(()=>toast('창 오른쪽 위 ✕ 로 닫아 주세요'),500);
 };
@@ -1363,7 +1429,7 @@ $('dateInput').onchange=async e=>{
 };
 
 async function renderRecent(){
-  const files=(await Store.allFiles())
+  const files=(await Store.allFiles()).filter(x=>x&&!String(x.id).startsWith('__'))
       .sort((a,b)=>(b.pin?1:0)-(a.pin?1:0)||b.opened-a.opened).slice(0,8);
   const box=$('recent'),list=$('recentList');
   if(!files.length){box.hidden=true;return}
@@ -1490,7 +1556,7 @@ $('btnPdf').onclick=async()=>{
       const r=Math.min(pw/cv.width,ph/cv.height),w=cv.width*r,h=cv.height*r;
       doc.addImage(img,'JPEG',(pw-w)/2,(ph-h)/2,w,h);
     }
-    doc.save(`${baseName()}_${S.date}_판서.pdf`);
+    doc.save(`${baseName()}_${S.date}.pdf`);
     toast(`${pages.length}쪽을 PDF로 저장했습니다`);
   }catch(e){toast('PDF를 만들지 못했습니다: '+e.message)}
   S.page=keep;await renderPage();
@@ -1505,7 +1571,7 @@ function modeBadge(){
   return `<span class="badge ${m.lamp}"><span class="lamp"></span>${m.t}</span>`;
 }
 $('btnMore').onclick=async()=>{
-  renderInstallBox();
+  renderInstallBox();renderDirBox();
   $('modeInfo').innerHTML=modeBadge()+`<p style="margin-top:10px">${MODE_TEXT[Store.mode].d}</p>`;
   const dates=[...new Set((await Store.allNotes())
       .filter(n=>n&&n.file===S.fileId&&n.strokes&&n.strokes.length).map(n=>n.date))].sort().reverse();
@@ -1536,11 +1602,40 @@ try{setBarPos(localStorage.getItem('pn.barTop')==='1')}catch(e){setBarPos(false)
 $('btnCloseModal').onclick=()=>$('modal').classList.remove('open');
 $('modal').onclick=e=>{if(e.target.id==='modal')$('modal').classList.remove('open')};
 
+function renderDirBox(){
+  const box=$('dirBox');
+  if(!Backup.supported()){
+    box.innerHTML='<p>이 기기(안드로이드 등)에서는 폴더 저장을 지원하지 않습니다. '+
+      '아래 <b>판서 전체 백업 받기</b>로 가끔 파일을 받아 두세요.</p>';
+    return;
+  }
+  if(Backup.ok){
+    box.innerHTML='<span class="badge"><span class="lamp"></span>'+
+      `"${Backup.handle.name}" 폴더에 자동 저장 중</span>`+
+      '<p style="margin-top:10px">필기가 멈추면 몇 초 뒤 그 폴더의 <b>판서노트_백업.json</b> 에 기록됩니다. '+
+      '크롬 사용 기록을 지워도 이 파일은 남습니다.</p>'+
+      '<div class="row" style="margin-top:10px"><button id="btnDirOff" class="ghost">폴더 연결 끊기</button></div>';
+    $('btnDirOff').onclick=async()=>{await Backup.disconnect();renderDirBox();toast('폴더 연결을 끊었습니다')};
+    return;
+  }
+  const again=!!Backup.handle;
+  box.innerHTML='<span class="badge warn"><span class="lamp"></span>아직 브라우저 안에만 저장됩니다</span>'+
+    '<p style="margin-top:10px">크롬에서 <b>인터넷 사용 기록 삭제 → 쿠키 및 기타 사이트 데이터</b>를 지우면 필기도 사라집니다. '+
+    '폴더를 하나 연결해 두면 그 폴더에도 자동으로 저장되어 안전합니다.</p>'+
+    `<div class="row" style="margin-top:10px"><button id="btnDirOn" class="primary">📁 ${again?'폴더 다시 연결하기':'저장 폴더 연결하기'}</button></div>`;
+  $('btnDirOn').onclick=async()=>{
+    const ok=again?await Backup.reauth():await Backup.connect();
+    renderDirBox();
+    if(!ok&&!again)toast('폴더를 고르지 않았습니다');
+  };
+}
+
 $('btnBackup').onclick=async()=>{
   await saveNow();
   const notes=(await Store.allNotes()).filter(n=>n&&n.strokes&&n.strokes.length)
       .map(({key,file,date,page,strokes})=>({key,file,date,page,strokes}));
-  const files=(await Store.allFiles()).map(({id,name})=>({id,name}));
+  const files=(await Store.allFiles()).filter(x=>x&&!String(x.id).startsWith('__'))
+      .map(({id,name})=>({id,name}));
   if(!notes.length){toast('백업할 판서가 없습니다');return}
   const blob=new Blob([JSON.stringify({app:'panseo-note',v:1,at:new Date().toISOString(),files,notes})],{type:'application/json'});
   const url=URL.createObjectURL(blob);
@@ -1584,6 +1679,8 @@ $('btnWipeDate').onclick=async()=>{
    ══════════════════════════════════════════════════════════ */
 (async()=>{
   await Store.init();
+  try{ if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist() }catch(e){}
+  try{ await Backup.load() }catch(e){}
   $('modeBadge').innerHTML=Store.mode==='idb'?'':modeBadge();
   await renderRecent();
   setTool('pen',document.querySelector('.pen'));
