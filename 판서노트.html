@@ -153,6 +153,8 @@
     justify-content:center;border-width:2px}
   #pop button i{width:24px;height:24px;border-radius:50%;display:block}
   #pop button.on{border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.3)}
+  #ghost{position:fixed;z-index:70;display:none;pointer-events:none;
+    filter:drop-shadow(0 3px 6px rgba(0,0,0,.45))}
   #pop.wide{flex-direction:column;gap:8px}
   #pop.wide button{width:auto;height:auto;min-height:50px;border-radius:10px;padding:0 18px;
     justify-content:flex-start;font-size:15px;border-width:1px}
@@ -1442,6 +1444,7 @@ inkCv.addEventListener('contextmenu',e=>e.preventDefault());
 inkCv.addEventListener('pointerdown',e=>{
   if(!S.doc)return;
   e.preventDefault();
+  ghostShow(e);
   if(e.pointerType==='pen'&&!S.penSeen){          /* 펜을 처음 본 순간 자동 전환 */
     S.penSeen=true;S.fingerDraws=false;updateTouchBtn();
     toast('펜을 인식했습니다 — 손가락은 화면 이동으로 씁니다');
@@ -1458,6 +1461,7 @@ inkCv.addEventListener('pointerdown',e=>{
   if(canDraw(e.pointerType))startStroke(e);else startPan(e);
 });
 inkCv.addEventListener('pointermove',e=>{
+  ghostMove(e);
   const p=ptrs.get(e.pointerId);if(!p)return;
   p.x=e.clientX;p.y=e.clientY;
   if(S.pinch)return movePinch();
@@ -1477,6 +1481,7 @@ function doubleTapZoom(e){
   return false;
 }
 function release(e){
+  ghostHide();
   if(!ptrs.has(e.pointerId))return;
   ptrs.delete(e.pointerId);
   if(S.pinch){if(ptrs.size<2)endPinch();return}
@@ -1592,6 +1597,7 @@ async function bdSave(){
 }
 bdCv.addEventListener('pointerdown',e=>{
   if(S.tool==='hand'||S.tool==='laser')return;
+  ghostShow(e);
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
   const r=bdCv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
   BD.drawing=true;BD.last=[x,y];
@@ -1601,6 +1607,7 @@ bdCv.addEventListener('pointerdown',e=>{
   bdRedraw();
 });
 bdCv.addEventListener('pointermove',e=>{
+  ghostMove(e);
   if(!BD.drawing)return;
   const r=bdCv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
   if(Math.hypot(x-BD.last[0],y-BD.last[1])<1.4)return;
@@ -1610,6 +1617,7 @@ bdCv.addEventListener('pointermove',e=>{
   BD.cur.pts.push([x/BD.w,y/BD.h]);bdRedraw();
 });
 function bdEnd(){
+  ghostHide();
   if(!BD.drawing)return;
   BD.drawing=false;
   if(BD.cur){BD.strokes.push(BD.cur);BD.cur=null;bdRedraw()}
@@ -1687,6 +1695,82 @@ async function goto(p){
 }
 
 /* ══════════════════════════════════════════════════════════
+   5-b. 도구 모양 커서 — 고른 도구가 손끝에 따라옵니다
+   ══════════════════════════════════════════════════════════ */
+const CUR_ART={
+  pen:   {body:`<g transform="translate(3.6 21.6) rotate(-45)">
+    <path d="M0 0 L2.6 -2.6 L2.6 2.6 Z" fill="COL"/>
+    <rect x="2.4" y="-2.6" width="3.2" height="5.2" fill="#5d6b7a"/>
+    <rect x="5.4" y="-2.9" width="12.4" height="5.8" rx="1.4" fill="COL"/>
+    <rect x="15.4" y="-2.9" width="2.6" height="5.8" rx="1.3" fill="#8b97a5"/>
+  </g>`, hx:2, hy:30, col:()=>S.colors.pen},
+  hl:    {body:`<g transform="translate(3.2 21.8) rotate(-45)">
+    <rect x="0" y="-3.4" width="4.6" height="6.8" rx="1" fill="COL"/>
+    <rect x="4.4" y="-2.6" width="2.4" height="5.2" fill="#6f7d8c"/>
+    <rect x="6.6" y="-3.6" width="10.4" height="7.2" rx="2" fill="#b7c2ce"/>
+    <rect x="6.6" y="-3.6" width="10.4" height="2.4" rx="1.2" fill="#d7dee6"/>
+  </g>`,  hx:2, hy:30, col:()=>S.colors.hl},
+  eraser:{body:`<!-- 나무 손잡이 -->
+  <rect x="2.6" y="5.6" width="20.8" height="7.4" rx="1.6" fill="#c9a06a"/>
+  <rect x="2.6" y="5.6" width="20.8" height="2.4" rx="1.2" fill="#dcb681"/>
+  <rect x="8.6" y="4.2" width="8.8" height="2.6" rx="1.3" fill="#a87f4d"/>
+  <!-- 펠트 -->
+  <rect x="2" y="12.6" width="22" height="7.8" rx="1.4" fill="#4a5a6b"/>
+  <rect x="2" y="12.6" width="22" height="2.2" fill="#5f7183"/>
+  <rect x="2" y="18.4" width="22" height="2" rx="1" fill="#3a4753"/>
+  <!-- 분필가루 -->
+  <g fill="#ffffff" opacity=".6">
+    <circle cx="5.2" cy="22.6" r="1"/><circle cx="9.4" cy="23.4" r=".8"/>
+    <circle cx="14" cy="22.4" r=".7"/><circle cx="18.6" cy="23.2" r=".9"/>
+  </g>`,  hx:16,hy:20, col:()=>null},
+  laser: {body:`<g transform="translate(3.4 21.4) rotate(-42)">
+    <rect x="0" y="-2.4" width="10.6" height="4.8" rx="2.4" fill="#9aa6b4"/>
+    <circle cx="3.2" cy="0" r="1.25" fill="#ff5b52"/>
+    <path d="M10.6 -1.9 L13.8 0 L10.6 1.9 Z" fill="#6f7d8c"/>
+  </g>
+  <g stroke="COL" stroke-linecap="round" fill="none">
+    <line x1="13.9" y1="11.6" x2="15.9" y2="9.6" stroke-width="1.7" opacity=".55"/>
+    <line x1="16.8" y1="8.7" x2="18.4" y2="7.1" stroke-width="1.7" opacity=".8"/>
+  </g>
+  <circle cx="20.4" cy="5.2" r="5" fill="COL" opacity=".18"/>
+  <circle cx="20.4" cy="5.2" r="2.7" fill="COL"/>`,hx:26,hy:6, col:()=>S.colors.laser}
+};
+function toolSVG(tool,size){
+  const a=CUR_ART[tool];if(!a)return null;
+  const col=a.col()||'#9aa6b4';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 26" width="${size}" height="${size}">`+
+         a.body.replace(/currentColor/g,col)+'</svg>';
+}
+function applyCursor(){
+  const a=CUR_ART[S.tool];
+  const targets=[inkCv,bdCv].filter(Boolean);
+  if(!a){
+    const c=S.tool==='hand'?'grab':'crosshair';
+    targets.forEach(el=>el.style.cursor=c);return;
+  }
+  const svg=toolSVG(S.tool,32);
+  const url=`url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${a.hx} ${a.hy}, crosshair`;
+  targets.forEach(el=>el.style.cursor=url);
+}
+/* 손·펜으로 쓸 때는 접촉점에 도구 그림을 띄웁니다 */
+const ghost=document.createElement('div');
+ghost.id='ghost';document.body.appendChild(ghost);
+function ghostShow(e){
+  if(e.pointerType==='mouse')return;
+  const a=CUR_ART[S.tool];if(!a){ghost.style.display='none';return}
+  ghost.innerHTML=toolSVG(S.tool,44);
+  ghost.style.display='block';
+  ghostMove(e);
+}
+function ghostMove(e){
+  if(ghost.style.display!=='block')return;
+  const a=CUR_ART[S.tool];if(!a)return;
+  ghost.style.left=(e.clientX-a.hx*44/32)+'px';
+  ghost.style.top=(e.clientY-a.hy*44/32)+'px';
+}
+function ghostHide(){ghost.style.display='none'}
+
+/* ══════════════════════════════════════════════════════════
    6. 도구
    ══════════════════════════════════════════════════════════ */
 const TOOL_NAME={pen:'펜',hl:'형광펜',eraser:'지우개',hand:'이동',laser:'레이저'};
@@ -1699,7 +1783,7 @@ function setTool(t,btn){
   if(t==='hand'){const pp=$('pop');if(pp)pp.classList.remove('open')}
   document.querySelectorAll('#tools button').forEach(b=>b.classList.remove('on'));
   if(btn)btn.classList.add('on');
-  inkCv.style.cursor=t==='hand'?'grab':t==='eraser'?'cell':'crosshair';
+  applyCursor();
   const el=$('toolNow');if(el)el.textContent=TOOL_NAME[t]||'펜';
   showSize();
   showColor();
@@ -1712,6 +1796,7 @@ function showColor(){
     const b=$(id),sv=b&&b.querySelector('svg');
     if(sv)sv.style.color=b.classList.contains('on')?'#1a1a12':S.colors[key];
   }
+  applyCursor();
 }
 $('btnPen').onclick=e=>{setTool('pen',e.currentTarget);openPop(e.currentTarget,'pen')};
 /* 색 고르는 작은 창 — 형광펜·레이저 버튼을 누르면 바로 뜹니다 */
@@ -2317,7 +2402,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='7.7';
+const APP_VER='7.8';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
