@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>판서노트 — 전자칠판용 PDF 필기 (오프라인판)</title>
+<title>판서노트 — 전자칠판용 PDF 필기</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#141d26">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="판서노트">
 <style>
   :root{
     --ink:#141d26;--ink-2:#1e2b38;--ink-3:#2b3b4c;--slate:#33475b;
@@ -11,7 +17,7 @@
     --radius:10px;--bar:76px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{height:100%;margin:0;overflow:hidden}
+  html,body{height:100%;margin:0;overflow:hidden;touch-action:none;overscroll-behavior:none}
   body{background:var(--ink);color:var(--text);
     font-family:'Pretendard Variable',Pretendard,-apple-system,'Malgun Gothic','맑은 고딕',sans-serif;
     font-size:15px;display:flex;flex-direction:column;user-select:none}
@@ -69,8 +75,9 @@
   #dock{position:fixed;right:18px;bottom:18px;z-index:15;
     background:rgba(30,43,56,.96);border:1px solid var(--line);border-radius:14px;
     padding:6px;display:flex;align-items:center;gap:5px;box-shadow:0 8px 26px rgba(0,0,0,.45)}
-  #dock button{min-height:46px}
-  #dock button.icon{width:46px;font-size:18px}
+  #dock button{min-height:52px}
+  #dock button.icon{width:52px;font-size:20px}
+  #dock #btnZoomIn,#dock #btnZoomOut{background:var(--slate);font-size:24px;font-weight:700}
   #dock .mono{min-width:66px;text-align:center;font-size:14px;color:var(--text-dim)}
   #dock .sep{width:1px;height:28px;background:var(--line);margin:0 4px}
   #sheet{position:relative;box-shadow:0 10px 34px rgba(0,0,0,.45);background:#fff;flex:0 0 auto;will-change:transform}
@@ -194,7 +201,8 @@
   <p>필기는 <b>날짜별로 자동 저장</b>됩니다. 내일 같은 파일을 열면 오늘 판서는 그대로 보관되고 빈 화면에서 시작합니다.<br>
      펜으로 쓰고, ✋ 이동을 누르면 끌어서 화면을 옮깁니다. 두 손가락으로도 됩니다.<br>인터넷 연결 없이 동작하며, 파일은 이 컴퓨터 밖으로 나가지 않습니다.</p>
   <button class="primary big" id="btnOpen2">📂 PDF 열기</button>
-  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 1.9</div>
+  <button id="btnInstall" hidden>⬇ 바탕화면에 설치하기</button>
+  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 2.3</div>
   <div id="modeBadge"></div>
   <div class="recent" id="recent" hidden>
     <h3>최근에 연 파일</h3>
@@ -206,6 +214,10 @@
   <div class="sheet">
     <h2>저장 상태와 백업</h2>
     <p>필기는 이 컴퓨터의 브라우저 안에만 저장됩니다. 서버로 보내지 않습니다.</p>
+
+    <h4>전체화면</h4>
+    <p>오른쪽 아래 ⛶ 버튼으로 켜면, 다음에 열 때도 자동으로 전체화면이 됩니다.
+       주소창까지 완전히 없애려면 크롬 우측 상단 ⋮ → 캐스트·저장 및 공유 → 페이지를 앱으로 설치를 쓰세요.</p>
 
     <h4>현재 저장 방식</h4>
     <div id="modeInfo"></div>
@@ -721,6 +733,17 @@ class InlineFontReader{
 }
 const PDF_OPTS={CMapReaderFactory:InlineCMapReader,StandardFontDataFactory:InlineFontReader,cMapPacked:true};
 
+/* 두 손가락 스와이프로 뒤로가기·확대 같은 브라우저 기본 동작이 끼어들지 않게 막습니다.
+   전자칠판 자체 프로그램이 OS 단계에서 가로채는 경우는 그쪽 설정에서 꺼야 합니다. */
+['gesturestart','gesturechange','gestureend'].forEach(g=>
+  document.addEventListener(g,e=>e.preventDefault(),{passive:false}));
+document.addEventListener('touchstart',e=>{
+  if(e.touches.length>1&&e.target.closest('#stage'))e.preventDefault();
+},{passive:false});
+document.addEventListener('touchmove',e=>{
+  if(e.target.closest('#stage'))e.preventDefault();
+},{passive:false});
+
 /* ══════════════════════════════════════════════════════════
    1. 저장소 — IndexedDB → localStorage → 메모리 순으로 시도
    ══════════════════════════════════════════════════════════ */
@@ -831,7 +854,7 @@ const S={
   strokes:[],pageHas:new Set(),
   tool:'pen',color:'#111111',size:4,
   drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false,
-  fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,pinch:null,tx:0,ty:0
+  fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,pinch:null,tx:0,ty:0,tap:null
 };
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 const noteKey=(f,d,p)=>`${f}|${d}|${p}`;
@@ -949,9 +972,9 @@ function laserPoint(x,y,start){
 function laserTick(){
   const now=performance.now();
   fctx.clearRect(0,0,S.rendered.w,S.rendered.h);
-  laser.list=laser.list.filter(s=>now-s.t<2600);
+  laser.list=laser.list.filter(s=>now-s.t<1500);
   for(const s of laser.list){
-    const age=now-s.t,a=age<1500?1:Math.max(0,1-(age-1500)/1100);
+    const age=now-s.t,a=age<700?1:Math.max(0,1-(age-700)/800);
     fctx.save();
     fctx.globalAlpha=a;fctx.strokeStyle='#ff3b30';fctx.lineWidth=7;
     fctx.lineCap='round';fctx.lineJoin='round';
@@ -1084,11 +1107,30 @@ inkCv.addEventListener('pointermove',e=>{
   if(S.pan)return movePan(e);
   if(S.drawing)moveStroke(e);
 });
+/* 두 번 톡톡 치면 확대 — 두 손가락이 안 되는 칠판을 위한 대안입니다 */
+function doubleTapZoom(e){
+  const now=performance.now(),d=S.tap;
+  if(d&&now-d.t<400&&Math.hypot(e.clientX-d.x,e.clientY-d.y)<40){
+    S.tap=null;
+    if(S.scale/S.fitScale>1.6){S.fitting=true;S.tx=0;S.ty=0;renderPage()}
+    else zoom(2);
+    return true;
+  }
+  S.tap={t:now,x:e.clientX,y:e.clientY};
+  return false;
+}
 function release(e){
   if(!ptrs.has(e.pointerId))return;
   ptrs.delete(e.pointerId);
   if(S.pinch){if(ptrs.size<2)endPinch();return}
-  if(S.pan){if(!ptrs.size)S.pan=null;return}
+  if(S.pan){
+    if(!ptrs.size){
+      const moved=Math.hypot(e.clientX-S.pan.x,e.clientY-S.pan.y);
+      S.pan=null;
+      if(moved<12)doubleTapZoom(e);        /* 이동 도구에서 두 번 톡톡 = 확대 */
+    }
+    return;
+  }
   endStroke();
 }
 inkCv.addEventListener('pointerup',release);
@@ -1176,15 +1218,29 @@ $('btnHl').onclick=e=>setTool('hl',e.currentTarget);
 $('btnEraser').onclick=e=>setTool('eraser',e.currentTarget);
 $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
 $('btnLaser').onclick=e=>setTool('laser',e.currentTarget);
+/* 전체화면 유지 — 한 번 켜 두면 다음에 열 때도, 중간에 풀려도 다시 들어갑니다.
+   브라우저 규칙상 화면을 한 번 눌러야(사용자 동작) 다시 전체화면이 됩니다. */
+const FULL_KEY='pn.keepFull';
+function wantFull(){try{return localStorage.getItem(FULL_KEY)==='1'}catch(e){return false}}
+function setWantFull(v){try{localStorage.setItem(FULL_KEY,v?'1':'0')}catch(e){}}
+function goFull(){
+  return document.documentElement.requestFullscreen()
+    .catch(()=>toast('F11 키를 눌러 전체화면으로 바꿔 주세요'));
+}
 $('btnFull').onclick=()=>{
-  if(document.fullscreenElement)document.exitFullscreen();
-  else document.documentElement.requestFullscreen().catch(()=>toast('F11 키를 눌러 전체화면으로 바꿔 주세요'));
+  if(document.fullscreenElement){setWantFull(false);document.exitFullscreen()}
+  else{setWantFull(true);goFull()}
 };
 document.addEventListener('fullscreenchange',()=>{
-  $('btnFull').textContent=document.fullscreenElement?'⛶':'⛶';
-  $('btnFull').classList.toggle('on',!!document.fullscreenElement);
+  const on=!!document.fullscreenElement;
+  $('btnFull').classList.toggle('on',on);
+  if(!on&&wantFull())toast('전체화면이 풀렸습니다 — 화면을 한 번 누르면 다시 들어갑니다');
   if(S.doc)setTimeout(()=>{if(S.fitting)renderPage()},250);
 });
+/* 전체화면을 켜 둔 상태라면 아무 곳이나 누를 때 복귀 */
+document.addEventListener('pointerdown',()=>{
+  if(wantFull()&&!document.fullscreenElement)goFull();
+},true);
 $('size').oninput=e=>S.size=+e.target.value;
 $('btnUndo').onclick=()=>{S.strokes.pop();redraw();scheduleSave()};
 $('btnClear').onclick=()=>{
@@ -1253,6 +1309,22 @@ async function renderRecent(){
     row.append(open,pin,del);list.appendChild(row);
   });
 }
+
+/* 바탕화면 설치 — 크롬이 설치 가능하다고 알려줄 때만 버튼이 보입니다 */
+let installPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();installPrompt=e;$('btnInstall').hidden=false;
+});
+$('btnInstall').onclick=async()=>{
+  if(!installPrompt){toast('크롬 ⋮ → 캐스트·저장 및 공유 → 페이지를 앱으로 설치 를 이용하세요');return}
+  installPrompt.prompt();await installPrompt.userChoice;
+  installPrompt=null;$('btnInstall').hidden=true;
+};
+window.addEventListener('appinstalled',()=>{
+  $('btnInstall').hidden=true;toast('바탕화면에 설치했습니다 — 이제 아이콘으로 열 수 있습니다');
+});
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 $('btnOpen').onclick=$('btnOpen2').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=async e=>{
