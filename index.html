@@ -64,8 +64,8 @@
   aside .p .mark{width:7px;height:7px;border-radius:50%;background:transparent}
   aside .p.has .mark{background:var(--chalk)}
 
-  #stage{flex:1;overflow:auto;background:#26333f;padding:24px;display:flex;justify-content:center;align-items:flex-start}
-  #sheet{position:relative;box-shadow:0 10px 34px rgba(0,0,0,.45);background:#fff;flex:0 0 auto}
+  #stage{flex:1;overflow:auto;background:#26333f;padding:24px}
+  #sheet{position:relative;box-shadow:0 10px 34px rgba(0,0,0,.45);background:#fff;margin:0 auto}
   #pdfCv,#inkCv{display:block;position:relative}
   #inkCv{position:absolute;inset:0;touch-action:none;cursor:crosshair}
 
@@ -122,7 +122,7 @@
     <button class="pen" data-color="#12a150" title="초록"><i style="background:#12a150"></i></button>
     <button class="icon" id="btnHl" title="형광펜">🖍️</button>
     <button class="icon" id="btnEraser" title="지우개">🧽</button>
-    <button id="btnTouch" title="손가락을 필기/이동으로 바꿉니다">✋ 손: 필기</button>
+    <button id="btnHand" title="끌어서 화면 옮기기">✋ 이동</button>
   </div>
 
   <div class="grp size-wrap">
@@ -151,6 +151,7 @@
   </div>
 
   <div class="status">
+    <span class="saved">도구 <b id="toolNow">펜</b></span>
     <span class="saved" id="saved">—</span>
     <div class="datechip">
       <label>수업 날짜</label>
@@ -172,9 +173,9 @@
 <div id="welcome">
   <h1>수업할 PDF를 열어 주세요</h1>
   <p>필기는 <b>날짜별로 자동 저장</b>됩니다. 내일 같은 파일을 열면 오늘 판서는 그대로 보관되고 빈 화면에서 시작합니다.<br>
-     펜으로 쓰고, 손가락으로 밀어서 이동하고, 두 손가락으로 확대합니다.<br>인터넷 연결 없이 동작하며, 파일은 이 컴퓨터 밖으로 나가지 않습니다.</p>
+     펜으로 쓰고, ✋ 이동을 누르면 끌어서 화면을 옮깁니다. 두 손가락으로도 됩니다.<br>인터넷 연결 없이 동작하며, 파일은 이 컴퓨터 밖으로 나가지 않습니다.</p>
   <button class="primary big" id="btnOpen2">📂 PDF 열기</button>
-  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 1.2</div>
+  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 1.5</div>
   <div id="modeBadge"></div>
   <div class="recent" id="recent" hidden>
     <h3>최근에 연 파일</h3>
@@ -910,16 +911,12 @@ const ptrs=new Map();
 function pos(e){const r=inkCv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top]}
 function penDown(){for(const p of ptrs.values())if(p.type==='pen')return true;return false}
 function canDraw(type){
-  if(S.tool==='hand')return false;
-  if(type==='pen'||type==='mouse')return true;
-  return S.fingerDraws;                 /* 손가락: 필기 / 이동 */
+  if(S.tool==='hand')return false;      /* ✋ 이동 도구: 무엇으로 끌든 화면이 움직임 */
+  if(type==='pen')return true;          /* 펜은 언제나 필기 */
+  return S.fingerDraws;                 /* 펜이 인식되면 손가락은 자동으로 이동 */
 }
-function updateTouchBtn(){
-  const b=$('btnTouch');
-  b.textContent=S.fingerDraws?'✋ 손: 필기':'✋ 손: 이동';
-  b.classList.toggle('on',!S.fingerDraws);
-}
-function cancelStroke(){if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=null}
+function updateTouchBtn(){}
+function cancelStroke(){if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=null;S.penErase=false}
 
 /* 펜 ─ 획 그리기 */
 function startStroke(e){
@@ -933,12 +930,14 @@ function startStroke(e){
   paintStroke(S.cur);
 }
 function moveStroke(e){
+  if(!S.cur&&!(S.penErase||S.tool==='eraser')){S.drawing=false;return}
   const [x,y]=pos(e);
   if(Math.hypot(x-S.last[0],y-S.last[1])<1.4)return;    /* 점 솎아내기 */
   S.last=[x,y];
   if(S.penErase||S.tool==='eraser'){erase(x,y);return}
   const pr=(e.pointerType==='pen'&&e.pressure>0&&e.pressure<1)?Math.round(e.pressure*100)/100:null;
   const p=toN(x,y);if(pr!=null)p.push(pr);
+  if(!S.cur)return;
   S.cur.pts.push(p);drawLast();
 }
 function endStroke(){
@@ -949,7 +948,12 @@ function endStroke(){
 }
 
 /* 손가락 하나 ─ 화면 밀기 */
-function startPan(e){const st=$('stage');S.pan={x:e.clientX,y:e.clientY,l:st.scrollLeft,t:st.scrollTop}}
+function startPan(e){
+  const st=$('stage');
+  S.pan={x:e.clientX,y:e.clientY,l:st.scrollLeft,t:st.scrollTop};
+  if(st.scrollHeight<=st.clientHeight+2&&st.scrollWidth<=st.clientWidth+2)
+    toast('지금 배율에서는 화면이 다 보여서 움직일 여백이 없습니다 — ＋로 확대해 보세요');
+}
 function movePan(e){
   const st=$('stage'),p=S.pan;
   st.scrollLeft=p.l-(e.clientX-p.x);
@@ -961,13 +965,17 @@ function two(){const a=[...ptrs.values()];return [a[0],a[1]]}
 function startPinch(){
   const [a,b]=two();if(!a||!b)return;
   const r=$('sheet').getBoundingClientRect();
-  S.pinch={d:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),ox:(a.x+b.x)/2-r.left,oy:(a.y+b.y)/2-r.top,k:1};
+  S.pinch={d:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),ox:(a.x+b.x)/2-r.left,oy:(a.y+b.y)/2-r.top,k:1,
+           mx:(a.x+b.x)/2,my:(a.y+b.y)/2};
   $('sheet').style.transformOrigin=`${S.pinch.ox}px ${S.pinch.oy}px`;
 }
 function movePinch(){
   const [a,b]=two();if(!a||!b||!S.pinch)return;
   S.pinch.k=Math.max(.3,Math.min(4,Math.hypot(a.x-b.x,a.y-b.y)/S.pinch.d));
   $('sheet').style.transform=`scale(${S.pinch.k})`;
+  const mx=(a.x+b.x)/2,my=(a.y+b.y)/2,st=$('stage');   /* 두 손가락으로 밀기 */
+  st.scrollLeft-=mx-S.pinch.mx;st.scrollTop-=my-S.pinch.my;
+  S.pinch.mx=mx;S.pinch.my=my;
 }
 async function endPinch(){
   if(!S.pinch)return;
@@ -991,6 +999,7 @@ inkCv.addEventListener('pointerdown',e=>{
   try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
   if(ptrs.size===2){cancelStroke();startPinch();return}
   if(ptrs.size>2)return;
+  if(e.button===1){startPan(e);return}          /* 마우스 가운데 버튼: 항상 이동 */
   if(canDraw(e.pointerType))startStroke(e);else startPan(e);
 });
 inkCv.addEventListener('pointermove',e=>{
@@ -1074,16 +1083,23 @@ async function goto(p){
 /* ══════════════════════════════════════════════════════════
    6. 도구
    ══════════════════════════════════════════════════════════ */
+const TOOL_NAME={pen:'펜',hl:'형광펜',eraser:'지우개',hand:'이동'};
 function setTool(t,btn){
+  /* 이전 도구로 그리던 상태·터치 정보를 전부 정리 — 안 하면 도구가 바뀌지 않는 것처럼 보입니다 */
+  S.drawing=false;S.cur=null;S.penErase=false;S.pan=null;S.pinch=null;
+  if(typeof ptrs!=='undefined')ptrs.clear();
+  const sh=$('sheet');if(sh){sh.style.transform='';sh.style.transformOrigin=''}
   S.tool=t;
   document.querySelectorAll('#tools button').forEach(b=>b.classList.remove('on'));
   if(btn)btn.classList.add('on');
-  inkCv.style.cursor=t==='eraser'?'cell':'crosshair';
+  inkCv.style.cursor=t==='hand'?'grab':t==='eraser'?'cell':'crosshair';
+  const el=$('toolNow');if(el)el.textContent=TOOL_NAME[t]||'펜';
+  if(S.doc)redraw();
 }
 document.querySelectorAll('.pen').forEach(b=>b.onclick=()=>{S.color=b.dataset.color;setTool('pen',b)});
 $('btnHl').onclick=e=>setTool('hl',e.currentTarget);
 $('btnEraser').onclick=e=>setTool('eraser',e.currentTarget);
-$('btnTouch').onclick=()=>{S.fingerDraws=!S.fingerDraws;updateTouchBtn();toast(S.fingerDraws?'손가락으로 필기합니다':'손가락은 화면 이동으로 씁니다')};
+$('btnHand').onclick=e=>setTool('hand',e.currentTarget);
 $('size').oninput=e=>S.size=+e.target.value;
 $('btnUndo').onclick=()=>{S.strokes.pop();redraw();scheduleSave()};
 $('btnClear').onclick=()=>{
