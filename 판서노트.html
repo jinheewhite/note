@@ -198,7 +198,7 @@
 
 <div id="dock">
   <button id="btnFull" title="전체화면 (F11)">⛶ 전체화면</button>
-  <button id="btnClose" title="앱 닫기">✕ 닫기</button>
+  <button id="btnClose" title="이 자료를 닫고 서재로 돌아갑니다">✕ 자료 닫기</button>
 </div>
 
 <main>
@@ -217,7 +217,7 @@
   <p>필기는 <b>날짜별로 자동 저장</b>됩니다. 내일 같은 파일을 열면 오늘 판서는 그대로 보관되고 빈 화면에서 시작합니다.<br>
      펜으로 쓰고, 손바닥으로 밀어 화면을 옮깁니다. 끝까지 밀면 다음 쪽으로 넘어갑니다.<br>인터넷 연결 없이 동작하며, 파일은 이 컴퓨터 밖으로 나가지 않습니다.</p>
   <button class="primary big" id="btnOpen2">📂 PDF 열기</button>
-  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 3.8</div>
+  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 3.9</div>
   <div id="modeBadge"></div>
   <div class="recent" id="recent">
     <div class="libbar">
@@ -1408,19 +1408,30 @@ function goFull(){
   return document.documentElement.requestFullscreen()
     .catch(()=>toast('F11 키를 눌러 전체화면으로 바꿔 주세요'));
 }
+/* 자료만 닫고 서재로 — 앱은 그대로 열려 있습니다 */
 $('btnClose').onclick=async()=>{
-  if(!confirm('판서노트를 닫을까요?\n오늘 판서를 파일로 저장한 뒤 닫습니다.'))return;
+  if(!S.doc){toast('열려 있는 자료가 없습니다');return}
   const btn=$('btnClose'),label=btn.textContent;
   btn.textContent='저장 중…';btn.disabled=true;
   await saveNow();
   await Backup.write(true);
   await Backup.writePdf();
-  await AutoDL.run(true);
+  const saved=await AutoDL.run(true);
+  S.doc=null;S.fileId=null;S.fileName='';S.folder='';
+  S.pages=0;S.page=1;S.strokes=[];S.cur=null;S.pageHas=new Set();
+  S.tx=0;S.ty=0;S.fitting=true;laser.list=[];
+  try{
+    ictx.clearRect(0,0,S.rendered.w,S.rendered.h);
+    fctx.clearRect(0,0,S.rendered.w,S.rendered.h);
+    pctx.clearRect(0,0,S.rendered.w,S.rendered.h);
+  }catch(e){}
+  $('fileName').textContent='파일 없음';
+  $('rail').innerHTML='';
+  $('pageInfo').textContent='– / –';
+  const w=$('welcome');w.hidden=false;w.style.display='';
+  await renderFolders();await renderRecent();
   btn.textContent=label;btn.disabled=false;
-  setTimeout(()=>{                       /* 저장이 끝날 시간을 준 뒤 닫습니다 */
-    window.close();
-    setTimeout(()=>toast('저장했습니다 — 창 오른쪽 위 ✕ 로 닫으셔도 됩니다'),400);
-  },1200);
+  if(!saved)toast('자료를 닫았습니다 — 필기는 저장되어 있습니다');
 };
 $('btnFull').onclick=()=>{
   if(document.fullscreenElement){setWantFull(false);document.exitFullscreen()}
