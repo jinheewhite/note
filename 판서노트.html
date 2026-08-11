@@ -1926,13 +1926,11 @@ window.addEventListener('appinstalled',()=>{
 /* 설정 창을 열 때마다 상태에 맞는 안내를 보여줍니다 */
 function renderInstallBox(){
   const box=$('installBox');
-  if(isInstalled()){
-    box.innerHTML='<span class="badge"><span class="lamp"></span>지금 앱 창으로 실행 중입니다</span>'+
-      '<p style="margin-top:10px">바탕화면(홈 화면) 아이콘으로 바로 여실 수 있습니다. '+
-      '다시 설치하시려면 브라우저 탭에서 이 주소를 열어 주세요.</p>';
-    return;
-  }
-  box.innerHTML='<p>바탕화면에 설치하면 주소창 없는 창으로 열리고, 인터넷이 끊겨도 실행됩니다.</p>'+
+  const inApp=isInstalled();
+  box.innerHTML=
+    (inApp?'<span class="badge"><span class="lamp"></span>지금 앱 창으로 실행 중입니다</span>':'')+
+    '<p style="margin-top:10px">바탕화면에 설치하면 주소창 없는 창으로 열리고, 인터넷이 끊겨도 실행됩니다.'+
+    (inApp?' 이미 지우셨다면 아래 버튼으로 다시 설치할 수 있습니다.':'')+'</p>'+
     '<div class="row" style="margin-top:10px"><button id="btnInstall" class="primary">⬇ 앱으로 설치하기</button></div>';
   $('btnInstall').onclick=async()=>{
     if(!installPrompt){
@@ -2151,8 +2149,9 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='7.2';
+const APP_VER='7.3';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
+const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
   $('updBox').innerHTML=
     `<span class="badge"><span class="lamp"></span>지금 버전 ${APP_VER}</span>`+
@@ -2163,12 +2162,19 @@ function renderUpdBox(){
 async function checkUpdate(){
   const b=$('btnUpd');b.textContent='확인 중…';b.disabled=true;
   try{
-    const r=await fetch(UPDATE_URL,{cache:'no-store'});
-    if(!r.ok)throw new Error();
-    const txt=await r.text();
-    const m=txt.match(/APP_VER='([\d.]+)'/);
-    if(!m)throw new Error();
-    const latest=m[1];
+    let latest=null,txt=null;
+    try{                                  /* 먼저 아주 작은 버전 파일만 확인합니다 */
+      const vr=await fetch(VERSION_URL,{cache:'no-store'});
+      if(vr.ok)latest=(await vr.json()).version;
+    }catch(e){}
+    if(!latest){                          /* 없으면 본체에서 읽습니다 */
+      const r=await fetch(UPDATE_URL,{cache:'no-store'});
+      if(!r.ok)throw new Error();
+      txt=await r.text();
+      const m=txt.match(/APP_VER='([\d.]+)'/);
+      if(!m)throw new Error();
+      latest=m[1];
+    }
     if(parseFloat(latest)<=parseFloat(APP_VER)){toast(`이미 최신입니다 (${APP_VER})`);return}
     if(location.protocol.startsWith('http')){
       if(!confirm(`새 버전 ${latest} 이 있습니다.\n지금 업데이트할까요? (필기는 그대로 유지됩니다)`))return;
@@ -2180,6 +2186,12 @@ async function checkUpdate(){
       location.reload();
     }else{
       if(!confirm(`새 버전 ${latest} 이 있습니다.\n새 파일을 내려받은 뒤 판서노트.html 을 덮어써 주세요.`))return;
+      if(!txt){
+        b.textContent='내려받는 중…';
+        const r2=await fetch(UPDATE_URL,{cache:'no-store'});
+        if(!r2.ok)throw new Error();
+        txt=await r2.text();
+      }
       const url=URL.createObjectURL(new Blob([txt],{type:'text/html'}));
       download(url,'판서노트.html');
       setTimeout(()=>URL.revokeObjectURL(url),6000);
