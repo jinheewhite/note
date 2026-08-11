@@ -132,6 +132,8 @@
   .search:focus{border-color:var(--chalk)}
   .shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(152px,1fr));gap:22px 18px;
     max-height:48vh;overflow-y:auto;padding:6px 4px 10px}
+  #folderGrid{max-height:none;overflow:visible;padding-bottom:2px}
+  #folderGrid:not(:empty){border-bottom:1px solid var(--line);margin-bottom:14px;padding-bottom:16px}
   .shelf.list{grid-template-columns:1fr;gap:8px}
   .card{position:relative;text-align:center}
   .card .cover{width:100%;aspect-ratio:3/4;padding:0;border-radius:8px;overflow:hidden;
@@ -166,6 +168,10 @@
   .sheet{background:var(--ink-2);border:1px solid var(--line);border-radius:16px;width:min(620px,94vw);
     max-height:86vh;overflow-y:auto;padding:26px}
   .sheet h2{margin:0 0 4px;font-size:21px}
+  .sheetTop{position:sticky;top:-26px;z-index:2;background:var(--ink-2);
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:6px 0 12px;margin:-6px 0 0;border-bottom:1px solid var(--line)}
+  .sheetTop button{min-height:46px;padding:0 18px;font-size:15px}
   .sheet h4{margin:24px 0 8px;font-size:12px;letter-spacing:1.3px;color:var(--text-dim);font-weight:600}
   .sheet p{color:var(--text-dim);line-height:1.7;margin:0 0 4px;font-size:14px}
   .row{display:flex;gap:8px;flex-wrap:wrap}
@@ -272,12 +278,13 @@
       <button id="libTitle" class="mini" title="저장 폴더 열어보기">📂 저장 폴더</button>
       <input id="libSearch" class="search" type="search" placeholder="자료 검색" autocomplete="off">
       <button id="btnSort" class="mini" title="정렬 바꾸기">최근순</button>
-      <button id="btnView" class="mini" title="보기 바꾸기">☰</button>
+      <button id="btnView" class="mini" title="표지 보기 / 목록 보기">▦ 표지</button>
       <button id="btnSync" class="mini sync" title="저장 폴더와 맞추기">🔄 새로고침</button>
       <button id="btnNewFolder" class="mini">＋ 폴더</button>
       <button id="btnRenameFolder" class="mini" hidden>이름</button>
 
     </div>
+    <div id="folderGrid" class="shelf"></div>
     <div id="recentList" class="shelf"></div>
     <p id="libEmpty" class="empty">아직 자료가 없습니다. 위의 <b>PDF 열기</b>로 수업 자료를 불러오세요.</p>
   </div>
@@ -288,7 +295,10 @@
 
 <div id="modal">
   <div class="sheet">
-    <h2>저장 상태와 백업</h2>
+    <div class="sheetTop">
+      <h2>설정</h2>
+      <button id="btnX" class="primary" title="닫기">✕ 닫기</button>
+    </div>
     <p>필기는 이 컴퓨터의 브라우저 안에만 저장됩니다. 서버로 보내지 않습니다.</p>
 
     <h4>업데이트</h4>
@@ -1675,7 +1685,7 @@ $('btnSort').onclick=()=>{
 $('btnView').onclick=()=>{
   S.view=S.view==='grid'?'list':'grid';
   try{localStorage.setItem('pn.view',S.view)}catch(e){}
-  $('btnView').textContent=S.view==='grid'?'☰':'▦';
+  $('btnView').textContent=S.view==='grid'?'▦ 표지':'☰ 목록';
   renderRecent();
 };
 $('btnRenameFolder').onclick=async()=>{
@@ -1751,21 +1761,21 @@ async function pickFolder(file){
 
 async function renderRecent(){
   const all=(await Store.allFiles()).filter(x=>x&&!String(x.id).startsWith('__'));
-  const list=$('recentList');
+  const list=$('recentList'),grid=$('folderGrid');
   list.className='shelf'+(S.view==='list'?' list':'');
-  list.innerHTML='';
+  list.innerHTML='';grid.innerHTML='';
   let count=0;
 
-  /* 폴더별 보기에서만 폴더 카드를 보여줍니다 (최근순은 자료만 쭉 보여줍니다) */
+  /* 폴더는 보기 설정과 상관없이 늘 표지 격자로 보여줍니다 */
   if(!S.lib&&S.sort!=='recent'){
     for(const nm of await getFolders()){
       if(S.q&&!nm.toLowerCase().includes(S.q))continue;
       const inside=all.filter(x=>x.folder===nm).length;
       const c=document.createElement('div');c.className='card';
       c.innerHTML=`<button class="cover"><span class="fold">📁<span>${inside}개</span></span></button>`+
-                  `<span class="nm">${nm}</span><span class="dt">폴더 · ${inside}개</span>`;
+                  `<span class="nm">${nm}</span><span class="dt">자료 ${inside}개</span>`;
       c.querySelector('.cover').onclick=()=>{S.lib=nm;renderFolders();renderRecent()};
-      list.appendChild(c);count++;
+      grid.appendChild(c);count++;
     }
   }
 
@@ -1823,14 +1833,13 @@ function cardMenu(f){
 /* 바탕화면 설치 — 크롬이 설치 가능하다고 알려줄 때만 버튼이 보입니다 */
 let installPrompt=null;
 function isInstalled(){
+  /* 지금 앱 창으로 실행 중인지만 봅니다 — 지웠다 다시 깔 수 있어야 하니까요 */
   for(const m of ['standalone','fullscreen','minimal-ui','window-controls-overlay'])
     if(window.matchMedia(`(display-mode: ${m})`).matches)return true;
-  if(window.navigator.standalone===true)return true;
-  try{return localStorage.getItem('pn.installed')==='1'}catch(e){return false}
+  return window.navigator.standalone===true;
 }
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});
 window.addEventListener('appinstalled',()=>{
-  try{localStorage.setItem('pn.installed','1')}catch(e){}
   installPrompt=null;
   toast('설치했습니다 — 이제 바탕화면(홈 화면) 아이콘으로 여세요');
 });
@@ -1838,8 +1847,9 @@ window.addEventListener('appinstalled',()=>{
 function renderInstallBox(){
   const box=$('installBox');
   if(isInstalled()){
-    box.innerHTML='<span class="badge"><span class="lamp"></span>이미 앱으로 설치되어 있습니다</span>'+
-      '<p style="margin-top:10px">지금 앱 창으로 실행 중입니다. 바탕화면(홈 화면) 아이콘으로 바로 여실 수 있습니다.</p>';
+    box.innerHTML='<span class="badge"><span class="lamp"></span>지금 앱 창으로 실행 중입니다</span>'+
+      '<p style="margin-top:10px">바탕화면(홈 화면) 아이콘으로 바로 여실 수 있습니다. '+
+      '다시 설치하시려면 브라우저 탭에서 이 주소를 열어 주세요.</p>';
     return;
   }
   box.innerHTML='<p>바탕화면에 설치하면 주소창 없는 창으로 열리고, 인터넷이 끊겨도 실행됩니다.</p>'+
@@ -1849,6 +1859,7 @@ function renderInstallBox(){
       toast('브라우저 메뉴 ⋮ → 캐스트·저장 및 공유 → 페이지를 앱으로 설치 를 눌러 주세요');
       return;
     }
+    try{localStorage.removeItem('pn.installed')}catch(e){}
     installPrompt.prompt();await installPrompt.userChoice;
     installPrompt=null;renderInstallBox();
   };
@@ -2031,7 +2042,7 @@ $('btnBarBottom').onclick=()=>setBarPos(false);
 $('btnBarTop').onclick=()=>setBarPos(true);
 try{setBarPos(localStorage.getItem('pn.barTop')==='1')}catch(e){setBarPos(false)}
 
-$('btnCloseModal').onclick=()=>{$('modal').classList.remove('open');renderWhere()};
+$('btnCloseModal').onclick=$('btnX').onclick=()=>{$('modal').classList.remove('open');renderWhere()};
 $('modal').onclick=e=>{if(e.target.id==='modal')$('modal').classList.remove('open')};
 
 /* 판서가 어디에 저장되는지 서재에서 늘 보이게 합니다 */
@@ -2060,7 +2071,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='5.8';
+const APP_VER='6.1';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 function renderUpdBox(){
   $('updBox').innerHTML=
@@ -2277,7 +2288,7 @@ $('jsonInput').onchange=async e=>{
   $('modeBadge').innerHTML=Store.mode==='idb'?'':modeBadge();
   try{S.sort=localStorage.getItem('pn.sort')||'recent';S.view=localStorage.getItem('pn.view')||'grid'}catch(e){}
   $('btnSort').textContent=S.sort==='recent'?'최근순':'폴더별';
-  $('btnView').textContent=S.view==='grid'?'☰':'▦';
+  $('btnView').textContent=S.view==='grid'?'▦ 표지':'☰ 목록';
   await renderFolders();await renderRecent();renderWhere();
   $('verLabel').textContent='판서노트 '+APP_VER;
   setTool('pen',document.querySelector('.pen'));
