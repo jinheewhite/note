@@ -106,7 +106,11 @@
   canvas{-webkit-user-drag:none;user-select:none}
   #fxCv{position:absolute;inset:0;pointer-events:none}
   #board{flex:0 0 44%;display:flex;flex-direction:column;background:#f7f8fa;
-    border-left:2px solid var(--line);min-width:0}
+    border-left:2px solid var(--line);min-width:0;order:2}
+  /* 칠판을 왼쪽으로 */
+  body.board-left #board{order:0;border-left:0;border-right:2px solid var(--line)}
+  body.board-left aside{order:1}
+  body.board-left #stage{order:2}
   #board .boardTop{display:flex;align-items:center;gap:12px;padding:10px 14px;
     background:var(--ink-2);border-bottom:1px solid var(--line)}
   #board .boardTop b{font-size:15px}
@@ -325,6 +329,8 @@
     <div class="boardTop">
       <b>칠판</b>
       <span class="hint">PDF와 따로 씁니다 · 쪽을 넘겨도 그대로 남습니다</span>
+      <button id="btnBoardBg" class="mini" title="칠판 바탕을 바꿉니다">칠판 바탕</button>
+      <button id="btnBoardSwap" class="mini" title="칠판과 PDF 자리를 바꿉니다">⇄ 자리 바꾸기</button>
       <button id="btnBoardClear" class="mini">칠판 비우기</button>
     </div>
     <canvas id="bdCv"></canvas>
@@ -1550,8 +1556,24 @@ function bdPaint(st){
   for(let i=1;i<pts.length;i++){const [a,b]=P(pts[i]);bdctx.lineTo(a,b)}
   bdctx.stroke();bdctx.restore();
 }
+const BOARD_BG={
+  white:{name:'흰 종이',  bg:'#ffffff', line:null},
+  grid: {name:'모눈',     bg:'#ffffff', line:'#dbe3ea', grid:true},
+  ruled:{name:'줄노트',   bg:'#fffdf5', line:'#e3ddc9'},
+  green:{name:'초록 칠판',bg:'#12482f', line:null, dark:true},
+  black:{name:'검정 칠판',bg:'#1b2026', line:null, dark:true}
+};
+function bdBgKey(){try{return localStorage.getItem('pn.boardBg')||'white'}catch(e){return 'white'}}
 function bdRedraw(){
+  const th=BOARD_BG[bdBgKey()]||BOARD_BG.white;
   bdctx.clearRect(0,0,BD.w,BD.h);
+  bdctx.fillStyle=th.bg;bdctx.fillRect(0,0,BD.w,BD.h);
+  if(th.line){
+    bdctx.save();bdctx.strokeStyle=th.line;bdctx.lineWidth=1;
+    for(let y=36;y<BD.h;y+=36){bdctx.beginPath();bdctx.moveTo(0,y+.5);bdctx.lineTo(BD.w,y+.5);bdctx.stroke()}
+    if(th.grid)for(let x=36;x<BD.w;x+=36){bdctx.beginPath();bdctx.moveTo(x+.5,0);bdctx.lineTo(x+.5,BD.h);bdctx.stroke()}
+    bdctx.restore();
+  }
   BD.strokes.forEach(bdPaint);
   if(BD.cur)bdPaint(BD.cur);
 }
@@ -1601,6 +1623,35 @@ function bdErase(x,y){
   BD.strokes=BD.strokes.filter(st=>!st.pts.some(p=>Math.hypot(p[0]*BD.w-x,p[1]*BD.h-y)<rad));
   if(BD.strokes.length!==before)bdRedraw();
 }
+$('btnBoardBg').onclick=e=>{
+  const pop=$('pop');pop.innerHTML='';pop.classList.add('wide');
+  const cur=bdBgKey();
+  for(const [k,th] of Object.entries(BOARD_BG)){
+    const b=document.createElement('button');
+    b.innerHTML=`<i style="display:inline-block;width:22px;height:22px;border-radius:5px;`+
+      `background:${th.bg};border:1px solid #7d8b99;margin-right:10px;vertical-align:-5px"></i>${th.name}`;
+    if(k===cur)b.classList.add('on');
+    b.onclick=()=>{
+      try{localStorage.setItem('pn.boardBg',k)}catch(err){}
+      bdCv.style.background=th.bg;bdRedraw();pop.classList.remove('open');
+      if(th.dark&&['#111111','#1d6fe0'].includes(S.colors.pen))
+        toast('어두운 칠판입니다 — 펜 색을 흰색이나 노랑으로 바꿔 보세요');
+    };
+    pop.appendChild(b);
+  }
+  pop.classList.add('open');
+  const r=e.currentTarget.getBoundingClientRect(),pr=pop.getBoundingClientRect();
+  pop.style.left=Math.max(10,Math.min(window.innerWidth-pr.width-10,r.left))+'px';
+  pop.style.top=(r.bottom+10)+'px';
+};
+$('btnBoardSwap').onclick=async()=>{
+  const left=!document.body.classList.contains('board-left');
+  document.body.classList.toggle('board-left',left);
+  try{localStorage.setItem('pn.boardLeft',left?'1':'0')}catch(e){}
+  bdResize();
+  if(S.doc&&S.fitting)await renderPage();
+  toast(left?'칠판이 왼쪽으로 갔습니다':'칠판이 오른쪽으로 갔습니다');
+};
 $('btnBoardClear').onclick=()=>{
   if(!BD.strokes.length){toast('칠판이 비어 있습니다');return}
   if(!confirm('칠판의 필기를 모두 지웁니다. 계속할까요?'))return;
@@ -1665,7 +1716,7 @@ function showColor(){
 $('btnPen').onclick=e=>{setTool('pen',e.currentTarget);openPop(e.currentTarget,'pen')};
 /* 색 고르는 작은 창 — 형광펜·레이저 버튼을 누르면 바로 뜹니다 */
 const PALETTES={
-  pen:  [['#111111','검정'],['#e02424','빨강'],['#1d6fe0','파랑'],['#12a150','초록'],['#f5c400','노랑']],
+  pen:  [['#111111','검정'],['#ffffff','흰색'],['#e02424','빨강'],['#1d6fe0','파랑'],['#12a150','초록'],['#f5c400','노랑']],
   hl:   [['#f5c400','노랑'],['#35d07f','초록'],['#2f9bff','파랑'],['#ff7ad9','분홍'],['#ff9f0a','주황']],
   laser:[['#ff3b30','빨강'],['#f5c400','노랑'],['#2f9bff','파랑'],['#35d07f','초록'],['#ff7ad9','분홍']]
 };
@@ -1691,7 +1742,8 @@ document.addEventListener('pointerdown',e=>{
   const pop=$('pop');
   if(pop.classList.contains('open')&&!e.target.closest('#pop')&&
      !e.target.closest('#btnPen')&&!e.target.closest('#btnHl')&&
-     !e.target.closest('#btnLaser')&&!e.target.closest('#btnEraser'))
+     !e.target.closest('#btnLaser')&&!e.target.closest('#btnEraser')&&
+     !e.target.closest('#btnBoardBg'))
     pop.classList.remove('open');
 },true);
 
@@ -2265,7 +2317,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='7.5';
+const APP_VER='7.7';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
@@ -2498,7 +2550,9 @@ $('jsonInput').onchange=async e=>{
       S.split=localStorage.getItem('pn.split')==='1'}catch(e){}
   $('btnSplit').classList.toggle('on',S.split);
   $('board').hidden=!S.split;
+  try{document.body.classList.toggle('board-left',localStorage.getItem('pn.boardLeft')==='1')}catch(e){}
   if(S.split)setTimeout(bdResize,80);
+  bdCv.style.background=(BOARD_BG[bdBgKey()]||BOARD_BG.white).bg;
   $('btnSort').textContent=S.sort==='recent'?'최근순':'폴더별';
   $('btnView').textContent=S.view==='grid'?'▦ 표지':'☰ 목록';
   await renderFolders();await renderRecent();renderWhere();
