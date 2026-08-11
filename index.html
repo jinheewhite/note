@@ -133,7 +133,7 @@
     <button class="pen" data-color="#12a150" title="초록"><i style="background:#12a150"></i></button>
     <button class="icon" id="btnHl" title="형광펜">🖍️</button>
     <button class="icon" id="btnEraser" title="지우개">🧽</button>
-    <button class="icon" id="btnLaser" title="레이저 — 잠깐 보였다 사라집니다">🔦</button>
+    <button class="icon" id="btnLaser" title="레이저 — 쓰면 몇 초 뒤 저절로 사라집니다">🔦</button>
     <button id="btnHand" title="끌어서 화면 옮기기">✋ 이동</button>
   </div>
 
@@ -190,7 +190,7 @@
   <p>필기는 <b>날짜별로 자동 저장</b>됩니다. 내일 같은 파일을 열면 오늘 판서는 그대로 보관되고 빈 화면에서 시작합니다.<br>
      펜으로 쓰고, ✋ 이동을 누르면 끌어서 화면을 옮깁니다. 두 손가락으로도 됩니다.<br>인터넷 연결 없이 동작하며, 파일은 이 컴퓨터 밖으로 나가지 않습니다.</p>
   <button class="primary big" id="btnOpen2">📂 PDF 열기</button>
-  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 1.7</div>
+  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 1.8</div>
   <div id="modeBadge"></div>
   <div class="recent" id="recent" hidden>
     <h3>최근에 연 파일</h3>
@@ -827,7 +827,7 @@ const S={
   strokes:[],pageHas:new Set(),
   tool:'pen',color:'#111111',size:4,
   drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false,
-  fingerDraws:true,penSeen:false,penErase:false,pan:null,pinch:null
+  fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,pinch:null
 };
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 const noteKey=(f,d,p)=>`${f}|${d}|${p}`;
@@ -944,9 +944,9 @@ function laserPoint(x,y,start){
 function laserTick(){
   const now=performance.now();
   fctx.clearRect(0,0,S.rendered.w,S.rendered.h);
-  laser.list=laser.list.filter(s=>now-s.t<1400);
+  laser.list=laser.list.filter(s=>now-s.t<2600);
   for(const s of laser.list){
-    const age=now-s.t,a=age<500?1:Math.max(0,1-(age-500)/900);
+    const age=now-s.t,a=age<1500?1:Math.max(0,1-(age-1500)/1100);
     fctx.save();
     fctx.globalAlpha=a;fctx.strokeStyle='#ff3b30';fctx.lineWidth=7;
     fctx.lineCap='round';fctx.lineJoin='round';
@@ -965,6 +965,11 @@ function laserTick(){
 const ptrs=new Map();
 function pos(e){const r=inkCv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top]}
 function penDown(){for(const p of ptrs.values())if(p.type==='pen')return true;return false}
+/* 손바닥은 접촉 면적이 넓습니다. 도구가 무엇이든 손바닥으로 밀면 화면이 움직입니다 */
+function isPalm(e){
+  if(e.pointerType!=='touch')return false;
+  return (e.width>=40||e.height>=40);
+}
 function canDraw(type){
   if(S.tool==='hand')return false;      /* ✋ 이동 도구: 무엇으로 끌든 화면이 움직임 */
   if(type==='pen')return true;          /* 펜은 언제나 필기 */
@@ -1007,12 +1012,13 @@ function endStroke(){
 /* 손가락 하나 ─ 화면 밀기 */
 function startPan(e){
   const st=$('stage');
-  S.pan={x:e.clientX,y:e.clientY,l:st.scrollLeft,t:st.scrollTop};
+  S.pan={id:e.pointerId,x:e.clientX,y:e.clientY,l:st.scrollLeft,t:st.scrollTop};
   if(st.scrollHeight<=st.clientHeight+2&&st.scrollWidth<=st.clientWidth+2)
     toast('지금 배율에서는 화면이 다 보여서 움직일 여백이 없습니다 — ＋로 확대해 보세요');
 }
 function movePan(e){
-  const st=$('stage'),p=S.pan;
+  const p=S.pan;if(p.id!==e.pointerId)return;
+  const st=$('stage');
   st.scrollLeft=p.l-(e.clientX-p.x);
   st.scrollTop=p.t-(e.clientY-p.y);
 }
@@ -1055,8 +1061,12 @@ inkCv.addEventListener('pointerdown',e=>{
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
   try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
   if(ptrs.size===2){cancelStroke();startPinch();return}
-  if(ptrs.size>2)return;
+  if(ptrs.size>=3){cancelStroke();S.pinch=null;startPan(e);return}   /* 세 손가락도 이동 */
   if(e.button===1){startPan(e);return}          /* 마우스 가운데 버튼: 항상 이동 */
+  if(isPalm(e)){
+    if(!S.palmSeen){S.palmSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 밀면 화면이 움직입니다')}
+    cancelStroke();startPan(e);return;
+  }
   if(canDraw(e.pointerType))startStroke(e);else startPan(e);
 });
 inkCv.addEventListener('pointermove',e=>{
