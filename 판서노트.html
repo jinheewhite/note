@@ -207,7 +207,7 @@
   <p>필기는 <b>날짜별로 자동 저장</b>됩니다. 내일 같은 파일을 열면 오늘 판서는 그대로 보관되고 빈 화면에서 시작합니다.<br>
      펜으로 쓰고, 손바닥으로 밀어 화면을 옮깁니다. 끝까지 밀면 다음 쪽으로 넘어갑니다.<br>인터넷 연결 없이 동작하며, 파일은 이 컴퓨터 밖으로 나가지 않습니다.</p>
   <button class="primary big" id="btnOpen2">📂 PDF 열기</button>
-  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 3.1</div>
+  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 3.2</div>
   <div id="modeBadge"></div>
   <div class="recent" id="recent" hidden>
     <h3>최근에 연 파일</h3>
@@ -922,6 +922,25 @@ const Backup={
       }
       this.at=Date.now();
     }catch(e){ this.ok=false }
+    this.schedulePdf();
+  },
+  /* 필기가 3분간 멈추면(=수업이 끝나면) 판서가 들어간 PDF까지 폴더에 저장합니다 */
+  schedulePdf(){
+    if(!this.ok)return;
+    clearTimeout(this.pdfTimer);
+    this.pdfTimer=setTimeout(()=>this.writePdf(),180000);
+  },
+  async writePdf(){
+    if(!this.ok||!this.handle||!S.doc||S.busy)return;
+    try{
+      const doc=await buildPdf();
+      if(!doc)return;
+      const name=`${S.fileName.replace(/\.pdf$/i,'')}_${S.date}.pdf`;
+      const fh=await this.handle.getFileHandle(name,{create:true});
+      const w=await fh.createWritable();
+      await w.write(doc.output('arraybuffer'));await w.close();
+      markSaved();
+    }catch(e){}
   }
 };
 
@@ -1362,6 +1381,7 @@ $('btnClose').onclick=async()=>{
   if(!confirm('판서노트를 닫을까요?\n필기는 이미 저장되어 있습니다.'))return;
   await saveNow();
   await Backup.write(true);
+  await Backup.writePdf();
   window.close();
   setTimeout(()=>toast('창 오른쪽 위 ✕ 로 닫아 주세요'),500);
 };
@@ -1537,29 +1557,66 @@ $('btnPng').onclick=()=>{
   download(flatten().toDataURL('image/png'),`${baseName()}_${S.date}_${S.page}쪽.png`);
   toast('이 쪽을 그림으로 저장했습니다');
 };
+/* 화면 뒤에서 조용히 PDF를 만듭니다 — 수업 중에도 화면이 흔들리지 않습니다 */
+function paintOn(cx,strokes,w,h){
+  for(const st of strokes){
+    const pts=st.pts;if(!pts||!pts.length)continue;
+    cx.save();cx.lineCap='round';cx.lineJoin='round';cx.strokeStyle=st.color;
+    if(st.mode==='hl'){cx.globalAlpha=.32;cx.lineCap='butt'}
+    const base=st.w*w, P=(p)=>[p[0]*w,p[1]*h];
+    if(pts.length===1){
+      cx.lineWidth=base;const [x,y]=P(pts[0]);
+      cx.beginPath();cx.moveTo(x,y);cx.lineTo(x+.1,y);cx.stroke();
+    }else if(st.mode!=='hl'&&pts.some(p=>p.length>2)){
+      for(let i=1;i<pts.length;i++){
+        cx.lineWidth=base*(.45+1.1*(pts[i][2]!=null?pts[i][2]:.5));
+        const [x0,y0]=P(pts[i-1]),[x1,y1]=P(pts[i]);
+        cx.beginPath();cx.moveTo(x0,y0);cx.lineTo(x1,y1);cx.stroke();
+      }
+    }else{
+      cx.lineWidth=base;cx.beginPath();
+      const [x,y]=P(pts[0]);cx.moveTo(x,y);
+      for(let i=1;i<pts.length;i++){const [a,b]=P(pts[i]);cx.lineTo(a,b)}
+      cx.stroke();
+    }
+    cx.restore();
+  }
+}
+async function buildPdf(){
+  if(!S.doc)return null;
+  const pages=[...S.pageHas].sort((a,b)=>a-b);
+  if(!pages.length)return null;
+  const {jsPDF}=window.jspdf;let doc=null;
+  const cv=document.createElement('canvas'),cx=cv.getContext('2d');
+  for(const p of pages){
+    const pg=await S.doc.getPage(p);
+    const vp=pg.getViewport({scale:1.6});
+    cv.width=Math.floor(vp.width);cv.height=Math.floor(vp.height);
+    cx.setTransform(1,0,0,1,0,0);
+    cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
+    await pg.render({canvasContext:cx,viewport:vp}).promise;
+    const rec=await Store.getNote(noteKey(S.fileId,S.date,p));
+    paintOn(cx,(rec&&rec.strokes)||[],cv.width,cv.height);
+    const img=cv.toDataURL('image/jpeg',.9),land=cv.width>cv.height;
+    const fmt=[land?842:595,land?595:842];
+    if(!doc)doc=new jsPDF({orientation:land?'l':'p',unit:'pt',format:fmt});
+    else doc.addPage(fmt,land?'l':'p');
+    const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
+    const r=Math.min(pw/cv.width,ph/cv.height),w=cv.width*r,h=cv.height*r;
+    doc.addImage(img,'JPEG',(pw-w)/2,(ph-h)/2,w,h);
+  }
+  return doc;
+}
 $('btnPdf').onclick=async()=>{
   if(!S.doc||S.busy)return;
   await saveNow();
-  const pages=[...S.pageHas].sort((a,b)=>a-b);
-  if(!pages.length){toast('저장할 판서가 없습니다');return}
-  const keep=S.page,btn=$('btnPdf'),label=btn.textContent;
+  const btn=$('btnPdf'),label=btn.textContent;
   S.busy=true;btn.textContent='만드는 중…';btn.disabled=true;
   try{
-    const {jsPDF}=window.jspdf;let doc=null;
-    for(const p of pages){
-      S.page=p;await renderPage();
-      const cv=flatten(),img=cv.toDataURL('image/jpeg',.9),land=cv.width>cv.height;
-      const fmt=[land?842:595,land?595:842];
-      if(!doc)doc=new jsPDF({orientation:land?'l':'p',unit:'pt',format:fmt});
-      else doc.addPage(fmt,land?'l':'p');
-      const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
-      const r=Math.min(pw/cv.width,ph/cv.height),w=cv.width*r,h=cv.height*r;
-      doc.addImage(img,'JPEG',(pw-w)/2,(ph-h)/2,w,h);
-    }
-    doc.save(`${baseName()}_${S.date}.pdf`);
-    toast(`${pages.length}쪽을 PDF로 저장했습니다`);
+    const doc=await buildPdf();
+    if(!doc)toast('저장할 판서가 없습니다');
+    else{doc.save(`${baseName()}_${S.date}.pdf`);toast('PDF로 저장했습니다');}
   }catch(e){toast('PDF를 만들지 못했습니다: '+e.message)}
-  S.page=keep;await renderPage();
   S.busy=false;btn.textContent=label;btn.disabled=false;
 };
 
@@ -1612,8 +1669,9 @@ function renderDirBox(){
   if(Backup.ok){
     box.innerHTML='<span class="badge"><span class="lamp"></span>'+
       `"${Backup.handle.name}" 폴더에 자동 저장 중</span>`+
-      '<p style="margin-top:10px">필기가 멈추면 몇 초 뒤 그 폴더의 <b>판서노트_백업.json</b> 에 기록됩니다. '+
-      '크롬 사용 기록을 지워도 이 파일은 남습니다.</p>'+
+      '<p style="margin-top:10px">필기가 멈추면 몇 초 뒤 백업 파일이 기록되고, '+
+      '3분쯤 지나면 <b>판서가 들어간 PDF</b>까지 그 폴더에 자동으로 저장됩니다. '+
+      '버튼을 누르지 않아도 됩니다. 크롬 사용 기록을 지워도 이 파일들은 남습니다.</p>'+
       '<div class="row" style="margin-top:10px"><button id="btnDirOff" class="ghost">폴더 연결 끊기</button></div>';
     $('btnDirOff').onclick=async()=>{await Backup.disconnect();renderDirBox();toast('폴더 연결을 끊었습니다')};
     return;
