@@ -107,6 +107,8 @@ try{
   #btnZoomIn,#btnZoomOut{font-size:23px;font-weight:700}
   #dock .mono{min-width:66px;text-align:center;font-size:14px;color:var(--text-dim)}
   #dock .sep{width:1px;height:28px;background:var(--line);margin:0 4px}
+  .pageBtn{display:none}
+  #dock .mono.pageBtn{min-width:54px;text-align:center;font-size:13px;color:var(--text-dim)}
   body.bar-top #dock,html.bar-top #dock{bottom:18px}
   #sheet{position:relative;box-shadow:0 10px 34px rgba(0,0,0,.45);background:#fff;flex:0 0 auto;will-change:transform}
   #pdfCv,#inkCv{display:block;position:relative}
@@ -228,6 +230,40 @@ try{
     color:#1a1a12;font-weight:700;padding:13px 24px;border-radius:999px;opacity:0;pointer-events:none;
     transition:.25s;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:80vw;text-align:center}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* 휴대폰·작은 화면 */
+  @media (max-width:860px){
+    :root{--bar:64px}
+    button{min-height:44px;padding:0 11px;font-size:14px}
+    button.icon{width:44px;font-size:17px}
+    #tools .tool{width:46px}
+    #tools .tool.on{padding:0 12px 0 10px}
+    #tools .tool.on::after{font-size:14px;margin-left:6px}
+    .brand{padding-right:8px;margin-right:2px}
+    .brand small{max-width:96px}
+    .grp{gap:5px;padding-right:7px}
+    #welcome{gap:14px;padding:16px}
+    #welcome h1{font-size:22px}
+    #welcome p{font-size:13px;line-height:1.6}
+    #welcome .big{min-height:58px;font-size:16px;padding:0 22px}
+    .recent{width:96vw}
+    .libbar{flex-wrap:wrap;gap:6px}
+    .search{width:100%;order:9}
+    .shelf{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px 10px;max-height:40vh}
+    .card .nm{font-size:12px}
+    .where{flex-direction:column;align-items:stretch;gap:8px;padding:12px}
+    #dock{right:10px;bottom:calc(var(--bar) + 8px);padding:5px;gap:4px}
+    #dock button{min-height:44px;font-size:13px;padding:0 10px}
+    .pageBtn{display:inline-flex}
+    #dock .mono.pageBtn{display:inline-block}
+    #dock #btnFull{display:none}
+    aside{width:56px}
+    aside .p{margin:4px 7px;height:40px}
+    #board{flex:0 0 50%}
+    #board .boardTop{padding:7px 9px;gap:7px}
+    #board .hint{display:none}
+    .sheet{padding:18px}
+    #pop button{width:46px;height:46px;min-height:46px}
+  }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -264,13 +300,18 @@ try{
     </button>
     <button class="icon tool" data-label="지우개" id="btnEraser" title="지우개">
       <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
-  <rect x="9.6" y="2.6" width="6.8" height="2.4" rx="1.2" fill="#8b97a5"/>
-  <rect x="3.4" y="5.4" width="19.2" height="3" rx="1.5" fill="#b7c2ce"/>
-  <path d="M5.4 9 h15.2 l-1.3 12.6 a2 2 0 0 1 -2 1.8 h-8.6 a2 2 0 0 1 -2 -1.8 z" fill="#8b97a5"/>
-  <g stroke="#5f6f7f" stroke-width="1.5" stroke-linecap="round">
-    <line x1="10" y1="12" x2="9.6" y2="19.6"/>
-    <line x1="13" y1="12" x2="13" y2="19.6"/>
-    <line x1="16" y1="12" x2="16.4" y2="19.6"/>
+  <!-- 나무 손잡이 -->
+  <rect x="2.6" y="5.6" width="20.8" height="7.4" rx="1.6" fill="#c9a06a"/>
+  <rect x="2.6" y="5.6" width="20.8" height="2.4" rx="1.2" fill="#dcb681"/>
+  <rect x="8.6" y="4.2" width="8.8" height="2.6" rx="1.3" fill="#a87f4d"/>
+  <!-- 펠트 -->
+  <rect x="2" y="12.6" width="22" height="7.8" rx="1.4" fill="#4a5a6b"/>
+  <rect x="2" y="12.6" width="22" height="2.2" fill="#5f7183"/>
+  <rect x="2" y="18.4" width="22" height="2" rx="1" fill="#3a4753"/>
+  <!-- 분필가루 -->
+  <g fill="#ffffff" opacity=".6">
+    <circle cx="5.2" cy="22.6" r="1"/><circle cx="9.4" cy="23.4" r=".8"/>
+    <circle cx="14" cy="22.4" r=".7"/><circle cx="18.6" cy="23.2" r=".9"/>
   </g>
       </svg>
     </button>
@@ -330,6 +371,9 @@ try{
 </header>
 
 <div id="dock">
+  <button class="icon pageBtn" id="btnPrev2" title="이전 쪽">◀</button>
+  <span class="mono pageBtn" id="dockPage">– / –</span>
+  <button class="icon pageBtn" id="btnNext2" title="다음 쪽">▶</button>
   <button id="btnFull" title="전체화면 (F11)">⛶ 전체화면</button>
   <button id="btnClose" title="이 자료를 닫고 서재로 돌아갑니다">✕ 자료 닫기</button>
 </div>
@@ -392,6 +436,10 @@ try{
       <button id="btnX" class="primary" title="닫기">✕ 닫기</button>
     </div>
     <p>필기는 이 컴퓨터의 브라우저 안에만 저장됩니다. 서버로 보내지 않습니다.</p>
+
+    <h4>앱 닫기</h4>
+    <p>필기를 저장하고 앱 창을 닫습니다. 브라우저 탭으로 열었을 때는 탭이 닫히지 않을 수 있습니다.</p>
+    <div class="row" style="margin-top:10px"><button id="btnQuit">전원 앱 닫기</button></div>
 
     <h4>업데이트</h4>
     <div id="updBox"></div>
@@ -1155,7 +1203,7 @@ const S={
   tool:'pen',colors:{pen:'#111111',hl:'#f5c400',laser:'#ff3b30'},sizes:{pen:4,hl:12,laser:8,eraser:10},
   drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false,
   fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,pinch:null,tx:0,ty:0,tap:null,flipAt:0,
-  lib:'',folder:'',q:'',sort:'recent',view:'grid',split:false,pdfW:1
+  lib:'',folder:'',q:'',sort:'recent',view:'grid',split:false,pdfW:1,downAt:null
 };
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 const noteKey=(f,d,p)=>`${f}|${d}|${p}`;
@@ -1230,6 +1278,7 @@ async function renderPage(){
   await loadStrokes();
   redraw();
   $('pageInfo').textContent=`${S.page} / ${S.pages}`;
+  $('dockPage').textContent=`${S.page} / ${S.pages}`;
   $('zoomInfo').textContent=Math.round(S.scale/S.fitScale*100)+'%';
   clampView();applyView();
   buildRail();
@@ -1358,6 +1407,14 @@ function endStroke(){
   if(S.cur){S.strokes.push(S.cur);S.cur=null}
   scheduleSave();
 }
+/* 좁은 화면에서는 좌우 가장자리를 톡 치면 쪽이 넘어갑니다 */
+function edgeTap(e){
+  if(window.innerWidth>860||!S.doc)return false;
+  const r=$('stage').getBoundingClientRect(),x=e.clientX-r.left,zone=Math.max(46,r.width*0.12);
+  if(x<zone){flip(-1);return true}
+  if(x>r.width-zone){flip(1);return true}
+  return false;
+}
 
 /* 손가락 하나 ─ 화면 밀기 */
 function applyView(k){
@@ -1365,24 +1422,28 @@ function applyView(k){
   $('sheet').style.transform=`translate(${Math.round(S.tx)}px,${Math.round(S.ty)}px)${s}`;
 }
 /* 페이지가 화면보다 클 때만 그만큼 움직입니다. 끝을 넘겨 끌면 다음/이전 쪽으로 넘어갑니다 */
-const FLIP=110;                       /* 이만큼 더 끌면 페이지가 넘어갑니다 */
+/* 넘김 감도 — 작은 화면에서는 너무 쉽게 넘어가지 않도록 화면 크기에 맞춥니다 */
+function flipDist(){
+  const st=$('stage');
+  return Math.max(110,Math.min(240,Math.round(st.clientWidth*0.22)));
+}
 function limits(){
   const st=$('stage');
   return {mx:Math.max(70,(S.rendered.w-st.clientWidth+48)/2),
           my:Math.max(70,(S.rendered.h-st.clientHeight+48)/2)};
 }
 function clampView(over){
-  const {mx,my}=limits(), o=over?FLIP+40:0;
+  const {mx,my}=limits(), o=over?flipDist()+40:0;
   S.tx=Math.max(-mx-o,Math.min(mx+o,S.tx));
   S.ty=Math.max(-my-o,Math.min(my-0+o,S.ty));
 }
 /* 끌고 있는 도중에도 끝을 넘기면 곧바로 다음 쪽으로 이어집니다 (상하·좌우 모두) */
 function flipDir(){
   const {mx,my}=limits();
-  if(S.ty<-my-FLIP)return 1;
-  if(S.ty> my+FLIP)return -1;
-  if(S.tx<-mx-FLIP)return 1;
-  if(S.tx> mx+FLIP)return -1;
+  if(S.ty<-my-flipDist())return 1;
+  if(S.ty> my+flipDist())return -1;
+  if(S.tx<-mx-flipDist())return 1;
+  if(S.tx> mx+flipDist())return -1;
   return 0;
 }
 async function autoFlip(e){
@@ -1415,7 +1476,21 @@ async function flip(dir){
              {duration:180,easing:'ease-out'});
   document.querySelector(`#rail .p[data-p="${to}"]`)?.scrollIntoView({block:'nearest'});
 }
-function startPan(e){S.pan={id:e.pointerId,x:e.clientX,y:e.clientY,tx:S.tx,ty:S.ty}}
+function startPan(e){
+  S.pan={id:e.pointerId,x:e.clientX,y:e.clientY,tx:S.tx,ty:S.ty,
+         t:performance.now(),type:e.pointerType};
+}
+/* 손가락으로 좌우로 슥 그으면 쪽이 넘어갑니다 */
+function swipeFlip(e){
+  const p=S.pan;if(!p)return false;
+  if(p.type==='mouse')return false;
+  const dx=e.clientX-p.x, dy=e.clientY-p.y, dt=performance.now()-p.t;
+  if(dt>600)return false;
+  if(Math.abs(dx)<70||Math.abs(dx)<Math.abs(dy)*1.6)return false;
+  const dir=dx<0?1:-1;
+  if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return false;
+  flip(dir);return true;
+}
 function movePan(e){
   const p=S.pan;if(p.id!==e.pointerId)return;
   S.tx=p.tx+(e.clientX-p.x);S.ty=p.ty+(e.clientY-p.y);
@@ -1456,9 +1531,10 @@ inkCv.addEventListener('pointerdown',e=>{
   ghostShow(e);
   if(e.pointerType==='pen'&&!S.penSeen){          /* 펜을 처음 본 순간 자동 전환 */
     S.penSeen=true;S.fingerDraws=false;updateTouchBtn();
-    toast('펜을 인식했습니다 — 손가락은 화면 이동으로 씁니다');
+    toast('펜을 인식했습니다 — 펜은 필기, 손가락은 넘김·확대');
   }
   if(e.pointerType==='touch'&&penDown())return;   /* 펜을 쥔 손바닥은 무시 */
+  S.downAt={t:performance.now(),x:e.clientX,y:e.clientY};
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
   try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
   if(ptrs.size===2){cancelStroke();startPinch();return}
@@ -1491,14 +1567,22 @@ function doubleTapZoom(e){
 }
 function release(e){
   ghostHide();
+  const dn=S.downAt;S.downAt=null;
+  if(dn&&ptrs.size===1&&performance.now()-dn.t<300&&
+     Math.hypot(e.clientX-dn.x,e.clientY-dn.y)<10&&
+     (S.tool==='hand'||e.pointerType==='touch')&&edgeTap(e)){
+    ptrs.delete(e.pointerId);S.pan=null;cancelStroke();return;
+  }
   if(!ptrs.has(e.pointerId))return;
   ptrs.delete(e.pointerId);
   if(S.pinch){if(ptrs.size<2)endPinch();return}
   if(S.pan){
     if(!ptrs.size){
       const moved=Math.hypot(e.clientX-S.pan.x,e.clientY-S.pan.y);
+      const swiped=swipeFlip(e);
       S.pan=null;
-      if(moved<12)doubleTapZoom(e);        /* 이동 도구에서 두 번 톡톡 = 확대 */
+      if(swiped)return;
+      if(moved<12)doubleTapZoom(e);        /* 두 번 톡톡 = 확대 */
       else settleView();                   /* 끝을 넘겼으면 페이지 넘김 */
     }
     return;
@@ -1956,6 +2040,8 @@ $('stage').addEventListener('wheel',e=>{
   }
 },{passive:false});
 $('btnFit').onclick=()=>{S.fitting=true;S.tx=0;S.ty=0;renderPage()};
+$('btnPrev2').onclick=()=>flip(-1);
+$('btnNext2').onclick=()=>flip(1);
 $('btnSplit').onclick=async()=>{
   S.split=!S.split;
   try{localStorage.setItem('pn.split',S.split?'1':'0')}catch(e){}
@@ -2384,6 +2470,11 @@ $('btnBarBottom').onclick=()=>setBarPos(false);
 $('btnBarTop').onclick=()=>setBarPos(true);
 try{setBarPos(localStorage.getItem('pn.barTop')==='1')}catch(e){setBarPos(false)}
 
+$('btnQuit').onclick=async()=>{
+  if(!confirm('판서노트를 닫을까요?\n필기는 저장되어 있습니다.'))return;
+  if(S.doc){await saveNow();await Backup.write(true);await Backup.writePdf();await AutoDL.run(true)}
+  setTimeout(()=>{window.close();setTimeout(()=>toast('창 오른쪽 위 ✕ 로 닫아 주세요'),400)},900);
+};
 $('btnCloseModal').onclick=$('btnX').onclick=()=>{$('modal').classList.remove('open');renderWhere()};
 $('modal').onclick=e=>{if(e.target.id==='modal')$('modal').classList.remove('open')};
 
@@ -2413,7 +2504,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='8.0';
+const APP_VER='8.4';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
