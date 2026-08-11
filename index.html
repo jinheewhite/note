@@ -204,8 +204,7 @@
   <p>필기는 <b>날짜별로 자동 저장</b>됩니다. 내일 같은 파일을 열면 오늘 판서는 그대로 보관되고 빈 화면에서 시작합니다.<br>
      펜으로 쓰고, 손바닥으로 밀어 화면을 옮깁니다. 끝까지 밀면 다음 쪽으로 넘어갑니다.<br>인터넷 연결 없이 동작하며, 파일은 이 컴퓨터 밖으로 나가지 않습니다.</p>
   <button class="primary big" id="btnOpen2">📂 PDF 열기</button>
-  <button id="btnInstall" hidden>⬇ 바탕화면에 설치하기</button>
-  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 2.5</div>
+  <div style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트 2.6</div>
   <div id="modeBadge"></div>
   <div class="recent" id="recent" hidden>
     <h3>최근에 연 파일</h3>
@@ -217,6 +216,9 @@
   <div class="sheet">
     <h2>저장 상태와 백업</h2>
     <p>필기는 이 컴퓨터의 브라우저 안에만 저장됩니다. 서버로 보내지 않습니다.</p>
+
+    <h4>설치</h4>
+    <div id="installBox"></div>
 
     <h4>전체화면</h4>
     <p>오른쪽 아래 ⛶ 버튼으로 켜면, 다음에 열 때도 자동으로 전체화면이 됩니다.
@@ -1369,23 +1371,36 @@ async function renderRecent(){
 /* 바탕화면 설치 — 크롬이 설치 가능하다고 알려줄 때만 버튼이 보입니다 */
 let installPrompt=null;
 function isInstalled(){
-  return window.matchMedia('(display-mode: standalone)').matches
-      || window.matchMedia('(display-mode: fullscreen)').matches
-      || window.navigator.standalone===true;
+  for(const m of ['standalone','fullscreen','minimal-ui','window-controls-overlay'])
+    if(window.matchMedia(`(display-mode: ${m})`).matches)return true;
+  if(window.navigator.standalone===true)return true;
+  try{return localStorage.getItem('pn.installed')==='1'}catch(e){return false}
 }
-window.addEventListener('beforeinstallprompt',e=>{
-  e.preventDefault();installPrompt=e;
-  if(!isInstalled())$('btnInstall').hidden=false;
-});
-$('btnInstall').onclick=async()=>{
-  if(!installPrompt){toast('크롬 ⋮ → 캐스트·저장 및 공유 → 페이지를 앱으로 설치 를 이용하세요');return}
-  installPrompt.prompt();await installPrompt.userChoice;
-  installPrompt=null;$('btnInstall').hidden=true;
-};
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});
 window.addEventListener('appinstalled',()=>{
-  $('btnInstall').hidden=true;
+  try{localStorage.setItem('pn.installed','1')}catch(e){}
+  installPrompt=null;
   toast('설치했습니다 — 이제 바탕화면(홈 화면) 아이콘으로 여세요');
 });
+/* 설정 창을 열 때마다 상태에 맞는 안내를 보여줍니다 */
+function renderInstallBox(){
+  const box=$('installBox');
+  if(isInstalled()){
+    box.innerHTML='<span class="badge"><span class="lamp"></span>이미 앱으로 설치되어 있습니다</span>'+
+      '<p style="margin-top:10px">지금 앱 창으로 실행 중입니다. 바탕화면(홈 화면) 아이콘으로 바로 여실 수 있습니다.</p>';
+    return;
+  }
+  box.innerHTML='<p>바탕화면에 설치하면 주소창 없는 창으로 열리고, 인터넷이 끊겨도 실행됩니다.</p>'+
+    '<div class="row" style="margin-top:10px"><button id="btnInstall" class="primary">⬇ 앱으로 설치하기</button></div>';
+  $('btnInstall').onclick=async()=>{
+    if(!installPrompt){
+      toast('브라우저 메뉴 ⋮ → 캐스트·저장 및 공유 → 페이지를 앱으로 설치 를 눌러 주세요');
+      return;
+    }
+    installPrompt.prompt();await installPrompt.userChoice;
+    installPrompt=null;renderInstallBox();
+  };
+}
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 
@@ -1459,6 +1474,7 @@ function modeBadge(){
   return `<span class="badge ${m.lamp}"><span class="lamp"></span>${m.t}</span>`;
 }
 $('btnMore').onclick=async()=>{
+  renderInstallBox();
   $('modeInfo').innerHTML=modeBadge()+`<p style="margin-top:10px">${MODE_TEXT[Store.mode].d}</p>`;
   const dates=[...new Set((await Store.allNotes())
       .filter(n=>n&&n.file===S.fileId&&n.strokes&&n.strokes.length).map(n=>n.date))].sort().reverse();
