@@ -1,6 +1,6 @@
 /* 판서노트 서비스워커 — 한 번 접속하면 인터넷 없이도 열립니다.
    항상 새 버전을 먼저 받아보고, 실패하면 저장해 둔 것을 씁니다. */
-const CACHE = 'panseo-note-4.1';
+const CACHE = 'panseo-note-4.3';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
