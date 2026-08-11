@@ -104,6 +104,9 @@
   .tabs button{min-height:42px;padding:0 14px;font-size:14px;flex:0 0 auto}
   .tabs button.on{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700}
   button.mini{min-height:42px;padding:0 14px;font-size:14px;flex:0 0 auto}
+  button.sync{min-height:48px;padding:0 18px;font-size:15px;font-weight:700;
+    background:var(--slate);border-color:var(--chalk);color:var(--chalk)}
+  button.sync:hover{background:var(--chalk);color:#1a1a12}
   .empty{color:var(--text-dim);font-size:14px;text-align:center;margin:18px 0 0}
   .where{display:flex;align-items:center;gap:12px;background:var(--ink-2);border:1px solid var(--line);
     border-radius:12px;padding:12px 16px;width:min(720px,94vw)}
@@ -114,6 +117,14 @@
   #folderPick{position:fixed;inset:0;background:rgba(8,13,18,.72);display:none;
     align-items:center;justify-content:center;z-index:45;padding:24px}
   #folderPick.open{display:flex}
+  #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
+    background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 10px 28px rgba(0,0,0,.5)}
+  #pop.open{display:flex}
+  #pop button{width:52px;height:52px;min-height:52px;padding:0;border-radius:50%;
+    justify-content:center;border-width:2px}
+  #pop button i{width:24px;height:24px;border-radius:50%;display:block}
+  #pop button.on{border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.3)}
   .recent{width:min(1020px,96vw)}
   .libbar b{font-size:17px;letter-spacing:-.2px}
   .search{background:var(--ink);border:1px solid var(--line);border-radius:10px;color:var(--text);
@@ -262,7 +273,7 @@
       <input id="libSearch" class="search" type="search" placeholder="자료 검색" autocomplete="off">
       <button id="btnSort" class="mini" title="정렬 바꾸기">최근순</button>
       <button id="btnView" class="mini" title="보기 바꾸기">☰</button>
-      <button id="btnSync" class="mini" title="저장 폴더와 맞추기">🔄</button>
+      <button id="btnSync" class="mini sync" title="저장 폴더와 맞추기">🔄 새로고침</button>
       <button id="btnNewFolder" class="mini">＋ 폴더</button>
       <button id="btnRenameFolder" class="mini" hidden>이름</button>
 
@@ -272,6 +283,7 @@
   </div>
 </div>
 
+<div id="pop"></div>
 <div id="folderPick"></div>
 
 <div id="modal">
@@ -1461,6 +1473,7 @@ function setTool(t,btn){
   if(typeof ptrs!=='undefined')ptrs.clear();
   const sh=$('sheet');if(sh){sh.style.transform='';sh.style.transformOrigin=''}
   S.tool=t;
+  if(t!=='hl'&&t!=='laser'){const pp=$('pop');if(pp)pp.classList.remove('open')}
   document.querySelectorAll('#tools button').forEach(b=>b.classList.remove('on'));
   if(btn)btn.classList.add('on');
   inkCv.style.cursor=t==='hand'?'grab':t==='eraser'?'cell':'crosshair';
@@ -1483,10 +1496,36 @@ document.querySelectorAll('.pen').forEach(b=>b.onclick=()=>{
   }
   S.colors.pen=b.dataset.color;setTool('pen',b);
 });
-$('btnHl').onclick=e=>setTool('hl',e.currentTarget);
+/* 색 고르는 작은 창 — 형광펜·레이저 버튼을 누르면 바로 뜹니다 */
+const PALETTE=[['#ff3b30','빨강'],['#f5c400','노랑'],['#2f9bff','파랑'],['#35d07f','초록'],['#ff7ad9','분홍']];
+function openPop(anchor,tool){
+  const pop=$('pop');pop.innerHTML='';
+  PALETTE.forEach(([c,nm])=>{
+    const b=document.createElement('button');
+    b.title=nm;b.innerHTML=`<i style="background:${c}"></i>`;
+    if(S.colors[tool]===c)b.classList.add('on');
+    b.onclick=()=>{S.colors[tool]=c;showColor();pop.classList.remove('open');
+      toast(`${TOOL_NAME[tool]} 색을 ${nm}으로 바꿨습니다`)};
+    pop.appendChild(b);
+  });
+  pop.classList.add('open');
+  const r=anchor.getBoundingClientRect(),pr=pop.getBoundingClientRect();
+  let left=r.left+r.width/2-pr.width/2;
+  left=Math.max(10,Math.min(window.innerWidth-pr.width-10,left));
+  pop.style.left=left+'px';
+  const up=r.top>window.innerHeight/2;
+  pop.style.top=(up?r.top-pr.height-10:r.bottom+10)+'px';
+}
+document.addEventListener('pointerdown',e=>{
+  const pop=$('pop');
+  if(pop.classList.contains('open')&&!e.target.closest('#pop')&&!e.target.closest('#btnHl')&&!e.target.closest('#btnLaser'))
+    pop.classList.remove('open');
+},true);
+
+$('btnHl').onclick=e=>{setTool('hl',e.currentTarget);openPop(e.currentTarget,'hl')};
 $('btnEraser').onclick=e=>setTool('eraser',e.currentTarget);
 $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
-$('btnLaser').onclick=e=>setTool('laser',e.currentTarget);
+$('btnLaser').onclick=e=>{setTool('laser',e.currentTarget);openPop(e.currentTarget,'laser')};
 /* 전체화면 유지 — 한 번 켜 두면 다음에 열 때도, 중간에 풀려도 다시 들어갑니다.
    브라우저 규칙상 화면을 한 번 눌러야(사용자 동작) 다시 전체화면이 됩니다. */
 const FULL_KEY='pn.keepFull';
@@ -1687,6 +1726,25 @@ async function pickFolder(file){
   };
   add('폴더 없음','');
   list.forEach(nm=>add('📁 '+nm,nm));
+  if(!list.length){
+    const p=document.createElement('p');
+    p.textContent='아직 만든 폴더가 없습니다. 아래에서 새로 만드세요.';
+    row.parentNode.insertBefore(p,row);
+  }
+  const mk=document.createElement('button');
+  mk.textContent='＋ 새 폴더 만들어 옮기기';mk.className='primary';
+  mk.onclick=async()=>{
+    const name=(prompt('새 폴더 이름을 입력하세요\n예: 1학년 수학, 2학기 기출')||'').trim();
+    if(!name)return;
+    const fs=await getFolders();
+    if(!fs.includes(name)){fs.push(name);await setFolders(fs);await Backup.addFolder(name)}
+    const rec=await Store.getFile(file.id);
+    if(rec){rec.folder=name;await Store.putFile(rec)}
+    box.classList.remove('open');
+    await renderFolders();await renderRecent();
+    toast(`"${name}" 폴더로 옮겼습니다`);
+  };
+  row.appendChild(mk);
   sheet.querySelector('#pickCancel').onclick=()=>box.classList.remove('open');
   box.onclick=e=>{if(e.target===box)box.classList.remove('open')};
 }
@@ -2002,7 +2060,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='5.6';
+const APP_VER='5.8';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 function renderUpdBox(){
   $('updBox').innerHTML=
