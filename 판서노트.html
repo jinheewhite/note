@@ -109,8 +109,9 @@
     border-left:2px solid var(--line);min-width:0;order:2}
   /* 칠판을 왼쪽으로 */
   body.board-left #board{order:0;border-left:0;border-right:2px solid var(--line)}
-  body.board-left aside{order:1}
-  body.board-left #stage{order:2}
+  body.board-left #stage{order:1}
+  /* 칠판이 왼쪽이면 쪽 번호는 맨 바깥(오른쪽)으로 */
+  body.board-left aside{order:2;border-right:0;border-left:1px solid var(--line)}
   #board .boardTop{display:flex;align-items:center;gap:12px;padding:10px 14px;
     background:var(--ink-2);border-bottom:1px solid var(--line)}
   #board .boardTop b{font-size:15px}
@@ -2402,7 +2403,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='7.8';
+const APP_VER='7.9';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
