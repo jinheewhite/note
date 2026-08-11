@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>판서노트 — 전자칠판용 PDF 필기 (오프라인판)</title>
+<style>
+  :root{
+    --ink:#141d26;--ink-2:#1e2b38;--ink-3:#2b3b4c;--slate:#33475b;
+    --chalk:#f5d547;--line:#3d5165;--text:#e8eef4;--text-dim:#8fa3b5;
+    --radius:10px;--bar:76px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;overflow:hidden}
+  body{background:var(--ink);color:var(--text);
+    font-family:'Pretendard Variable',Pretendard,-apple-system,'Malgun Gothic','맑은 고딕',sans-serif;
+    font-size:15px;display:flex;flex-direction:column;user-select:none}
+  .mono{font-family:'SF Mono',Consolas,'D2Coding',monospace;font-variant-numeric:tabular-nums}
+
+  header{height:var(--bar);flex:0 0 auto;background:var(--ink-2);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:8px;padding:0 12px;overflow-x:auto;overflow-y:hidden}
+  header::-webkit-scrollbar{height:0}
+  .brand{display:flex;align-items:center;gap:9px;padding-right:12px;margin-right:4px;border-right:1px solid var(--line);flex:0 0 auto}
+  .brand b{font-size:17px;letter-spacing:-.3px}
+  .brand .dot{width:11px;height:11px;border-radius:2px;background:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.18)}
+  .brand small{display:block;color:var(--text-dim);font-size:11px;margin-top:1px;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .grp{display:flex;align-items:center;gap:6px;flex:0 0 auto;padding-right:10px;margin-right:2px;border-right:1px solid var(--line)}
+  .grp:last-child{border-right:0}
+
+  button{font:inherit;color:var(--text);background:var(--ink-3);border:1px solid var(--line);
+    border-radius:var(--radius);min-height:50px;padding:0 15px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:background .12s,border-color .12s}
+  button:hover{background:var(--slate)}
+  button:active{transform:translateY(1px)}
+  button:focus-visible{outline:3px solid var(--chalk);outline-offset:2px}
+  button[disabled]{opacity:.35;pointer-events:none}
+  button.on{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700}
+  button.icon{padding:0;width:50px;justify-content:center;font-size:19px}
+  button.primary{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700}
+  button.primary:hover{background:#ffe071}
+  button.ghost{background:transparent}
+
+  .pen{width:50px;height:50px;border-radius:50%;padding:0;justify-content:center;border-width:2px}
+  .pen i{width:22px;height:22px;border-radius:50%;display:block}
+  .pen.on{background:var(--ink-3);border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.25)}
+  .size-wrap{display:flex;align-items:center;gap:8px;padding:0 4px}
+  input[type=range]{width:96px;accent-color:var(--chalk)}
+
+  .status{margin-left:auto;display:flex;align-items:center;gap:12px;flex:0 0 auto;padding-left:14px}
+  .saved{color:var(--text-dim);font-size:12.5px;white-space:nowrap}
+  .saved b{color:var(--chalk);font-weight:600}
+  .datechip{background:var(--ink);border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px}
+  .datechip label{color:var(--text-dim);font-size:11px;display:block;letter-spacing:.4px}
+  .datechip input{background:transparent;border:0;color:var(--text);font:inherit;font-size:15px;
+    font-variant-numeric:tabular-nums;padding:0;width:135px}
+  .datechip input::-webkit-calendar-picker-indicator{filter:invert(.7)}
+
+  main{flex:1;display:flex;min-height:0}
+  aside{width:78px;flex:0 0 auto;background:var(--ink-2);border-right:1px solid var(--line);overflow-y:auto;padding:10px 0 40px}
+  aside .p{margin:5px 11px;height:46px;border-radius:8px;border:1px solid transparent;
+    display:flex;align-items:center;justify-content:center;gap:6px;color:var(--text-dim);cursor:pointer;font-size:14px}
+  aside .p:hover{background:var(--ink-3);color:var(--text)}
+  aside .p.cur{background:var(--slate);color:#fff;border-color:var(--chalk)}
+  aside .p .mark{width:7px;height:7px;border-radius:50%;background:transparent}
+  aside .p.has .mark{background:var(--chalk)}
+
+  #stage{flex:1;overflow:auto;background:#26333f;padding:24px;display:flex;justify-content:center;align-items:flex-start}
+  #sheet{position:relative;box-shadow:0 10px 34px rgba(0,0,0,.45);background:#fff;flex:0 0 auto}
+  #pdfCv,#inkCv{display:block;position:relative}
+  #inkCv{position:absolute;inset:0;touch-action:none;cursor:crosshair}
+
+  #welcome{position:absolute;inset:var(--bar) 0 0 0;background:var(--ink);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:24px;padding:30px;z-index:20;overflow-y:auto}
+  #welcome h1{font-size:30px;margin:0;letter-spacing:-.6px;text-align:center}
+  #welcome p{color:var(--text-dim);margin:0;text-align:center;line-height:1.7}
+  #welcome .big{min-height:74px;font-size:19px;padding:0 34px}
+  .recent{width:min(560px,92vw)}
+  .recent h3{font-size:12px;letter-spacing:1.4px;color:var(--text-dim);margin:0 0 10px;font-weight:600}
+  .recent .r{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--ink-2);
+    border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:8px;cursor:pointer;min-height:0}
+  .recent .r:hover{background:var(--ink-3)}
+  .recent .r .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .recent .r .dt{color:var(--text-dim);font-size:12.5px}
+
+  #modal{position:fixed;inset:0;background:rgba(8,13,18,.72);display:none;align-items:center;justify-content:center;z-index:40;padding:24px}
+  #modal.open{display:flex}
+  .sheet{background:var(--ink-2);border:1px solid var(--line);border-radius:16px;width:min(620px,94vw);
+    max-height:86vh;overflow-y:auto;padding:26px}
+  .sheet h2{margin:0 0 4px;font-size:21px}
+  .sheet h4{margin:24px 0 8px;font-size:12px;letter-spacing:1.3px;color:var(--text-dim);font-weight:600}
+  .sheet p{color:var(--text-dim);line-height:1.7;margin:0 0 4px;font-size:14px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .badge{display:inline-flex;align-items:center;gap:7px;background:var(--ink);border:1px solid var(--line);
+    border-radius:999px;padding:8px 14px;font-size:13px}
+  .badge .lamp{width:9px;height:9px;border-radius:50%;background:var(--chalk)}
+  .badge.warn .lamp{background:#ff8a4c}
+  .datelist{display:flex;flex-wrap:wrap;gap:7px}
+  .datelist button{min-height:40px;padding:0 13px;font-size:13.5px}
+
+  #toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(20px);background:var(--chalk);
+    color:#1a1a12;font-weight:700;padding:13px 24px;border-radius:999px;opacity:0;pointer-events:none;
+    transition:.25s;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:80vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="dot"></span>
+    <span><b>판서노트</b><small id="fileName">파일 없음</small></span>
+  </div>
+
+  <div class="grp"><button id="btnOpen">📂 PDF 열기</button></div>
+
+  <div class="grp" id="tools">
+    <button class="pen on" data-color="#111111" title="검정"><i style="background:#111"></i></button>
+    <button class="pen" data-color="#e02424" title="빨강"><i style="background:#e02424"></i></button>
+    <button class="pen" data-color="#1d6fe0" title="파랑"><i style="background:#1d6fe0"></i></button>
+    <button class="pen" data-color="#12a150" title="초록"><i style="background:#12a150"></i></button>
+    <button class="icon" id="btnHl" title="형광펜">🖍️</button>
+    <button class="icon" id="btnEraser" title="지우개">🧽</button>
+    <button class="icon" id="btnPan" title="화면 이동">✋</button>
+  </div>
+
+  <div class="grp size-wrap">
+    <span style="color:var(--text-dim);font-size:12px">굵기</span>
+    <input type="range" id="size" min="1" max="20" value="4">
+  </div>
+
+  <div class="grp">
+    <button class="icon" id="btnUndo" title="되돌리기">↩︎</button>
+    <button id="btnClear">이 쪽 지우기</button>
+  </div>
+
+  <div class="grp">
+    <button class="icon" id="btnPrev" title="이전 쪽">◀</button>
+    <span class="mono" id="pageInfo" style="min-width:78px;text-align:center">– / –</span>
+    <button class="icon" id="btnNext" title="다음 쪽">▶</button>
+    <button class="icon" id="btnZoomOut" title="축소">−</button>
+    <button class="icon" id="btnZoomIn" title="확대">＋</button>
+    <button class="icon" id="btnFit" title="화면 맞춤">⤢</button>
+  </div>
+
+  <div class="grp">
+    <button id="btnPng">이 쪽 저장</button>
+    <button id="btnPdf" class="primary">오늘 수업 PDF로 저장</button>
+    <button class="icon" id="btnMore" title="저장 상태와 백업">⚙︎</button>
+  </div>
+
+  <div class="status">
+    <span class="saved" id="saved">—</span>
+    <div class="datechip">
+      <label>수업 날짜</label>
+      <input type="date" id="dateInput">
+    </div>
+  </div>
+</header>
+
+<main>
+  <aside id="rail"></aside>
+  <div id="stage">
+    <div id="sheet">
+      <canvas id="pdfCv"></canvas>
+      <canvas id="inkCv"></canvas>
+    </div>
+  </div>
+</main>
+
+<div id="welcome">
+  <h1>수업할 PDF를 열어 주세요</h1>
+  <p>필기는 <b>날짜별로 자동 저장</b>됩니다. 내일 같은 파일을 열면 오늘 판서는 그대로 보관되고 빈 화면에서 시작합니다.<br>
+     인터넷 연결 없이 동작하며, 파일은 이 컴퓨터 밖으로 나가지 않습니다.</p>
+  <button class="primary big" id="btnOpen2">📂 PDF 열기</button>
+  <div id="modeBadge"></div>
+  <div class="recent" id="recent" hidden>
+    <h3>최근에 연 파일</h3>
+    <div id="recentList"></div>
+  </div>
+</div>
+
+<div id="modal">
+  <div class="sheet">
+    <h2>저장 상태와 백업</h2>
+    <p>필기는 이 컴퓨터의 브라우저 안에만 저장됩니다. 서버로 보내지 않습니다.</p>
+
+    <h4>현재 저장 방식</h4>
+    <div id="modeInfo"></div>
+
+    <h4>이 파일의 판서 날짜</h4>
+    <div class="datelist" id="dateList"><span style="color:var(--text-dim);font-size:14px">아직 없습니다</span></div>
+
+    <h4>백업</h4>
+    <p>브라우저 사용 기록을 지우면 판서도 함께 사라집니다. 학기 중 한 번씩 백업 파일을 받아 두세요.</p>
+    <div class="row" style="margin-top:10px">
+      <button id="btnBackup">판서 전체 백업 받기</button>
+      <button id="btnRestore">백업 불러오기</button>
+    </div>
+
+    <h4>정리</h4>
+    <div class="row">
+      <button id="btnWipeDate" class="ghost">이 날짜 판서 전부 삭제</button>
+    </div>
+
+    <div class="row" style="margin-top:26px;justify-content:flex-end">
+      <button class="primary" id="btnCloseModal">닫기</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept="application/pdf" hidden>
+<input type="file" id="jsonInput" accept="application/json,.json" hidden>
+<div id="toast"></div>
+
+<script id="pdfjsLib">/*__PDFJS__*/</script>
+<script id="pdfWorkerSrc">/*__PDFWORKER__*/</script>
+<script id="jsPdfLib">/*__JSPDF__*/</script>
+<script type="application/json" id="cmapData">{"__CMAPS__":1}</script>
+<script type="application/json" id="fontData">{"__FONTS__":1}</script>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   0. PDF 엔진 준비 — 외부 요청 없음
+   ────────────────────────────────────────────────────────
+   worker 코드를 Blob으로 만들어 별도 스레드에서 돌립니다.
+   file:// 로 열어 Blob worker가 막히면, 위 스크립트가 이미
+   globalThis.pdfjsWorker 를 정의해 두었으므로 pdf.js 가
+   자동으로 메인 스레드 처리로 넘어갑니다.
+   ══════════════════════════════════════════════════════════ */
+try{
+  const src=document.getElementById('pdfWorkerSrc').textContent;
+  pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([src],{type:'application/javascript'}));
+}catch(e){
+  pdfjsLib.GlobalWorkerOptions.workerSrc='inline';
+}
+
+/* 한글 글자표(CMap)와 기본 글꼴도 파일 안에 함께 넣어 두었습니다.
+   글꼴이 내장되지 않은 PDF도 인터넷 없이 그대로 표시됩니다. */
+const RES={cmap:{},font:{}};
+try{RES.cmap=JSON.parse(document.getElementById('cmapData').textContent)}catch(e){}
+try{RES.font=JSON.parse(document.getElementById('fontData').textContent)}catch(e){}
+function b64bytes(b64){const s=atob(b64),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a}
+class InlineCMapReader{
+  constructor(){this.isCompressed=true}
+  async fetch({name}){
+    const d=RES.cmap[name];
+    if(!d)throw new Error('내장되지 않은 글자표입니다: '+name);
+    return {cMapData:b64bytes(d),compressionType:1};
+  }
+}
+class InlineFontReader{
+  async fetch({filename}){
+    const d=RES.font[filename];
+    if(!d)throw new Error('내장되지 않은 글꼴입니다: '+filename);
+    return b64bytes(d);
+  }
+}
+const PDF_OPTS={CMapReaderFactory:InlineCMapReader,StandardFontDataFactory:InlineFontReader,cMapPacked:true};
+
+/* ══════════════════════════════════════════════════════════
+   1. 저장소 — IndexedDB → localStorage → 메모리 순으로 시도
+   ══════════════════════════════════════════════════════════ */
+const Store={
+  mode:'memory',
+  db:null,
+  mem:{files:new Map(),notes:new Map()},
+
+  async init(){
+    if(await this._idb()){this.mode='idb';return}
+    if(this._ls()){this.mode='local';return}
+    this.mode='memory';
+  },
+  _idb(){
+    return new Promise(res=>{
+      let req;
+      try{req=indexedDB.open('panseo-note',1)}catch(e){return res(false)}
+      req.onupgradeneeded=e=>{
+        const d=e.target.result;
+        if(!d.objectStoreNames.contains('files'))d.createObjectStore('files',{keyPath:'id'});
+        if(!d.objectStoreNames.contains('notes'))d.createObjectStore('notes',{keyPath:'key'});
+      };
+      req.onsuccess=e=>{this.db=e.target.result;res(true)};
+      req.onerror=()=>res(false);
+      req.onblocked=()=>res(false);
+      setTimeout(()=>res(!!this.db),3000);
+    });
+  },
+  _ls(){
+    try{localStorage.setItem('pn.test','1');localStorage.removeItem('pn.test');return true}catch(e){return false}
+  },
+  _tx(s,m){return this.db.transaction(s,m).objectStore(s)},
+
+  async putNote(rec){
+    if(this.mode==='idb')return new Promise((ok,no)=>{const r=this._tx('notes','readwrite').put(rec);r.onsuccess=ok;r.onerror=no});
+    if(this.mode==='local'){
+      try{localStorage.setItem('pn.n.'+rec.key,JSON.stringify(rec))}
+      catch(e){toast('저장 공간이 가득 찼습니다 — ⚙︎에서 백업 후 정리해 주세요')}
+      return;
+    }
+    this.mem.notes.set(rec.key,rec);
+  },
+  async getNote(key){
+    if(this.mode==='idb')return new Promise(res=>{const r=this._tx('notes','readonly').get(key);r.onsuccess=()=>res(r.result);r.onerror=()=>res(null)});
+    if(this.mode==='local'){const v=localStorage.getItem('pn.n.'+key);return v?JSON.parse(v):null}
+    return this.mem.notes.get(key);
+  },
+  async delNote(key){
+    if(this.mode==='idb')return new Promise(res=>{const r=this._tx('notes','readwrite').delete(key);r.onsuccess=res;r.onerror=res});
+    if(this.mode==='local')return localStorage.removeItem('pn.n.'+key);
+    this.mem.notes.delete(key);
+  },
+  async allNotes(){
+    if(this.mode==='idb')return new Promise(res=>{const r=this._tx('notes','readonly').getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>res([])});
+    if(this.mode==='local'){
+      const out=[];
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k&&k.startsWith('pn.n.')){try{out.push(JSON.parse(localStorage.getItem(k)))}catch(e){}}
+      }
+      return out;
+    }
+    return [...this.mem.notes.values()];
+  },
+  /* local 모드에서는 PDF 원본을 담을 공간이 없어 이름만 기록합니다 */
+  async putFile(rec){
+    if(this.mode==='idb')return new Promise((ok,no)=>{const r=this._tx('files','readwrite').put(rec);r.onsuccess=ok;r.onerror=no});
+    const light={id:rec.id,name:rec.name,opened:rec.opened};
+    if(this.mode==='local'){try{localStorage.setItem('pn.f.'+rec.id,JSON.stringify(light))}catch(e){}return}
+    this.mem.files.set(rec.id,light);
+  },
+  async allFiles(){
+    if(this.mode==='idb')return new Promise(res=>{const r=this._tx('files','readonly').getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>res([])});
+    if(this.mode==='local'){
+      const out=[];
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k&&k.startsWith('pn.f.')){try{out.push(JSON.parse(localStorage.getItem(k)))}catch(e){}}
+      }
+      return out;
+    }
+    return [...this.mem.files.values()];
+  }
+};
+
+const MODE_TEXT={
+  idb:{lamp:'',t:'정상 — 이 브라우저에 계속 보관됩니다',d:'PDF 원본과 필기가 함께 저장되어, 최근 파일에서 바로 다시 열 수 있습니다.'},
+  local:{lamp:'warn',t:'간이 저장 — 필기는 남지만 용량이 작습니다',d:'파일을 file:// 로 직접 열어 실행 중입니다. 필기는 저장되지만 PDF 원본은 보관하지 않으므로 매번 파일을 다시 선택해야 합니다. 학기 중 백업을 권합니다.'},
+  memory:{lamp:'warn',t:'저장 안 됨 — 창을 닫으면 사라집니다',d:'이 브라우저가 저장을 막고 있습니다. 수업이 끝나기 전에 반드시 PDF나 그림으로 내려받아 주세요.'}
+};
+
+/* ══════════════════════════════════════════════════════════
+   2. 상태
+   ══════════════════════════════════════════════════════════ */
+const S={
+  doc:null,fileId:null,fileName:'',page:1,pages:0,
+  scale:1.3,fitting:true,date:todayStr(),
+  strokes:[],pageHas:new Set(),
+  tool:'pen',color:'#111111',size:4,
+  drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false
+};
+function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+const noteKey=(f,d,p)=>`${f}|${d}|${p}`;
+const $=id=>document.getElementById(id);
+const pdfCv=$('pdfCv'),inkCv=$('inkCv'),pctx=pdfCv.getContext('2d'),ictx=inkCv.getContext('2d');
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400)}
+function markSaved(){
+  $('saved').innerHTML = Store.mode==='memory'
+    ? '<b style="color:#ff8a4c">●</b> 저장 안 됨'
+    : `<b>●</b> ${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})} 저장됨`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   3. PDF 표시
+   ══════════════════════════════════════════════════════════ */
+async function loadPdf(bytes,name,id){
+  try{
+    S.doc=await pdfjsLib.getDocument({data:bytes.slice(0),...PDF_OPTS}).promise;
+  }catch(e){toast('PDF를 열지 못했습니다: '+e.message);return}
+  S.pages=S.doc.numPages;S.page=1;S.fileName=name;
+  S.fileId=id||(name+'|'+bytes.byteLength);
+  $('fileName').textContent=name;
+  $('welcome').hidden=true;
+  await Store.putFile({id:S.fileId,name,data:bytes,opened:Date.now()});
+  await refreshMarks();
+  buildRail();
+  S.fitting=true;
+  await renderPage();
+  markSaved();
+}
+
+async function renderPage(){
+  if(!S.doc)return;
+  const pg=await S.doc.getPage(S.page);
+  if(S.fitting){
+    const avail=$('stage').clientWidth-56;
+    S.scale=Math.max(.3,avail/pg.getViewport({scale:1}).width);
+  }
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const vp=pg.getViewport({scale:S.scale});
+  S.rendered={w:vp.width,h:vp.height};
+  for(const cv of [pdfCv,inkCv]){
+    cv.width=Math.floor(vp.width*dpr);cv.height=Math.floor(vp.height*dpr);
+    cv.style.width=vp.width+'px';cv.style.height=vp.height+'px';
+  }
+  $('sheet').style.width=vp.width+'px';$('sheet').style.height=vp.height+'px';
+  pctx.setTransform(dpr,0,0,dpr,0,0);
+  pctx.fillStyle='#fff';pctx.fillRect(0,0,vp.width,vp.height);
+  await pg.render({canvasContext:pctx,viewport:vp}).promise;
+  ictx.setTransform(dpr,0,0,dpr,0,0);
+  await loadStrokes();
+  redraw();
+  $('pageInfo').textContent=`${S.page} / ${S.pages}`;
+  $('btnPrev').disabled=S.page<=1;$('btnNext').disabled=S.page>=S.pages;
+  buildRail();
+}
+
+const toN=(x,y)=>[Math.round(x/S.rendered.w*1e4)/1e4,Math.round(y/S.rendered.h*1e4)/1e4];
+const toP=(x,y)=>[x*S.rendered.w,y*S.rendered.h];
+
+function paintStroke(st){
+  const pts=st.pts;if(!pts.length)return;
+  ictx.save();
+  ictx.lineCap='round';ictx.lineJoin='round';
+  ictx.strokeStyle=st.color;ictx.lineWidth=st.w*S.rendered.w;
+  if(st.mode==='hl'){ictx.globalAlpha=.32;ictx.lineCap='butt'}
+  ictx.beginPath();
+  const [x,y]=toP(pts[0][0],pts[0][1]);ictx.moveTo(x,y);
+  if(pts.length===1)ictx.lineTo(x+.1,y);
+  for(let i=1;i<pts.length;i++){const [a,b]=toP(pts[i][0],pts[i][1]);ictx.lineTo(a,b)}
+  ictx.stroke();ictx.restore();
+}
+function redraw(){
+  ictx.clearRect(0,0,S.rendered.w,S.rendered.h);
+  S.strokes.forEach(paintStroke);
+  if(S.cur)paintStroke(S.cur);
+}
+
+function pos(e){const r=inkCv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top]}
+inkCv.addEventListener('pointerdown',e=>{
+  if(!S.doc||S.tool==='pan')return;
+  inkCv.setPointerCapture(e.pointerId);
+  const [x,y]=pos(e);
+  S.drawing=true;S.last=[x,y];
+  if(S.tool==='eraser'){erase(x,y);return}
+  S.cur={mode:S.tool,color:S.color,w:(S.tool==='hl'?S.size*3:S.size)/S.rendered.w,pts:[toN(x,y)]};
+  redraw();
+});
+inkCv.addEventListener('pointermove',e=>{
+  if(!S.drawing)return;
+  const [x,y]=pos(e);
+  if(Math.hypot(x-S.last[0],y-S.last[1])<1.4)return;   /* 점 솎아내기 — 저장 용량 절약 */
+  S.last=[x,y];
+  if(S.tool==='eraser'){erase(x,y);return}
+  S.cur.pts.push(toN(x,y));redraw();
+});
+function endStroke(){
+  if(!S.drawing)return;
+  S.drawing=false;
+  if(S.cur){S.strokes.push(S.cur);S.cur=null;redraw()}
+  scheduleSave();
+}
+inkCv.addEventListener('pointerup',endStroke);
+inkCv.addEventListener('pointercancel',endStroke);
+inkCv.addEventListener('pointerleave',endStroke);
+
+function erase(x,y){
+  const r=Math.max(14,S.size*2.2),before=S.strokes.length;
+  S.strokes=S.strokes.filter(st=>!st.pts.some(p=>{
+    const [px,py]=toP(p[0],p[1]);
+    return Math.hypot(px-x,py-y)<r;
+  }));
+  if(S.strokes.length!==before)redraw();
+}
+
+/* ══════════════════════════════════════════════════════════
+   4. 날짜별 자동 저장
+   ══════════════════════════════════════════════════════════ */
+async function loadStrokes(){
+  const rec=await Store.getNote(noteKey(S.fileId,S.date,S.page));
+  S.strokes=rec&&rec.strokes?JSON.parse(JSON.stringify(rec.strokes)):[];
+}
+function scheduleSave(){clearTimeout(S.saveTimer);S.saveTimer=setTimeout(saveNow,600)}
+async function saveNow(){
+  if(!S.fileId)return;
+  const key=noteKey(S.fileId,S.date,S.page);
+  if(S.strokes.length)await Store.putNote({key,file:S.fileId,date:S.date,page:S.page,strokes:S.strokes,at:Date.now()});
+  else await Store.delNote(key);
+  if(S.strokes.length)S.pageHas.add(S.page);else S.pageHas.delete(S.page);
+  buildRail();markSaved();
+}
+async function refreshMarks(){
+  S.pageHas=new Set();
+  (await Store.allNotes()).forEach(n=>{
+    if(n&&n.file===S.fileId&&n.date===S.date&&n.strokes&&n.strokes.length)S.pageHas.add(n.page);
+  });
+}
+window.addEventListener('beforeunload',()=>{if(S.strokes.length)saveNow()});
+
+/* ══════════════════════════════════════════════════════════
+   5. 화면 구성
+   ══════════════════════════════════════════════════════════ */
+function buildRail(){
+  const rail=$('rail');
+  if(rail.childElementCount!==S.pages){
+    rail.innerHTML='';
+    for(let i=1;i<=S.pages;i++){
+      const d=document.createElement('div');
+      d.className='p';d.dataset.p=i;
+      d.innerHTML=`<span class="mono">${i}</span><span class="mark"></span>`;
+      d.onclick=()=>goto(i);
+      rail.appendChild(d);
+    }
+  }
+  [...rail.children].forEach(el=>{
+    const p=+el.dataset.p;
+    el.classList.toggle('cur',p===S.page);
+    el.classList.toggle('has',S.pageHas.has(p));
+  });
+}
+async function goto(p){
+  if(p<1||p>S.pages||p===S.page||S.busy)return;
+  await saveNow();S.page=p;await renderPage();
+  document.querySelector(`#rail .p[data-p="${p}"]`)?.scrollIntoView({block:'nearest'});
+}
+
+/* ══════════════════════════════════════════════════════════
+   6. 도구
+   ══════════════════════════════════════════════════════════ */
+function setTool(t,btn){
+  S.tool=t;
+  document.querySelectorAll('#tools button').forEach(b=>b.classList.remove('on'));
+  if(btn)btn.classList.add('on');
+  inkCv.style.cursor=t==='pan'?'grab':t==='eraser'?'cell':'crosshair';
+  inkCv.style.pointerEvents=t==='pan'?'none':'auto';
+}
+document.querySelectorAll('.pen').forEach(b=>b.onclick=()=>{S.color=b.dataset.color;setTool('pen',b)});
+$('btnHl').onclick=e=>setTool('hl',e.currentTarget);
+$('btnEraser').onclick=e=>setTool('eraser',e.currentTarget);
+$('btnPan').onclick=e=>setTool('pan',e.currentTarget);
+$('size').oninput=e=>S.size=+e.target.value;
+$('btnUndo').onclick=()=>{S.strokes.pop();redraw();scheduleSave()};
+$('btnClear').onclick=()=>{
+  if(!S.strokes.length)return;
+  if(confirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`)){S.strokes=[];redraw();saveNow()}
+};
+$('btnPrev').onclick=()=>goto(S.page-1);
+$('btnNext').onclick=()=>goto(S.page+1);
+$('btnZoomIn').onclick=()=>{S.fitting=false;S.scale=Math.min(4,S.scale*1.2);renderPage()};
+$('btnZoomOut').onclick=()=>{S.fitting=false;S.scale=Math.max(.3,S.scale/1.2);renderPage()};
+$('btnFit').onclick=()=>{S.fitting=true;renderPage()};
+
+$('dateInput').value=S.date;
+$('dateInput').onchange=async e=>{
+  await saveNow();
+  S.date=e.target.value||todayStr();
+  await refreshMarks();await renderPage();
+  toast(S.date===todayStr()?'오늘 판서입니다':`${S.date} 판서를 불러왔습니다`);
+};
+
+$('btnOpen').onclick=$('btnOpen2').onclick=()=>$('fileInput').click();
+$('fileInput').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  await loadPdf(await f.arrayBuffer(),f.name);
+  e.target.value='';
+};
+window.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  if(e.key==='ArrowRight'||e.key==='PageDown')goto(S.page+1);
+  if(e.key==='ArrowLeft'||e.key==='PageUp')goto(S.page-1);
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();$('btnUndo').click()}
+  if(e.key==='Escape')$('modal').classList.remove('open');
+});
+
+/* ══════════════════════════════════════════════════════════
+   7. 내보내기
+   ══════════════════════════════════════════════════════════ */
+function flatten(){
+  const out=document.createElement('canvas');
+  out.width=pdfCv.width;out.height=pdfCv.height;
+  const c=out.getContext('2d');
+  c.fillStyle='#fff';c.fillRect(0,0,out.width,out.height);
+  c.drawImage(pdfCv,0,0);c.drawImage(inkCv,0,0);
+  return out;
+}
+const baseName=()=>S.fileName.replace(/\.pdf$/i,'');
+function download(href,name){const a=document.createElement('a');a.href=href;a.download=name;document.body.appendChild(a);a.click();a.remove()}
+
+$('btnPng').onclick=()=>{
+  if(!S.doc)return;
+  download(flatten().toDataURL('image/png'),`${baseName()}_${S.date}_${S.page}쪽.png`);
+  toast('이 쪽을 그림으로 저장했습니다');
+};
+$('btnPdf').onclick=async()=>{
+  if(!S.doc||S.busy)return;
+  await saveNow();
+  const pages=[...S.pageHas].sort((a,b)=>a-b);
+  if(!pages.length){toast('저장할 판서가 없습니다');return}
+  const keep=S.page,btn=$('btnPdf'),label=btn.textContent;
+  S.busy=true;btn.textContent='만드는 중…';btn.disabled=true;
+  try{
+    const {jsPDF}=window.jspdf;let doc=null;
+    for(const p of pages){
+      S.page=p;await renderPage();
+      const cv=flatten(),img=cv.toDataURL('image/jpeg',.9),land=cv.width>cv.height;
+      const fmt=[land?842:595,land?595:842];
+      if(!doc)doc=new jsPDF({orientation:land?'l':'p',unit:'pt',format:fmt});
+      else doc.addPage(fmt,land?'l':'p');
+      const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
+      const r=Math.min(pw/cv.width,ph/cv.height),w=cv.width*r,h=cv.height*r;
+      doc.addImage(img,'JPEG',(pw-w)/2,(ph-h)/2,w,h);
+    }
+    doc.save(`${baseName()}_${S.date}_판서.pdf`);
+    toast(`${pages.length}쪽을 PDF로 저장했습니다`);
+  }catch(e){toast('PDF를 만들지 못했습니다: '+e.message)}
+  S.page=keep;await renderPage();
+  S.busy=false;btn.textContent=label;btn.disabled=false;
+};
+
+/* ══════════════════════════════════════════════════════════
+   8. 저장 상태 · 백업
+   ══════════════════════════════════════════════════════════ */
+function modeBadge(){
+  const m=MODE_TEXT[Store.mode];
+  return `<span class="badge ${m.lamp}"><span class="lamp"></span>${m.t}</span>`;
+}
+$('btnMore').onclick=async()=>{
+  $('modeInfo').innerHTML=modeBadge()+`<p style="margin-top:10px">${MODE_TEXT[Store.mode].d}</p>`;
+  const dates=[...new Set((await Store.allNotes())
+      .filter(n=>n&&n.file===S.fileId&&n.strokes&&n.strokes.length).map(n=>n.date))].sort().reverse();
+  const el=$('dateList');
+  if(!dates.length)el.innerHTML='<span style="color:var(--text-dim);font-size:14px">아직 없습니다</span>';
+  else{
+    el.innerHTML='';
+    dates.forEach(d=>{
+      const b=document.createElement('button');
+      b.className=d===S.date?'on':'';b.textContent=d;
+      b.onclick=()=>{$('dateInput').value=d;$('dateInput').dispatchEvent(new Event('change'));$('modal').classList.remove('open')};
+      el.appendChild(b);
+    });
+  }
+  $('modal').classList.add('open');
+};
+$('btnCloseModal').onclick=()=>$('modal').classList.remove('open');
+$('modal').onclick=e=>{if(e.target.id==='modal')$('modal').classList.remove('open')};
+
+$('btnBackup').onclick=async()=>{
+  await saveNow();
+  const notes=(await Store.allNotes()).filter(n=>n&&n.strokes&&n.strokes.length)
+      .map(({key,file,date,page,strokes})=>({key,file,date,page,strokes}));
+  const files=(await Store.allFiles()).map(({id,name})=>({id,name}));
+  if(!notes.length){toast('백업할 판서가 없습니다');return}
+  const blob=new Blob([JSON.stringify({app:'panseo-note',v:1,at:new Date().toISOString(),files,notes})],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  download(url,`판서백업_${todayStr()}.json`);
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+  toast(`판서 ${notes.length}쪽을 백업했습니다`);
+};
+$('btnRestore').onclick=()=>$('jsonInput').click();
+$('jsonInput').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{
+    const data=JSON.parse(await f.text());
+    if(data.app!=='panseo-note')throw new Error('판서노트 백업 파일이 아닙니다');
+    let n=0;
+    for(const rec of data.notes||[]){
+      if(!rec.key||!rec.strokes)continue;
+      await Store.putNote({...rec,at:Date.now()});n++;
+    }
+    await refreshMarks();await renderPage();
+    toast(`판서 ${n}쪽을 불러왔습니다`);
+  }catch(err){toast('불러오지 못했습니다: '+err.message)}
+};
+$('btnWipeDate').onclick=async()=>{
+  if(!S.fileId)return;
+  if(!confirm(`${S.date} 의 이 파일 판서를 전부 삭제합니다. 되돌릴 수 없습니다.`))return;
+  const notes=(await Store.allNotes()).filter(n=>n&&n.file===S.fileId&&n.date===S.date);
+  for(const n of notes)await Store.delNote(n.key);
+  S.strokes=[];await refreshMarks();await renderPage();
+  toast('삭제했습니다');
+};
+
+/* ══════════════════════════════════════════════════════════
+   9. 시작
+   ══════════════════════════════════════════════════════════ */
+(async()=>{
+  await Store.init();
+  $('modeBadge').innerHTML=Store.mode==='idb'?'':modeBadge();
+  const files=(await Store.allFiles()).sort((a,b)=>b.opened-a.opened).slice(0,5);
+  if(files.length){
+    $('recent').hidden=false;$('recentList').innerHTML='';
+    files.forEach(f=>{
+      const b=document.createElement('button');
+      b.className='r';
+      b.innerHTML=`<span>📄</span><span class="nm">${f.name}</span><span class="dt mono">${f.data?'':'다시 선택 '}${new Date(f.opened).toLocaleDateString('ko-KR')}</span>`;
+      b.onclick=()=>{
+        if(f.data)loadPdf(f.data,f.name,f.id);
+        else{toast('같은 PDF 파일을 다시 선택해 주세요 — 판서는 그대로 남아 있습니다');$('fileInput').click()}
+      };
+      $('recentList').appendChild(b);
+    });
+  }
+  setTool('pen',document.querySelector('.pen'));
+  markSaved();
+  let t;window.addEventListener('resize',()=>{clearTimeout(t);t=setTimeout(()=>{if(S.fitting&&S.doc)renderPage()},250)});
+})();
+</script>
+</body>
+</html>
