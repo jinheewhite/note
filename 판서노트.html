@@ -52,6 +52,22 @@
   .pen{width:50px;height:50px;border-radius:50%;padding:0;justify-content:center;border-width:2px}
   .pen i{width:22px;height:22px;border-radius:50%;display:block}
   .pen.on{background:var(--ink-3);border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.25)}
+  #btnPen svg,#btnHl svg,#btnEraser svg,#btnLaser svg{display:block}
+  #tools .tool{width:54px;opacity:.82;transition:opacity .12s;position:relative}
+  #tools .tool:hover{opacity:1}
+  #tools .tool:hover::before{
+    content:attr(data-label);position:absolute;left:50%;transform:translateX(-50%);
+    bottom:calc(100% + 8px);white-space:nowrap;
+    background:var(--ink);color:var(--text);border:1px solid var(--line);
+    padding:5px 10px;border-radius:8px;font-size:13px;font-weight:600;pointer-events:none;z-index:30}
+  body.bar-top #tools .tool:hover::before{bottom:auto;top:calc(100% + 8px)}
+  #tools .tool.on:hover::before{display:none}
+  /* 고른 도구만 이름이 붙고 노랗게 커집니다 */
+  #tools .tool.on{width:auto;padding:0 16px 0 13px;opacity:1;
+    background:var(--chalk);border-color:var(--chalk);color:#1a1a12;
+    box-shadow:0 0 0 3px rgba(245,213,71,.3)}
+  #tools .tool.on::after{content:attr(data-label);font-weight:800;font-size:15.5px;margin-left:8px}
+  #btnHand.tool{font-size:20px}
   .size-wrap{display:flex;align-items:center;gap:6px;padding:0 4px}
   .size-wrap .mono{min-width:34px;text-align:center;font-size:16px}
   .size-wrap button{font-size:22px;font-weight:700}
@@ -125,6 +141,9 @@
     justify-content:center;border-width:2px}
   #pop button i{width:24px;height:24px;border-radius:50%;display:block}
   #pop button.on{border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.3)}
+  #pop.wide{flex-direction:column;gap:8px}
+  #pop.wide button{width:auto;height:auto;min-height:50px;border-radius:10px;padding:0 18px;
+    justify-content:flex-start;font-size:15px;border-width:1px}
   .recent{width:min(1020px,96vw)}
   .libbar b{font-size:17px;letter-spacing:-.2px}
   .search{background:var(--ink);border:1px solid var(--line);border-radius:10px;color:var(--text);
@@ -200,19 +219,57 @@
   <div class="grp"><button id="btnOpen">📂 PDF 열기</button></div>
 
   <div class="grp" id="tools">
-    <button class="pen on" data-color="#111111" title="검정"><i style="background:#111"></i></button>
-    <button class="pen" data-color="#e02424" title="빨강"><i style="background:#e02424"></i></button>
-    <button class="pen" data-color="#1d6fe0" title="파랑"><i style="background:#1d6fe0"></i></button>
-    <button class="pen" data-color="#12a150" title="초록"><i style="background:#12a150"></i></button>
-    <button class="pen" data-color="#f5c400" title="노랑"><i style="background:#f5c400"></i></button>
-    <button class="icon" id="btnHl" title="형광펜">🖍️</button>
-    <button class="icon" id="btnEraser" title="지우개">🧽</button>
-    <button class="icon" id="btnLaser" title="레이저 — 쓰면 몇 초 뒤 저절로 사라집니다">🔦</button>
-    <button id="btnHand" title="끌어서 화면 옮기기">✋ 이동</button>
+    <button class="icon tool" data-label="펜" id="btnPen" title="펜">
+      <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
+  <g transform="translate(3.6 21.6) rotate(-45)">
+    <path d="M0 0 L2.6 -2.6 L2.6 2.6 Z" fill="currentColor"/>
+    <rect x="2.4" y="-2.6" width="3.2" height="5.2" fill="#5d6b7a"/>
+    <rect x="5.4" y="-2.9" width="12.4" height="5.8" rx="1.4" fill="currentColor"/>
+    <rect x="15.4" y="-2.9" width="2.6" height="5.8" rx="1.3" fill="#8b97a5"/>
+  </g>
+      </svg>
+    </button>
+    <button class="icon tool" data-label="형광펜" id="btnHl" title="형광펜">
+      <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
+  <g transform="translate(3.2 21.8) rotate(-45)">
+    <rect x="0" y="-3.4" width="4.6" height="6.8" rx="1" fill="currentColor"/>
+    <rect x="4.4" y="-2.6" width="2.4" height="5.2" fill="#6f7d8c"/>
+    <rect x="6.6" y="-3.6" width="10.4" height="7.2" rx="2" fill="#b7c2ce"/>
+    <rect x="6.6" y="-3.6" width="10.4" height="2.4" rx="1.2" fill="#d7dee6"/>
+  </g>
+      </svg>
+    </button>
+    <button class="icon tool" data-label="지우개" id="btnEraser" title="지우개">
+      <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
+  <rect x="9.6" y="2.6" width="6.8" height="2.4" rx="1.2" fill="#8b97a5"/>
+  <rect x="3.4" y="5.4" width="19.2" height="3" rx="1.5" fill="#b7c2ce"/>
+  <path d="M5.4 9 h15.2 l-1.3 12.6 a2 2 0 0 1 -2 1.8 h-8.6 a2 2 0 0 1 -2 -1.8 z" fill="#8b97a5"/>
+  <g stroke="#5f6f7f" stroke-width="1.5" stroke-linecap="round">
+    <line x1="10" y1="12" x2="9.6" y2="19.6"/>
+    <line x1="13" y1="12" x2="13" y2="19.6"/>
+    <line x1="16" y1="12" x2="16.4" y2="19.6"/>
+  </g>
+      </svg>
+    </button>
+    <button class="icon tool" data-label="레이저" id="btnLaser" title="레이저 — 쓰면 몇 초 뒤 저절로 사라집니다">
+      <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
+  <g transform="translate(3.4 21.4) rotate(-42)">
+    <rect x="0" y="-2.4" width="10.6" height="4.8" rx="2.4" fill="#9aa6b4"/>
+    <circle cx="3.2" cy="0" r="1.25" fill="#ff5b52"/>
+    <path d="M10.6 -1.9 L13.8 0 L10.6 1.9 Z" fill="#6f7d8c"/>
+  </g>
+  <g stroke="currentColor" stroke-linecap="round" fill="none">
+    <line x1="13.9" y1="11.6" x2="15.9" y2="9.6" stroke-width="1.7" opacity=".55"/>
+    <line x1="16.8" y1="8.7" x2="18.4" y2="7.1" stroke-width="1.7" opacity=".8"/>
+  </g>
+  <circle cx="20.4" cy="5.2" r="5" fill="currentColor" opacity=".18"/>
+  <circle cx="20.4" cy="5.2" r="2.7" fill="currentColor"/>
+      </svg>
+    </button>
+    <button class="tool" data-label="이동" id="btnHand" title="끌어서 화면 옮기기">✋</button>
   </div>
 
   <div class="grp size-wrap">
-    <span style="color:var(--text-dim);font-size:12px">굵기</span>
     <button class="icon" id="btnThin" title="가늘게">−</button>
     <span class="mono" id="sizeNow">4</span>
     <button class="icon" id="btnThick" title="굵게">＋</button>
@@ -227,11 +284,11 @@
 
   <div class="grp">
     <button class="icon" id="btnUndo" title="되돌리기">↩︎</button>
-    <button id="btnClear">이 쪽 지우기</button>
+    <button id="btnClear" title="이 쪽의 필기를 모두 지웁니다">쪽 비우기</button>
   </div>
 
   <div class="grp">
-    <button id="btnPng">이 쪽 저장</button>
+    <button id="btnPng" title="이 쪽을 그림 파일로 저장합니다">쪽 그림</button>
     <button id="btnPdf" class="primary">오늘 수업 PDF로 저장</button>
     <button class="icon" id="btnBarPos" title="도구 막대를 위/아래로 옮깁니다">⇅</button>
     <button class="icon" id="btnMore" title="설정 · 저장 · 백업">⚙︎</button>
@@ -1483,34 +1540,33 @@ function setTool(t,btn){
   if(typeof ptrs!=='undefined')ptrs.clear();
   const sh=$('sheet');if(sh){sh.style.transform='';sh.style.transformOrigin=''}
   S.tool=t;
-  if(t!=='hl'&&t!=='laser'){const pp=$('pop');if(pp)pp.classList.remove('open')}
+  if(t==='hand'){const pp=$('pop');if(pp)pp.classList.remove('open')}
   document.querySelectorAll('#tools button').forEach(b=>b.classList.remove('on'));
   if(btn)btn.classList.add('on');
   inkCv.style.cursor=t==='hand'?'grab':t==='eraser'?'cell':'crosshair';
   const el=$('toolNow');if(el)el.textContent=TOOL_NAME[t]||'펜';
   showSize();
-  if(t==='hl'||t==='laser')showColor();
+  showColor();
   if(S.doc)redraw();
 }
 function colorKey(){return (S.tool==='hl'||S.tool==='laser')?S.tool:'pen'}
 function curColor(){return S.colors[colorKey()]}
 function showColor(){
-  const c=curColor();
-  document.querySelectorAll('.pen').forEach(b=>b.classList.toggle('on',b.dataset.color===c));
-}
-document.querySelectorAll('.pen').forEach(b=>b.onclick=()=>{
-  if(S.tool==='hl'||S.tool==='laser'){      /* 형광펜·레이저는 색만 바꾸고 그대로 씁니다 */
-    S.colors[S.tool]=b.dataset.color;showColor();
-    toast(S.tool==='laser'?'레이저 색을 바꿨습니다':'형광펜 색을 바꿨습니다');
-    return;
+  for(const [id,key] of [['btnPen','pen'],['btnHl','hl'],['btnLaser','laser']]){
+    const b=$(id),sv=b&&b.querySelector('svg');
+    if(sv)sv.style.color=b.classList.contains('on')?'#1a1a12':S.colors[key];
   }
-  S.colors.pen=b.dataset.color;setTool('pen',b);
-});
+}
+$('btnPen').onclick=e=>{setTool('pen',e.currentTarget);openPop(e.currentTarget,'pen')};
 /* 색 고르는 작은 창 — 형광펜·레이저 버튼을 누르면 바로 뜹니다 */
-const PALETTE=[['#ff3b30','빨강'],['#f5c400','노랑'],['#2f9bff','파랑'],['#35d07f','초록'],['#ff7ad9','분홍']];
+const PALETTES={
+  pen:  [['#111111','검정'],['#e02424','빨강'],['#1d6fe0','파랑'],['#12a150','초록'],['#f5c400','노랑']],
+  hl:   [['#f5c400','노랑'],['#35d07f','초록'],['#2f9bff','파랑'],['#ff7ad9','분홍'],['#ff9f0a','주황']],
+  laser:[['#ff3b30','빨강'],['#f5c400','노랑'],['#2f9bff','파랑'],['#35d07f','초록'],['#ff7ad9','분홍']]
+};
 function openPop(anchor,tool){
-  const pop=$('pop');pop.innerHTML='';
-  PALETTE.forEach(([c,nm])=>{
+  const pop=$('pop');pop.innerHTML='';pop.classList.remove('wide');
+  (PALETTES[tool]||PALETTES.pen).forEach(([c,nm])=>{
     const b=document.createElement('button');
     b.title=nm;b.innerHTML=`<i style="background:${c}"></i>`;
     if(S.colors[tool]===c)b.classList.add('on');
@@ -1528,12 +1584,36 @@ function openPop(anchor,tool){
 }
 document.addEventListener('pointerdown',e=>{
   const pop=$('pop');
-  if(pop.classList.contains('open')&&!e.target.closest('#pop')&&!e.target.closest('#btnHl')&&!e.target.closest('#btnLaser'))
+  if(pop.classList.contains('open')&&!e.target.closest('#pop')&&
+     !e.target.closest('#btnPen')&&!e.target.closest('#btnHl')&&
+     !e.target.closest('#btnLaser')&&!e.target.closest('#btnEraser'))
     pop.classList.remove('open');
 },true);
 
 $('btnHl').onclick=e=>{setTool('hl',e.currentTarget);openPop(e.currentTarget,'hl')};
-$('btnEraser').onclick=e=>setTool('eraser',e.currentTarget);
+$('btnEraser').onclick=e=>{setTool('eraser',e.currentTarget);openEraserPop(e.currentTarget)};
+function openEraserPop(anchor){
+  const pop=$('pop');pop.innerHTML='';pop.classList.add('wide');
+  const mk=(label,fn,primary)=>{
+    const b=document.createElement('button');
+    b.textContent=label;if(primary)b.className='primary';
+    b.onclick=()=>{pop.classList.remove('open');fn()};
+    pop.appendChild(b);
+  };
+  mk('✎ 문질러 지우기',()=>toast('필기 위를 문지르면 그 획이 지워집니다'));
+  mk('🧹 이 쪽 전부 지우기',()=>{
+    if(!S.strokes.length){toast('이 쪽에는 필기가 없습니다');return}
+    if(!confirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`))return;
+    S.strokes=[];redraw();saveNow();toast('이 쪽을 비웠습니다');
+  },true);
+  pop.classList.add('open');
+  const r=anchor.getBoundingClientRect(),pr=pop.getBoundingClientRect();
+  let left=r.left+r.width/2-pr.width/2;
+  left=Math.max(10,Math.min(window.innerWidth-pr.width-10,left));
+  pop.style.left=left+'px';
+  const up=r.top>window.innerHeight/2;
+  pop.style.top=(up?r.top-pr.height-10:r.bottom+10)+'px';
+}
 $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
 $('btnLaser').onclick=e=>{setTool('laser',e.currentTarget);openPop(e.currentTarget,'laser')};
 /* 전체화면 유지 — 한 번 켜 두면 다음에 열 때도, 중간에 풀려도 다시 들어갑니다.
@@ -2071,7 +2151,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='6.1';
+const APP_VER='7.2';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 function renderUpdBox(){
   $('updBox').innerHTML=
@@ -2291,7 +2371,7 @@ $('jsonInput').onchange=async e=>{
   $('btnView').textContent=S.view==='grid'?'▦ 표지':'☰ 목록';
   await renderFolders();await renderRecent();renderWhere();
   $('verLabel').textContent='판서노트 '+APP_VER;
-  setTool('pen',document.querySelector('.pen'));
+  setTool('pen',$('btnPen'));
   showColor();updateTouchBtn();
   markSaved();
   let t;window.addEventListener('resize',()=>{clearTimeout(t);t=setTimeout(()=>{if(S.fitting&&S.doc)renderPage()},250)});
