@@ -1736,6 +1736,7 @@ async function flip(dir){
   S.vz=1;
   await saveNow();
   S.page=to;
+  S.fitting=true;
   await renderPage();
   S.tx=0;S.ty=0;                       /* 새 쪽은 가운데에서 시작합니다 */
   clampView();applyView();
@@ -1785,6 +1786,7 @@ inkCv.addEventListener('pointerup',e=>{
 },true);
 function movePan(e){
   const p=S.pan;if(!p||p.id!==e.pointerId)return;
+  S.fitting=false;                       /* 손으로 옮겼으면 자동 맞춤을 끕니다 */
   const dx=e.clientX-p.x, dy=e.clientY-p.y;
   if(!p.go){                            /* 12px 넘게 움직여야 비로소 밀기로 봅니다 */
     if(Math.hypot(dx,dy)<7)return;
@@ -2211,7 +2213,7 @@ function setTool(t,btn){
   diag('도구선택 전');
   showSize();
   paintSwatches();showColor();
-  if(S.doc)redraw();
+  if(S.doc)redraw();                     /* 필기만 다시 칠합니다 (PDF는 건드리지 않음) */
   diag('도구선택 후');
   requestAnimationFrame(()=>diag('도구선택 다음틀'));
   setTimeout(()=>diag('도구선택 0.4초뒤'),400);
@@ -3033,7 +3035,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='14.3';
+const APP_VER='14.4';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3326,7 +3328,11 @@ $('jsonInput').onchange=async e=>{
   setTool('pen',$('btnPen'));
   paintSwatches();showColor();updateTouchBtn();
   markSaved();
-  let t;window.addEventListener('resize',()=>{clearTimeout(t);t=setTimeout(()=>{
+  let t,lastW=0,lastH=0;
+  window.addEventListener('resize',()=>{clearTimeout(t);t=setTimeout(()=>{
+    const st=$('stage');
+    if(st.clientWidth===lastW&&st.clientHeight===lastH)return;   /* 크기가 같으면 넘어갑니다 */
+    lastW=st.clientWidth;lastH=st.clientHeight;
     if(S.fitting&&S.doc)renderPage();
     if(S.split)bdResize();
   },250)});
