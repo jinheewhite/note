@@ -34,7 +34,7 @@ try{
   body.bar-top header,html.bar-top header{border-top:0;border-bottom:1px solid var(--line)}
   .mono{font-family:'SF Mono',Consolas,'D2Coding',monospace;font-variant-numeric:tabular-nums}
 
-  #topbar{order:-9;height:56px;flex:0 0 auto;background:var(--ink);border-bottom:1px solid var(--line);
+  #topbar{order:9;height:56px;flex:0 0 auto;background:var(--ink);border-bottom:1px solid var(--line);
     display:flex;align-items:center;gap:8px;padding:0 12px;overflow-x:auto}
   #topbar::-webkit-scrollbar{height:0}
   #topbar button{min-height:42px;padding:0 13px;font-size:14px}
@@ -44,7 +44,9 @@ try{
   #topbar .datechip{padding:5px 10px}
   #topbar .datechip input{width:118px;font-size:14px}
   #topbar .brand{border-right:0;padding-right:6px;margin-right:2px}
-  body.bar-top #topbar,html.bar-top #topbar{order:-1;border-bottom:1px solid var(--line);border-top:0}
+  #topbar .quit{background:#5a2330;border-color:#7d3244;color:#ffd9df;font-weight:700}
+  #topbar .quit:hover{background:#7d3244}
+  body.bar-top #topbar,html.bar-top #topbar{order:-9;border-bottom:1px solid var(--line);border-top:0}
   header{min-height:var(--bar);flex:0 0 auto;background:var(--ink-2);border-top:1px solid var(--line);
     display:flex;align-items:center;gap:8px;padding:0 12px;overflow-x:auto;overflow-y:hidden}
   header::-webkit-scrollbar{height:0}
@@ -270,6 +272,7 @@ try{
     #topbar .brand small{display:none}
     #topbar .tstat{display:none}
     #topbar .datechip input{width:100px;font-size:13px}
+    #topbar #btnClose2,#topbar #btnQuit2{font-size:12.5px;padding:0 9px}
     #dock button{min-height:44px;font-size:13px;padding:0 10px}
     .pageBtn{display:inline-flex}
     #dock .mono.pageBtn{display:inline-block}
@@ -317,7 +320,8 @@ try{
   </div>
   <button class="icon" id="btnBarPos" title="도구 막대를 위/아래로 옮깁니다">⇅</button>
   <button class="icon" id="btnMore" title="설정 · 저장 · 백업">⚙︎</button>
-  <button class="icon" id="btnClose2" title="자료 닫기">✕</button>
+  <button id="btnClose2" title="이 자료만 닫고 서재로 돌아갑니다">✕ 자료 닫기</button>
+  <button id="btnQuit2" class="quit" title="판서노트를 완전히 끕니다">⏻ 프로그램 종료</button>
 </div>
 
 <header>
@@ -473,7 +477,7 @@ try{
 
     <h4>앱 닫기</h4>
     <p>필기를 저장하고 앱 창을 닫습니다. 브라우저 탭으로 열었을 때는 탭이 닫히지 않을 수 있습니다.</p>
-    <div class="row" style="margin-top:10px"><button id="btnQuit">전원 앱 닫기</button></div>
+    <div class="row" style="margin-top:10px"><button id="btnQuit">⏻ 프로그램 종료</button></div>
 
     <h4>업데이트</h4>
     <div id="updBox"></div>
@@ -2532,6 +2536,7 @@ $('btnBarBottom').onclick=()=>setBarPos(false);
 $('btnBarTop').onclick=()=>setBarPos(true);
 try{setBarPos(localStorage.getItem('pn.barTop')==='1')}catch(e){setBarPos(false)}
 
+$('btnQuit2').onclick=()=>$('btnQuit').click();
 $('btnQuit').onclick=async()=>{
   if(!confirm('판서노트를 닫을까요?\n필기는 저장되어 있습니다.'))return;
   if(S.doc){await saveNow();await Backup.write(true);await Backup.writePdf();await AutoDL.run(true)}
@@ -2566,7 +2571,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='8.9';
+const APP_VER='9.1';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
