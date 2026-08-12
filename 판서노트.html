@@ -2791,7 +2791,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='10.4';
+const APP_VER='11.1';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
@@ -2847,7 +2847,7 @@ async function checkUpdate(){
       const r=await fetch(UPDATE_URL,{cache:'no-store'});
       if(!r.ok)throw new Error();
       txt=await r.text();
-      const m=txt.match(/APP_VER='([\d.]+)'/);
+      const m=txt.match(/const\s+APP_VER='([\d.]+)'/);
       if(!m)throw new Error();
       latest=m[1];
     }
@@ -3040,9 +3040,11 @@ $('jsonInput').onchange=async e=>{
    9. 시작
    ══════════════════════════════════════════════════════════ */
 (async()=>{
-  await Store.init();
-  try{ if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist() }catch(e){}
-  try{ await Backup.load() }catch(e){}
+  const step=async(fn)=>{try{await fn()}catch(e){console.warn('시작 단계 건너뜀',e)}};
+  $('verLabel').textContent='판서노트 '+APP_VER;
+  await step(()=>Store.init());
+  await step(async()=>{ if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist() });
+  await step(()=>Backup.load());
   $('modeBadge').innerHTML=Store.mode==='idb'?'':modeBadge();
   try{S.sort=localStorage.getItem('pn.sort')||'recent';S.view=localStorage.getItem('pn.view')||'grid';
       S.split=localStorage.getItem('pn.split')==='1'}catch(e){}
@@ -3058,7 +3060,9 @@ $('jsonInput').onchange=async e=>{
   bdCv.style.background=(BOARD_BG[bdBgKey()]||BOARD_BG.white).bg;
   $('btnSort').textContent=S.sort==='recent'?'최근순':'폴더별';
   $('btnView').textContent=S.view==='grid'?'▦ 표지':'☰ 목록';
-  await renderFolders();await renderRecent();renderWhere();
+  await step(()=>renderFolders());
+  await step(()=>renderRecent());
+  await step(()=>renderWhere());
   $('verLabel').textContent='판서노트 '+APP_VER;
   setTimeout(autoCheckUpdate,2500);
   setTool('pen',$('btnPen'));
