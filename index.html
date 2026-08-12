@@ -1468,8 +1468,7 @@ async function doRender(my){
   fctx.setTransform(dpr,0,0,dpr,0,0);
   for(const cx of [ictx,fctx]){cx.imageSmoothingEnabled=true;try{cx.imageSmoothingQuality='high'}catch(e){}}
   S.vz=1;
-  S.tx=S.fitting?0:keepTx;
-  S.ty=S.fitting?0:keepTy;
+  S.tx=keepTx;S.ty=keepTy;             /* 보고 있던 위치를 그대로 지킵니다 */
   diag('다시그림');
   await loadStrokes();
   redraw();
@@ -2469,8 +2468,14 @@ $('btnSplit').onclick=async()=>{
   S.vz=1;S.fitting=false;S.tx=0;S.ty=0;
   S.scale=keepScale;
   if(S.split){bdResize();await bdLoad()}
-  if(S.doc)await renderPage();
-  toast(S.split?'오른쪽 칠판을 켰습니다 — ⤢ 로 화면에 맞출 수 있습니다':'칠판을 닫았습니다');
+  if(S.doc){
+    await renderPage();
+    if(S.split){                        /* 페이지 왼쪽부터 보이게 맞춥니다 */
+      const {mx}=limits();
+      S.tx=mx;S.ty=0;clampView();applyView();
+    }
+  }
+  toast(S.split?'칠판을 켰습니다 — 글자 크기는 그대로입니다 (⤢ 로 전체 보기)':'칠판을 닫았습니다');
 };
 
 $('dateInput').value=S.date;
@@ -3040,7 +3045,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='14.5';
+const APP_VER='14.7';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
