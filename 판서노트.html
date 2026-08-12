@@ -2950,7 +2950,19 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='12.4';
+const APP_VER='12.5';
+/* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
+try{
+  if(localStorage.getItem('pn.rotReset')!=='1'){
+    const del=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k&&k.startsWith('pn.rot.'))del.push(k);
+    }
+    del.forEach(k=>localStorage.removeItem(k));
+    localStorage.setItem('pn.rotReset','1');
+  }
+}catch(e){}
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
