@@ -53,7 +53,9 @@ try{
   #topbar .datechip{padding:8px 10px}
   #topbar .datechip label{display:none}
   #topbar .datechip input{width:118px;font-size:14px}
-  #topbar .brand{border-right:0;padding-right:6px;margin-right:2px}
+  #topbar .brand{border-right:0;padding-right:10px;margin-right:2px;cursor:pointer;
+    border-radius:9px;padding-left:8px;transition:background .12s}
+  #topbar .brand:hover{background:var(--ink-3)}
   #topbar .quit{background:#5a2330;border-color:#7d3244;color:#ffd9df;font-weight:700}
   #topbar .quit:hover{background:#7d3244}
   body.bar-top #topbar,html.bar-top #topbar{order:-9;border-bottom:1px solid var(--line);border-top:0}
@@ -323,7 +325,7 @@ try{
 <body>
 
 <div id="topbar">
-  <div class="brand">
+  <div class="brand" id="brandHome" title="서재로 돌아가기">
     <span class="dot"></span>
     <span><b>판서노트</b><small id="fileName">파일 없음</small></span>
   </div>
@@ -1488,8 +1490,8 @@ function isPalm(e){
 }
 function canDraw(type){
   if(S.tool==='hand')return false;      /* ✋ 이동 도구: 무엇으로 끌든 화면이 움직임 */
-  if(type==='pen')return true;          /* 펜은 언제나 필기 */
-  return S.fingerDraws;                 /* 펜이 인식되면 손가락은 자동으로 이동 */
+  if(type==='pen'||type==='mouse')return true;   /* 펜과 마우스는 언제나 필기 */
+  return S.fingerDraws;                 /* 손가락은 넘김·이동 전용(기본) */
 }
 function updateTouchBtn(){
   const b=$('btnHand');if(!b)return;
@@ -1844,7 +1846,7 @@ async function bdSave(){
 bdCv.addEventListener('pointerdown',e=>{
   if($('pop').classList.contains('open')){e.preventDefault();closePop();return}
   if(S.tool==='hand'||S.tool==='laser')return;
-  if(e.pointerType==='touch'&&!S.fingerDraws)return;   /* 손가락은 필기하지 않습니다 */
+  if(e.pointerType==='touch'&&!S.fingerDraws)return;   /* 손가락은 필기하지 않습니다 (마우스·펜은 필기) */
   ghostShow(e);
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
   const r=bdCv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
@@ -2141,6 +2143,7 @@ function goFull(){
 }
 /* 자료만 닫고 서재로 — 앱은 그대로 열려 있습니다 */
 $('btnClose2').onclick=()=>$('btnClose').click();
+$('brandHome').onclick=()=>{ if(S.doc)$('btnClose').click(); };   /* 로고를 누르면 서재로 */
 $('btnClose').onclick=async()=>{
   if(!S.doc){toast('열려 있는 자료가 없습니다');return}
   const btn=$('btnClose2'),label=btn.textContent;
