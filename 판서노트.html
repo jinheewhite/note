@@ -34,6 +34,17 @@ try{
   body.bar-top header,html.bar-top header{border-top:0;border-bottom:1px solid var(--line)}
   .mono{font-family:'SF Mono',Consolas,'D2Coding',monospace;font-variant-numeric:tabular-nums}
 
+  #topbar{order:-1;height:56px;flex:0 0 auto;background:var(--ink);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:8px;padding:0 12px;overflow-x:auto}
+  #topbar::-webkit-scrollbar{height:0}
+  #topbar button{min-height:42px;padding:0 13px;font-size:14px}
+  #topbar button.icon{width:42px;padding:0;font-size:17px}
+  #topbar .tsep{width:1px;height:26px;background:var(--line);margin:0 2px}
+  #topbar .tstat{margin-left:auto;display:flex;align-items:center;gap:12px;flex:0 0 auto}
+  #topbar .datechip{padding:5px 10px}
+  #topbar .datechip input{width:118px;font-size:14px}
+  #topbar .brand{border-right:0;padding-right:6px;margin-right:2px}
+  body.bar-top #topbar,html.bar-top #topbar{order:1;border-bottom:0;border-top:1px solid var(--line)}
   header{min-height:var(--bar);flex:0 0 auto;background:var(--ink-2);border-top:1px solid var(--line);
     display:flex;align-items:center;gap:8px;padding:0 12px;overflow-x:auto;overflow-y:hidden}
   header::-webkit-scrollbar{height:0}
@@ -129,10 +140,10 @@ try{
     text-overflow:ellipsis;white-space:nowrap}
   #bdCv{flex:1;width:100%;touch-action:none;cursor:crosshair;background:#fff}
 
-  #welcome{position:absolute;inset:0 0 var(--bar) 0;background:var(--ink);display:flex;flex-direction:column;
+  #welcome{position:absolute;inset:56px 0 var(--bar) 0;background:var(--ink);display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:24px;padding:30px;z-index:20;overflow-y:auto}
   #welcome[hidden]{display:none!important}
-  body.bar-top #welcome,html.bar-top #welcome{inset:var(--bar) 0 0 0}
+  body.bar-top #welcome,html.bar-top #welcome{inset:var(--bar) 0 56px 0}
   #welcome h1{font-size:30px;margin:0;letter-spacing:-.6px;text-align:center}
   #welcome p{color:var(--text-dim);margin:0;text-align:center;line-height:1.7}
   #welcome .big{min-height:74px;font-size:19px;padding:0 34px}
@@ -254,6 +265,11 @@ try{
     .card .nm{font-size:12px}
     .where{flex-direction:column;align-items:stretch;gap:8px;padding:12px}
     #dock{right:10px;bottom:calc(var(--bar) + 8px);padding:5px;gap:4px}
+    #topbar{height:52px;gap:6px;padding:0 8px}
+    #topbar button{min-height:40px;padding:0 10px;font-size:13px}
+    #topbar .brand small{display:none}
+    #topbar .tstat{display:none}
+    #topbar .datechip input{width:100px;font-size:13px}
     #dock button{min-height:44px;font-size:13px;padding:0 10px}
     .pageBtn{display:inline-flex}
     #dock .mono.pageBtn{display:inline-block}
@@ -272,8 +288,8 @@ try{
     .status{width:100%;order:9;margin-left:0;padding-left:0;justify-content:flex-end}
     .grp{border-right:0}
     .status{margin-left:auto}
-    #welcome{inset:0 0 auto 0;height:calc(100% - 132px)}
-    body.bar-top #welcome,html.bar-top #welcome{inset:132px 0 0 0;height:auto}
+    #welcome{inset:56px 0 auto 0;height:calc(100% - 190px)}
+    body.bar-top #welcome,html.bar-top #welcome{inset:132px 0 56px 0;height:auto}
     #dock{bottom:auto;top:8px;right:14px}
     body.bar-top #dock,html.bar-top #dock{top:auto;bottom:14px}
   }
@@ -282,13 +298,29 @@ try{
 </head>
 <body>
 
-<header>
+<div id="topbar">
   <div class="brand">
     <span class="dot"></span>
     <span><b>판서노트</b><small id="fileName">파일 없음</small></span>
   </div>
+  <button id="btnOpen">📂 PDF 열기</button>
+  <span class="tsep"></span>
+  <button id="btnPng" title="이 쪽을 그림 파일로 저장합니다">쪽 그림</button>
+  <button id="btnPdf" class="primary">PDF로 저장</button>
+  <span class="tstat">
+    <span class="saved">쪽 <b id="pageInfo">– / –</b></span>
+    <span class="saved" id="saved">—</span>
+  </span>
+  <div class="datechip">
+    <label>수업 날짜</label>
+    <input type="date" id="dateInput">
+  </div>
+  <button class="icon" id="btnBarPos" title="도구 막대를 위/아래로 옮깁니다">⇅</button>
+  <button class="icon" id="btnMore" title="설정 · 저장 · 백업">⚙︎</button>
+  <button class="icon" id="btnClose2" title="자료 닫기">✕</button>
+</div>
 
-  <div class="grp"><button id="btnOpen">📂 PDF 열기</button></div>
+<header>
 
   <div class="grp" id="tools">
     <button class="icon tool" data-label="펜" id="btnPen" title="펜">
@@ -366,21 +398,8 @@ try{
     <button id="btnClear" title="이 쪽의 필기를 모두 지웁니다">쪽 비우기</button>
   </div>
 
-  <div class="grp">
-    <button id="btnPng" title="이 쪽을 그림 파일로 저장합니다">쪽 그림</button>
-    <button id="btnPdf" class="primary">오늘 수업 PDF로 저장</button>
-    <button class="icon" id="btnBarPos" title="도구 막대를 위/아래로 옮깁니다">⇅</button>
-    <button class="icon" id="btnMore" title="설정 · 저장 · 백업">⚙︎</button>
-  </div>
-
   <div class="status">
     <span class="saved">도구 <b id="toolNow">펜</b></span>
-    <span class="saved">쪽 <b id="pageInfo">– / –</b></span>
-    <span class="saved" id="saved">—</span>
-    <div class="datechip">
-      <label>수업 날짜</label>
-      <input type="date" id="dateInput">
-    </div>
   </div>
 </header>
 
@@ -389,7 +408,6 @@ try{
   <span class="mono pageBtn" id="dockPage">– / –</span>
   <button class="icon pageBtn" id="btnNext2" title="다음 쪽">▶</button>
   <button id="btnFull" title="전체화면 (F11)">⛶ 전체화면</button>
-  <button id="btnClose" title="이 자료를 닫고 서재로 돌아갑니다">✕ 자료 닫기</button>
 </div>
 
 <main>
@@ -441,6 +459,7 @@ try{
 </div>
 
 <div id="popMask"></div>
+<button id="btnClose" hidden></button>
 <div id="pop"></div>
 <div id="folderPick"></div>
 
@@ -1989,9 +2008,10 @@ function goFull(){
     .catch(()=>toast('F11 키를 눌러 전체화면으로 바꿔 주세요'));
 }
 /* 자료만 닫고 서재로 — 앱은 그대로 열려 있습니다 */
+$('btnClose2').onclick=()=>$('btnClose').click();
 $('btnClose').onclick=async()=>{
   if(!S.doc){toast('열려 있는 자료가 없습니다');return}
-  const btn=$('btnClose'),label=btn.textContent;
+  const btn=$('btnClose2'),label=btn.textContent;
   btn.textContent='저장 중…';btn.disabled=true;
   await saveNow();
   await Backup.write(true);
@@ -2546,7 +2566,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='8.7';
+const APP_VER='8.8';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
