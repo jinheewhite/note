@@ -1420,11 +1420,13 @@ async function renderPage(){
     cv.style.width=vp.width+'px';cv.style.height=vp.height+'px';
   }
   $('sheet').style.width=vp.width+'px';$('sheet').style.height=vp.height+'px';
-  pctx.setTransform(dpr,0,0,dpr,0,0);
+  pctx.setTransform(1,0,0,1,0,0);
   pctx.imageSmoothingEnabled=true;
   try{pctx.imageSmoothingQuality='high'}catch(e){}
-  pctx.fillStyle='#fff';pctx.fillRect(0,0,S.rendered.w,S.rendered.h);
-  await pg.render({canvasContext:pctx,viewport:vp,intent:'display'}).promise;
+  pctx.fillStyle='#fff';pctx.fillRect(0,0,pdfCv.width,pdfCv.height);
+  /* 배율은 뷰포트로 넘겨야 방향이 어긋나지 않습니다 */
+  const hiVp=pg.getViewport({scale:S.scale*dpr,rotation:rot});
+  await pg.render({canvasContext:pctx,viewport:hiVp,intent:'display'}).promise;
   ictx.setTransform(dpr,0,0,dpr,0,0);
   fctx.setTransform(dpr,0,0,dpr,0,0);
   for(const cx of [ictx,fctx]){cx.imageSmoothingEnabled=true;try{cx.imageSmoothingQuality='high'}catch(e){}}
@@ -2950,7 +2952,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='12.5';
+const APP_VER='12.6';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
