@@ -1734,6 +1734,9 @@ async function flip(dir){
   const to=S.page+dir;
   if(to<1||to>S.pages)return;
   diag('쪽넘김 시작');
+  /* 넘기는 순간 진행 중인 손가락 조작을 모두 끊습니다 (넘긴 뒤 화면이 밀리지 않게) */
+  S.pan=null;S.pinch=null;ptrs.clear();
+  S.barAt=performance.now();
   S.vz=1;
   await saveNow();
   S.page=to;
@@ -1745,9 +1748,11 @@ async function flip(dir){
   diag('쪽넘김 끝');
   const sh=$('sheet');
   sh.animate([{opacity:.4},{opacity:1}],{duration:160,easing:'ease-out'});
+  S.flipAt=performance.now();
   document.querySelector(`#rail .p[data-p="${to}"]`)?.scrollIntoView({block:'nearest'});
 }
-function barBusy(){ return performance.now()-(S.barAt||0)<450 }
+function barBusy(){ return performance.now()-(S.barAt||0)<450 ||
+                          performance.now()-(S.flipAt||0)<500 }
 function startPan(e){
   if(barBusy())return;                 /* 버튼을 막 누른 직후에는 밀리지 않게 */
   S.pan={id:e.pointerId,x:e.clientX,y:e.clientY,tx:S.tx,ty:S.ty,
@@ -3044,7 +3049,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='14.8';
+const APP_VER='14.9';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
