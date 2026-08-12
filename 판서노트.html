@@ -2412,10 +2412,13 @@ $('btnSplit').onclick=async()=>{
   $('btnSplit').classList.toggle('on',S.split);
   $('board').hidden=!S.split;
   $('board').style.display=S.split?'':'none';
-  S.vz=1;S.fitting=true;S.tx=0;S.ty=0;
+  /* 보고 있던 크기를 그대로 둡니다 — 칠판을 켠다고 글자가 작아지지 않습니다 */
+  const keepScale=S.scale*(S.vz||1);
+  S.vz=1;S.fitting=false;S.tx=0;S.ty=0;
+  S.scale=keepScale;
   if(S.split){bdResize();await bdLoad()}
   if(S.doc)await renderPage();
-  toast(S.split?'오른쪽 칠판을 켰습니다 — PDF와 따로 씁니다':'칠판을 닫았습니다');
+  toast(S.split?'오른쪽 칠판을 켰습니다 — ⤢ 로 화면에 맞출 수 있습니다':'칠판을 닫았습니다');
 };
 
 $('dateInput').value=S.date;
@@ -2985,7 +2988,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='13.7';
+const APP_VER='13.8';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
