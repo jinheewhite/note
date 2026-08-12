@@ -1705,14 +1705,10 @@ async function flip(dir){
   await saveNow();
   S.page=to;
   await renderPage();
-  const {my}=limits();
-  S.ty = dir>0 ? my : -my;             /* 다음 쪽은 맨 위부터, 이전 쪽은 맨 아래부터 */
-  S.tx = 0;
+  S.tx=0;S.ty=0;                       /* 새 쪽은 가운데에서 시작합니다 */
   clampView();applyView();
   const sh=$('sheet');
-  sh.animate([{opacity:.35,transform:`translate(${S.tx}px,${S.ty+dir*40}px)`},
-              {opacity:1,transform:`translate(${S.tx}px,${S.ty}px)`}],
-             {duration:180,easing:'ease-out'});
+  sh.animate([{opacity:.4},{opacity:1}],{duration:160,easing:'ease-out'});
   document.querySelector(`#rail .p[data-p="${to}"]`)?.scrollIntoView({block:'nearest'});
 }
 function barBusy(){ return performance.now()-(S.barAt||0)<450 }
@@ -2988,7 +2984,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='13.8';
+const APP_VER='13.9';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
