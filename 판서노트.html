@@ -98,11 +98,9 @@ try{
     padding:5px 10px;border-radius:8px;font-size:13px;font-weight:600;pointer-events:none;z-index:30}
   body.bar-top #tools .tool:hover::before,html.bar-top #tools .tool:hover::before{bottom:auto;top:calc(100% + 8px)}
   #tools .tool.on:hover::before{display:none}
-  /* 고른 도구만 이름이 붙고 노랗게 커집니다 */
-  #tools .tool.on{width:auto;padding:0 16px 0 13px;opacity:1;
-    background:var(--chalk);border-color:var(--chalk);color:#1a1a12;
+  /* 고른 도구는 색만 바뀝니다 — 크기가 변하지 않아 화면이 흔들리지 않습니다 */
+  #tools .tool.on{opacity:1;background:var(--chalk);border-color:var(--chalk);color:#1a1a12;
     box-shadow:0 0 0 3px rgba(245,213,71,.3)}
-  #tools .tool.on::after{content:attr(data-label);font-weight:800;font-size:15.5px;margin-left:8px}
   #btnHand.tool{font-size:20px}
   .size-wrap{display:flex;align-items:center;gap:6px;padding:0 4px}
   .size-wrap .mono{min-width:34px;text-align:center;font-size:16px}
@@ -202,11 +200,13 @@ try{
   #folderPick{position:fixed;inset:0;background:rgba(8,13,18,.72);display:none;
     align-items:center;justify-content:center;z-index:45;padding:24px}
   #folderPick.open{display:flex}
-  .swatches{display:inline-flex;align-items:center;gap:5px;padding:0 4px;flex:0 0 auto}
+  .swatches{display:inline-flex;align-items:center;gap:5px;padding:0 4px;flex:0 0 auto;
+    width:246px;justify-content:center}
   .swatches button{width:36px;height:36px;min-height:36px;padding:0;border-radius:50%;
     justify-content:center;border-width:2px;border-color:var(--line);background:var(--ink-3)}
   .swatches button i{width:18px;height:18px;border-radius:50%;display:block}
   .swatches button.on{border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.3)}
+  .tsep2{width:1px;height:30px;background:var(--line);margin:0 6px;flex:0 0 auto}
   #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
     contain:layout style size;pointer-events:auto;isolation:isolate;
     background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
@@ -403,6 +403,7 @@ try{
   </g>
       </svg>
     </button>
+    <span class="tsep2"></span>
     <button class="icon tool" data-label="지우개" id="btnEraser" title="지우개">
       <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
   <!-- 나무 손잡이 -->
@@ -2200,7 +2201,7 @@ function paintSwatches(){
     b.onclick=()=>{S.colors[key]=c;S.barAt=performance.now();paintSwatches();showColor()};
     box.appendChild(b);
   });
-  box.style.display=(S.tool==='eraser'||S.tool==='hand')?'none':'inline-flex';
+  box.style.visibility=(S.tool==='eraser'||S.tool==='hand')?'hidden':'visible';
 }
 function showColor(){
   for(const [id,key] of [['btnPen','pen'],['btnHl','hl'],['btnLaser','laser']]){
@@ -3004,7 +3005,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='14.1';
+const APP_VER='14.2';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
