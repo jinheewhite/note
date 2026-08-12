@@ -1269,8 +1269,7 @@ const Backup={
       const want=[];
       for await (const [nm,h] of src.entries()){
         if(h.kind!=='file')continue;
-        if(nm.indexOf(baseName)>=0&&(nm.endsWith('.pdf')||nm.endsWith('.json'))&&!nm.startsWith('판서노트_백업'))
-          want.push([nm,h]);
+        if(nm.indexOf(baseName)>=0&&nm.endsWith('.pdf'))want.push([nm,h]);
       }
       let moved=0;
       for(const [nm,h] of want){
@@ -1296,10 +1295,12 @@ const Backup={
       const files=(await Store.allFiles()).filter(x=>x&&!String(x.id).startsWith('__'))
         .map(({id,name})=>({id,name}));
       const body=JSON.stringify({app:'panseo-note',v:1,at:new Date().toISOString(),files,notes});
-      const dir=await this.dir(),root=await this.root();
+      const root=await this.root();
+      let bak;
+      try{ bak=await root.getDirectoryHandle('백업',{create:true}) }catch(e){ bak=root }
       for(const nm of ['판서노트_백업.json', S.fileName?`${S.fileName.replace(/\.pdf$/i,'')}_${S.date}.json`:null]){
         if(!nm)continue;
-        const fh=await (nm.startsWith('판서노트_백업')?root:dir).getFileHandle(nm,{create:true});
+        const fh=await bak.getFileHandle(nm,{create:true});
         const w=await fh.createWritable();
         await w.write(body);await w.close();
       }
@@ -2979,7 +2980,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='13.0';
+const APP_VER='13.1';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
