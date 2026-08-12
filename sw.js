@@ -1,21 +1,35 @@
-/* 판서노트 서비스워커 — 한 번 접속하면 인터넷 없이도 열립니다.
-   항상 새 버전을 먼저 받아보고, 실패하면 저장해 둔 것을 씁니다. */
-const CACHE = 'panseo-note-10.5';
-const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+/* 판서노트 서비스워커
+   Copyright (c) 2026 강진희. All rights reserved.
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
-});
+   앱 파일은 항상 서버에서 먼저 받아옵니다(network-first).
+   인터넷이 끊겼을 때만 저장해 둔 파일을 씁니다. */
+const CACHE = 'panseo-note-10.7';
+
+self.addEventListener('install', e => { self.skipWaiting(); });
+
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys()
-    .then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
-    .then(() => self.clients.claim()));
+  e.waitUntil((async () => {
+    for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);
+    await self.clients.claim();
+  })());
 });
+
+self.addEventListener('message', e => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
+});
+
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    fetch(e.request)
-      .then(r => { const c = r.clone(); caches.open(CACHE).then(cc => cc.put(e.request, c)); return r; })
-      .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
-  );
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  e.respondWith((async () => {
+    try {
+      const fresh = await fetch(req, { cache: 'no-store' });
+      const c = await caches.open(CACHE);
+      c.put(req, fresh.clone());
+      return fresh;
+    } catch (err) {
+      const hit = await caches.match(req);
+      return hit || caches.match('./index.html');
+    }
+  })());
 });
