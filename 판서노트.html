@@ -1173,7 +1173,7 @@ const Backup={
   async connect(){
     if(!this.supported()){toast('이 기기에서는 폴더 저장을 지원하지 않습니다');return false}
     try{
-      const h=await window.showDirectoryPicker({mode:'readwrite'});
+      const h=await window.showDirectoryPicker({mode:'readwrite',startIn:'documents'});
       if(await h.requestPermission({mode:'readwrite'})!=='granted')return false;
       this.handle=h;this.ok=true;
       await Store.putFile({id:DIR_KEY,name:h.name,opened:Date.now(),handle:h});
@@ -1181,7 +1181,12 @@ const Backup={
       await this.write(true);
       toast(`${h.name} > jinnote 폴더를 만들었습니다${made?` (하위 폴더 ${made}개 포함)`:''}`);
       return true;
-    }catch(e){return false}
+    }catch(e){
+      const m=String(e&&e.message||'');
+      if(/system|보안|security|not allowed|denied/i.test(m))
+        toast('시스템 폴더는 고를 수 없습니다 — 문서 안에 새 폴더를 만들어 골라 주세요');
+      return false;
+    }
   },
   async reauth(){
     if(!this.handle)return false;
@@ -1364,22 +1369,29 @@ async function renderPage(){
   const rot=(base+(S.rot||0))%360;
   S.fitScale=Math.max(.3,($('stage').clientWidth-56)/pg.getViewport({scale:1,rotation:rot}).width);
   if(S.fitting)S.scale=S.fitScale;
-  /* 전자칠판은 devicePixelRatio 가 1인 경우가 많아 글씨가 거칠어집니다 — 최소 2배로 그립니다 */
-  const dpr=Math.max(2,Math.min(window.devicePixelRatio||1,3));
   const vp=pg.getViewport({scale:S.scale,rotation:rot});
   S.pdfW=vp.width;
   S.rendered={w:vp.width,h:vp.height};
+  /* 화질 — 기기 배율과 상관없이 크게 그린 뒤 줄여서 표시합니다.
+     너무 커지면 느려지므로 전체 픽셀 수에 상한을 둡니다. */
+  const BUDGET=26e6;                                   /* 약 2600만 픽셀 */
+  let dpr=Math.max(3,Math.min(window.devicePixelRatio||1,4));
+  const need=vp.width*vp.height;
+  if(need*dpr*dpr>BUDGET)dpr=Math.max(1.5,Math.sqrt(BUDGET/need));
   S.dpr=dpr;
   for(const cv of [pdfCv,inkCv,fxCv]){
-    cv.width=Math.floor(vp.width*dpr);cv.height=Math.floor(vp.height*dpr);
+    cv.width=Math.round(vp.width*dpr);cv.height=Math.round(vp.height*dpr);
     cv.style.width=vp.width+'px';cv.style.height=vp.height+'px';
   }
   $('sheet').style.width=vp.width+'px';$('sheet').style.height=vp.height+'px';
   pctx.setTransform(dpr,0,0,dpr,0,0);
+  pctx.imageSmoothingEnabled=true;
+  try{pctx.imageSmoothingQuality='high'}catch(e){}
   pctx.fillStyle='#fff';pctx.fillRect(0,0,S.rendered.w,S.rendered.h);
-  await pg.render({canvasContext:pctx,viewport:vp}).promise;
+  await pg.render({canvasContext:pctx,viewport:vp,intent:'display'}).promise;
   ictx.setTransform(dpr,0,0,dpr,0,0);
   fctx.setTransform(dpr,0,0,dpr,0,0);
+  for(const cx of [ictx,fctx]){cx.imageSmoothingEnabled=true;try{cx.imageSmoothingQuality='high'}catch(e){}}
   await loadStrokes();
   redraw();
   $('pageInfo').textContent=`${S.page} / ${S.pages}`;
@@ -1796,8 +1808,8 @@ const boardKey=()=>`${S.fileId||'-'}|${S.date}|BOARD`;
 function bdResize(){
   const r=bdCv.getBoundingClientRect();
   if(!r.width||!r.height)return;
-  const dpr=Math.max(2,Math.min(window.devicePixelRatio||1,3));
-  bdCv.width=Math.floor(r.width*dpr);bdCv.height=Math.floor(r.height*dpr);
+  const dpr=Math.max(2.5,Math.min(window.devicePixelRatio||1,4));
+  bdCv.width=Math.round(r.width*dpr);bdCv.height=Math.round(r.height*dpr);
   bdctx.setTransform(dpr,0,0,dpr,0,0);
   BD.w=r.width;BD.h=r.height;
   bdRedraw();
@@ -2746,19 +2758,32 @@ $('btnQuit').onclick=async()=>{
   try{ setWantFull(false); if(document.fullscreenElement)await document.exitFullscreen(); fauxFull(false); updFullBtn(); }catch(e){}
   if(b){b.textContent=lab;b.disabled=false}
   $('modal').classList.remove('open');
-  window.close();                       /* 앱으로 설치한 경우에는 여기서 닫힙니다 */
-  setTimeout(()=>{
-    if(!document.hidden)showQuitScreen();
-  },600);
+  quitNow();
 };
+/* 창을 닫아 봅니다 — 막히면 안내 화면으로 넘어갑니다 */
+function quitNow(){
+  const done=()=>{ if(!document.hidden)showQuitScreen() };
+  try{ window.close() }catch(e){}
+  setTimeout(()=>{
+    if(document.hidden)return;
+    try{ window.open('','_self'); window.close() }catch(e){}   /* 일부 브라우저는 이 방법으로 닫힙니다 */
+    setTimeout(()=>{
+      if(document.hidden)return;
+      try{ if(history.length>1){history.go(-(history.length-1))} }catch(e){}
+      setTimeout(done,400);
+    },250);
+  },250);
+}
+
 /* 브라우저 탭은 스크립트로 닫을 수 없어, 안전하게 끝났다는 화면을 보여 줍니다 */
 function showQuitScreen(){
   const w=$('welcome');
   w.hidden=false;w.style.display='';
   w.innerHTML=
     '<h1>저장을 마쳤습니다</h1>'+
-    '<p>필기와 파일이 모두 저장되었습니다.<br>이제 창을 닫으셔도 됩니다.</p>'+
-    '<p style="color:var(--chalk);font-weight:700">브라우저 오른쪽 위 ✕ 또는 탭의 ✕ 를 눌러 주세요</p>'+
+    '<p>필기와 파일이 모두 저장되었습니다.</p>'+
+    '<p style="color:var(--chalk);font-weight:700;font-size:17px">'+
+    '이제 창을 닫으셔도 됩니다<br>창 오른쪽 위 ✕ · 안드로이드는 최근 앱에서 밀어 올리기</p>'+
     '<button class="primary big" id="btnBackHome">판서노트로 돌아가기</button>';
   $('btnBackHome').onclick=()=>location.reload();
 }
@@ -2791,7 +2816,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='11.3';
+const APP_VER='11.5';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
@@ -3001,7 +3026,8 @@ function renderDirBox(){
   }
   const again=!!Backup.handle;
   box.innerHTML='<span class="badge warn"><span class="lamp"></span>아직 브라우저 안에만 저장됩니다</span>'+
-    '<p style="margin-top:8px">폴더를 하나 정해 두면 판서 PDF가 자동으로 그곳에 저장됩니다.</p>'+
+    '<p style="margin-top:8px">폴더를 하나 정해 두면 판서 PDF가 자동으로 그곳에 저장됩니다.<br>'+
+    '<b>다운로드·문서 같은 시스템 폴더는 고를 수 없습니다.</b> 그 안에 새 폴더를 만들어 골라 주세요.</p>'+
     `<div class="row" style="margin-top:10px"><button id="btnDirOn" class="primary">📁 ${again?'폴더 다시 연결하기':'저장 폴더 연결하기'}</button></div>`;
   $('btnDirOn').onclick=async()=>{
     const ok=again?await Backup.reauth():await Backup.connect();
