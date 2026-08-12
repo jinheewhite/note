@@ -1334,7 +1334,8 @@ async function renderPage(){
   const rot=(base+(S.rot||0))%360;
   S.fitScale=Math.max(.3,($('stage').clientWidth-56)/pg.getViewport({scale:1,rotation:rot}).width);
   if(S.fitting)S.scale=S.fitScale;
-  const dpr=Math.min(window.devicePixelRatio||1,2);
+  /* 전자칠판은 devicePixelRatio 가 1인 경우가 많아 글씨가 거칠어집니다 — 최소 2배로 그립니다 */
+  const dpr=Math.max(2,Math.min(window.devicePixelRatio||1,3));
   const vp=pg.getViewport({scale:S.scale,rotation:rot});
   S.pdfW=vp.width;
   S.rendered={w:vp.width,h:vp.height};
@@ -1358,7 +1359,7 @@ async function renderPage(){
   buildRail();
 }
 
-const toN=(x,y)=>[Math.round(x/S.pdfW*1e4)/1e4,Math.round(y/S.rendered.h*1e4)/1e4];
+const toN=(x,y)=>[Math.round(x/S.pdfW*1e5)/1e5,Math.round(y/S.rendered.h*1e5)/1e5];
 const toP=(x,y)=>[x*S.pdfW,y*S.rendered.h];
 
 function segment(st,p0,p1,base){
@@ -1366,6 +1367,18 @@ function segment(st,p0,p1,base){
   ictx.lineWidth=base*(.45+1.1*pr);
   const [x0,y0]=toP(p0[0],p0[1]),[x1,y1]=toP(p1[0],p1[1]);
   ictx.beginPath();ictx.moveTo(x0,y0);ictx.lineTo(x1,y1);ictx.stroke();
+}
+/* 점을 곡선으로 이어 부드럽게 그립니다 */
+function smoothPath(cx,P){
+  if(P.length<2)return;
+  cx.beginPath();cx.moveTo(P[0][0],P[0][1]);
+  if(P.length===2){cx.lineTo(P[1][0],P[1][1]);cx.stroke();return}
+  for(let i=1;i<P.length-1;i++){
+    const mx=(P[i][0]+P[i+1][0])/2, my=(P[i][1]+P[i+1][1])/2;
+    cx.quadraticCurveTo(P[i][0],P[i][1],mx,my);
+  }
+  cx.lineTo(P[P.length-1][0],P[P.length-1][1]);
+  cx.stroke();
 }
 function paintStroke(st){
   const pts=st.pts;if(!pts.length)return;
@@ -1376,14 +1389,12 @@ function paintStroke(st){
   const varies=st.mode!=='hl'&&pts.some(p=>p.length>2);   /* 필압이 기록된 획 */
   if(pts.length===1){
     ictx.lineWidth=base;const [x,y]=toP(pts[0][0],pts[0][1]);
-    ictx.beginPath();ictx.moveTo(x,y);ictx.lineTo(x+.1,y);ictx.stroke();
+    ictx.beginPath();ictx.arc(x,y,base/2,0,Math.PI*2);ictx.fillStyle=st.color;ictx.fill();
   }else if(varies){
     for(let i=1;i<pts.length;i++)segment(st,pts[i-1],pts[i],base);
   }else{
-    ictx.lineWidth=base;ictx.beginPath();
-    const [x,y]=toP(pts[0][0],pts[0][1]);ictx.moveTo(x,y);
-    for(let i=1;i<pts.length;i++){const [a,b]=toP(pts[i][0],pts[i][1]);ictx.lineTo(a,b)}
-    ictx.stroke();
+    ictx.lineWidth=base;
+    smoothPath(ictx,pts.map(p=>toP(p[0],p[1])));
   }
   ictx.restore();
 }
@@ -1394,12 +1405,16 @@ function redraw(){
 }
 /* 그리는 중에는 새로 이어진 부분만 덧그립니다 — 전자칠판에서 훨씬 부드럽습니다 */
 function drawLast(){
-  const st=S.cur,pts=st.pts;
-  if(st.mode==='hl'){redraw();return}
-  if(pts.length<2)return;
-  ictx.save();ictx.lineCap='round';ictx.lineJoin='round';ictx.strokeStyle=st.color;
-  segment(st,pts[pts.length-2],pts[pts.length-1],st.w*S.pdfW);
-  ictx.restore();
+  const st=S.cur;if(!st)return;
+  if(st.pts.some(p=>p.length>2)){          /* 필압 있는 획은 이어 그리기 */
+    const pts=st.pts;
+    if(pts.length<2)return;
+    ictx.save();ictx.lineCap='round';ictx.lineJoin='round';ictx.strokeStyle=st.color;
+    segment(st,pts[pts.length-2],pts[pts.length-1],st.w*S.pdfW);
+    ictx.restore();
+    return;
+  }
+  redraw();                                 /* 곡선으로 다시 그려 부드럽게 */
 }
 
 /* 레이저 — 그린 자리가 1초쯤 뒤 저절로 사라집니다. 저장되지 않습니다 */
@@ -1470,7 +1485,7 @@ function startStroke(e){
 function moveStroke(e){
   if(!S.cur&&!(S.penErase||S.tool==='eraser'||S.tool==='laser')){S.drawing=false;return}
   const [x,y]=pos(e);
-  if(Math.hypot(x-S.last[0],y-S.last[1])<1.4)return;    /* 점 솎아내기 */
+  if(Math.hypot(x-S.last[0],y-S.last[1])<0.8)return;    /* 점 솎아내기 */
   S.last=[x,y];
   if(S.tool==='laser'){laserPoint(x,y,false);return}
   if(S.penErase||S.tool==='eraser'){erase(x,y);return}
@@ -1746,7 +1761,7 @@ const boardKey=()=>`${S.fileId||'-'}|${S.date}|BOARD`;
 function bdResize(){
   const r=bdCv.getBoundingClientRect();
   if(!r.width||!r.height)return;
-  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const dpr=Math.max(2,Math.min(window.devicePixelRatio||1,3));
   bdCv.width=Math.floor(r.width*dpr);bdCv.height=Math.floor(r.height*dpr);
   bdctx.setTransform(dpr,0,0,dpr,0,0);
   BD.w=r.width;BD.h=r.height;
@@ -1758,11 +1773,11 @@ function bdPaint(st){
   if(st.mode==='hl'){bdctx.globalAlpha=.32;bdctx.lineCap='butt'}
   bdctx.lineWidth=st.w*BD.w;
   const P=p=>[p[0]*BD.w,p[1]*BD.h];
-  bdctx.beginPath();
-  const [x,y]=P(pts[0]);bdctx.moveTo(x,y);
-  if(pts.length===1)bdctx.lineTo(x+.1,y);
-  for(let i=1;i<pts.length;i++){const [a,b]=P(pts[i]);bdctx.lineTo(a,b)}
-  bdctx.stroke();bdctx.restore();
+  if(pts.length===1){
+    const [x,y]=P(pts[0]);
+    bdctx.beginPath();bdctx.arc(x,y,(st.w*BD.w)/2,0,Math.PI*2);bdctx.fillStyle=st.color;bdctx.fill();
+  }else smoothPath(bdctx,pts.map(P));
+  bdctx.restore();
 }
 const BOARD_BG={
   white:{name:'흰 종이',  bg:'#ffffff', line:null},
@@ -1815,7 +1830,7 @@ bdCv.addEventListener('pointermove',e=>{
   ghostMove(e);
   if(!BD.drawing)return;
   const r=bdCv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
-  if(Math.hypot(x-BD.last[0],y-BD.last[1])<1.4)return;
+  if(Math.hypot(x-BD.last[0],y-BD.last[1])<0.8)return;
   BD.last=[x,y];
   if(S.tool==='eraser'){bdErase(x,y);return}
   if(!BD.cur)return;
@@ -2561,10 +2576,8 @@ function paintOn(cx,strokes,w,h){
         cx.beginPath();cx.moveTo(x0,y0);cx.lineTo(x1,y1);cx.stroke();
       }
     }else{
-      cx.lineWidth=base;cx.beginPath();
-      const [x,y]=P(pts[0]);cx.moveTo(x,y);
-      for(let i=1;i<pts.length;i++){const [a,b]=P(pts[i]);cx.lineTo(a,b)}
-      cx.stroke();
+      cx.lineWidth=base;
+      smoothPath(cx,pts.map(P));           /* 내보낼 때도 곡선으로 */
     }
     cx.restore();
   }
@@ -2578,14 +2591,14 @@ async function buildPdf(){
   for(const p of pages){
     const pg=await S.doc.getPage(p);
     let b2=(pg.rotate||0)%360; if(b2<0)b2+=360; if(b2===180)b2=0;
-    const vp=pg.getViewport({scale:1.6,rotation:(b2+(S.rot||0))%360});
+    const vp=pg.getViewport({scale:2.4,rotation:(b2+(S.rot||0))%360});
     cv.width=Math.floor(vp.width);cv.height=Math.floor(vp.height);
     cx.setTransform(1,0,0,1,0,0);
     cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
     await pg.render({canvasContext:cx,viewport:vp}).promise;
     const rec=await Store.getNote(noteKey(S.fileId,S.date,p));
     paintOn(cx,(rec&&rec.strokes)||[],vp.width,cv.height);
-    const img=cv.toDataURL('image/jpeg',.9),land=cv.width>cv.height;
+    const img=cv.toDataURL('image/jpeg',.95),land=cv.width>cv.height;
     const fmt=[land?842:595,land?595:842];
     if(!doc)doc=new jsPDF({orientation:land?'l':'p',unit:'pt',format:fmt});
     else doc.addPage(fmt,land?'l':'p');
@@ -2742,7 +2755,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='10.1';
+const APP_VER='10.2';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
