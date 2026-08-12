@@ -66,7 +66,8 @@ try{
   .brand{display:flex;align-items:center;gap:9px;padding-right:12px;margin-right:4px;border-right:1px solid var(--line);flex:0 0 auto}
   .brand b{font-size:17px;letter-spacing:-.3px}
   .brand .dot{width:11px;height:11px;border-radius:2px;background:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.18)}
-  .brand small{display:block;color:var(--text-dim);font-size:11px;margin-top:1px;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .brand small{display:block;color:var(--text-dim);font-size:11.5px;margin-top:1px;
+    max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .grp{display:flex;align-items:center;gap:6px;flex:0 0 auto;padding-right:10px;margin-right:2px;border-right:1px solid var(--line)}
   .grp:last-child{border-right:0}
 
@@ -158,15 +159,16 @@ try{
 
   #welcome{position:absolute;inset:56px 0 var(--bar) 0;background:var(--ink);display:flex;flex-direction:column;
     align-items:stretch;justify-content:flex-start;gap:0;padding:0;z-index:20;overflow:hidden}
-  .libhead{padding:26px 34px 14px;display:flex;flex-direction:column;align-items:center;gap:14px;position:relative}
-  .libhead h1{font-size:26px;margin:0;letter-spacing:-.4px}
+  .libhead{padding:22px 34px 14px;display:flex;flex-direction:column;align-items:center;gap:12px;position:relative}
+  .libhead h1{font-size:26px;margin:0;letter-spacing:-.4px;color:var(--text);min-height:32px}
   .segs{display:inline-flex;background:var(--ink-2);border:1px solid var(--line);
     border-radius:10px;padding:3px;gap:2px}
   .seg{min-height:34px;padding:0 16px;font-size:13.5px;border:0;background:transparent;border-radius:8px}
   .seg.on{background:var(--slate);color:#fff;font-weight:700}
   .acts{position:absolute;right:26px;top:24px;display:flex;align-items:center;gap:6px}
   .ghosticon{width:40px;min-height:40px;padding:0;justify-content:center;font-size:16px;
-    background:transparent;border-color:transparent;color:var(--text-dim)}
+    background:transparent;border-color:transparent;color:var(--text-dim);
+    overflow:hidden;white-space:nowrap;flex:0 0 auto}
   .ghosticon:hover{background:var(--ink-2);color:var(--text)}
   .search{background:var(--ink-2);border:1px solid var(--line);border-radius:10px;color:var(--text);
     font:inherit;font-size:13.5px;padding:0 12px;height:40px;width:150px;outline:none}
@@ -300,7 +302,7 @@ try{
     #tools .tool.on{padding:0 12px 0 10px}
     #tools .tool.on::after{font-size:14px;margin-left:6px}
     .brand{padding-right:8px;margin-right:2px}
-    .brand small{max-width:96px}
+    .brand small{max-width:38vw}
     .grp{gap:5px;padding-right:7px}
     #welcome{gap:14px;padding:16px}
     #welcome h1{font-size:22px}
@@ -352,10 +354,9 @@ try{
     <span class="dot"></span>
     <span><b>판서노트</b><small id="fileName">파일 없음</small></span>
   </div>
-  <button id="btnOpen">📂 PDF 열기</button>
-  <span class="tsep"></span>
-  <button id="btnPng" title="이 쪽을 그림 파일로 저장합니다">쪽 그림</button>
   <button id="btnPdf" class="primary">PDF로 저장</button>
+  <button id="btnOpen" hidden>PDF 열기</button>
+  <button id="btnPng" hidden>쪽 그림</button>
   <span class="tstat">
     <span class="saved">쪽 <b id="pageInfo">– / –</b></span>
   </span>
@@ -2249,11 +2250,15 @@ $('brandHome').onclick=()=>{ if(S.doc)$('btnClose').click(); };   /* 로고를 �
 $('btnClose').onclick=async()=>{
   if(!S.doc){toast('열려 있는 자료가 없습니다');return}
   const btn=$('btnClose2'),label=btn.textContent;
-  btn.textContent='저장 중…';btn.disabled=true;
   await saveNow();
-  await Backup.write(true);
-  await Backup.writePdf();
-  const saved=await AutoDL.run(true);
+  const hasInk=S.pageHas.size>0||BD.strokes.length>0;   /* 필기가 있을 때만 저장합니다 */
+  let saved=false;
+  if(hasInk){
+    btn.textContent='저장 중…';btn.disabled=true;
+    await Backup.write(true);
+    await Backup.writePdf();
+    saved=await AutoDL.run(true);
+  }
   S.doc=null;S.fileId=null;S.fileName='';S.folder='';
   S.pages=0;S.page=1;S.strokes=[];S.cur=null;S.pageHas=new Set();
   S.tx=0;S.ty=0;S.fitting=true;laser.list=[];
@@ -2281,7 +2286,8 @@ $('btnClose').onclick=async()=>{
   const w=$('welcome');w.hidden=false;w.style.display='';
   await renderFolders();await renderRecent();
   btn.textContent=label;btn.disabled=false;
-  if(!saved)toast('자료를 닫았습니다 — 필기는 저장되어 있습니다');
+  if(!hasInk)toast('자료를 닫았습니다');
+  else if(!saved)toast('자료를 닫았습니다 — 필기는 저장되어 있습니다');
 };
 /* 전체화면 — 브라우저가 막으면 앱을 화면 가득 채우는 방식으로 대신합니다 */
 function isFull(){return !!document.fullscreenElement||document.body.classList.contains('faux-full')}
@@ -2392,6 +2398,7 @@ async function getFolders(){const r=await Store.getFile(FOLD_KEY);return (r&&r.l
 async function setFolders(list){await Store.putFile({id:FOLD_KEY,name:'folders',opened:Date.now(),list})}
 async function renderFolders(){
   const inside=!!S.lib;
+  const nf=$('btnNewFolder'); if(nf)nf.hidden=(S.sort!=='folder');
   const tb=$('libTitle');
   $('libTitle2').textContent=inside?S.lib:'서재';
   tb.textContent='📂';
@@ -2726,7 +2733,9 @@ function paintOn(cx,strokes,w,h){
 }
 async function buildPdf(){
   if(!S.doc)return null;
-  const pages=[...S.pageHas].sort((a,b)=>a-b);
+  const pages=[...S.pageHas]
+      .map(Number).filter(p=>Number.isFinite(p)&&p>=1&&p<=S.pages)
+      .sort((a,b)=>a-b);
   if(!pages.length)return null;
   const {jsPDF}=window.jspdf;let doc=null;
   const cv=document.createElement('canvas'),cx=cv.getContext('2d');
@@ -2844,7 +2853,12 @@ $('btnQuit').onclick=async()=>{
   const b=$('btnQuit2');const lab=b?b.textContent:'';
   if(b){b.textContent='정리 중…';b.disabled=true}
   try{
-    if(S.doc){await saveNow();await Backup.write(true);await Backup.writePdf();await AutoDL.run(true)}
+    if(S.doc){
+      await saveNow();
+      if(S.pageHas.size||BD.strokes.length){
+        await Backup.write(true);await Backup.writePdf();await AutoDL.run(true);
+      }
+    }
   }catch(e){}
   /* 자료를 닫고 전체화면을 풀어 깨끗한 상태로 만듭니다 */
   try{ if(S.doc)await $('btnClose').click() }catch(e){}
@@ -2909,7 +2923,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='12.0';
+const APP_VER='12.2';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
