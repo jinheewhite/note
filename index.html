@@ -1485,13 +1485,15 @@ function pos(e){const r=inkCv.getBoundingClientRect();return [e.clientX-r.left,e
 function penDown(){for(const p of ptrs.values())if(p.type==='pen')return true;return false}
 /* 손바닥은 접촉 면적이 넓습니다. 도구가 무엇이든 손바닥으로 밀면 화면이 움직입니다 */
 function isPalm(e){
-  if(e.pointerType!=='touch')return false;
+  if(e.pointerType!=='touch')return false;    /* 펜·마우스는 절대 손바닥으로 보지 않습니다 */
+  if(S.fingerDraws)return false;
   return (e.width>=40||e.height>=40);
 }
+/* 펜·마우스 = 필기 / 손가락 = 이동·넘김 */
+function isWriter(type){ return type==='pen'||type==='mouse' }
 function canDraw(type){
-  if(S.tool==='hand')return false;      /* ✋ 이동 도구: 무엇으로 끌든 화면이 움직임 */
-  if(type==='pen'||type==='mouse')return true;   /* 펜과 마우스는 언제나 필기 */
-  return S.fingerDraws;                 /* 손가락은 넘김·이동 전용(기본) */
+  if(isWriter(type))return S.tool!=='hand';   /* 펜·마우스는 이동 도구일 때만 이동 */
+  return S.fingerDraws&&S.tool!=='hand';      /* 손가락은 기본이 이동 */
 }
 function updateTouchBtn(){
   const b=$('btnHand');if(!b)return;
@@ -1619,8 +1621,9 @@ function swipeFlip(e){
 const SW={id:null,x:0,y:0,t:0,type:''};
 inkCv.addEventListener('pointerdown',e=>{
   if(!S.doc)return;
-  if(e.pointerType==='mouse')return;
-  if(penDown()&&e.pointerType==='touch')return;
+  if(e.pointerType!=='touch')return;          /* 손가락만 넘김 대상 */
+  if(S.fingerDraws)return;
+  if(penDown())return;
   if(ptrs.size>1){SW.id=null;return}
   SW.id=e.pointerId;SW.x=e.clientX;SW.y=e.clientY;SW.t=performance.now();SW.type=e.pointerType;
 },true);
@@ -1628,7 +1631,7 @@ inkCv.addEventListener('pointerup',e=>{
   if(SW.id!==e.pointerId)return;
   SW.id=null;
   if(!S.doc||ptrs.size>1)return;
-  if(SW.type==='pen'&&S.tool!=='hand')return;      /* 펜 필기는 넘김으로 보지 않습니다 */
+  if(SW.type!=='touch')return;                     /* 펜·마우스는 넘김으로 보지 않습니다 */
   const dx=e.clientX-SW.x, dy=e.clientY-SW.y, dt=performance.now()-SW.t;
   if(dt>1400)return;
   if(Math.abs(dx)<30||Math.abs(dx)<Math.abs(dy)*0.9)return;
@@ -1690,8 +1693,10 @@ inkCv.addEventListener('pointerdown',e=>{
   S.downAt={t:performance.now(),x:e.clientX,y:e.clientY};
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
   try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
-  if(ptrs.size===2){cancelStroke();startPinch();return}
-  if(ptrs.size>=3){cancelStroke();S.pinch=null;startPan(e);return}   /* 세 손가락도 이동 */
+  if(!isWriter(e.pointerType)){
+    if(ptrs.size===2){cancelStroke();startPinch();return}
+    if(ptrs.size>=3){cancelStroke();S.pinch=null;startPan(e);return}
+  }
   if(isPalm(e)){
     if(!S.palmSeen){S.palmSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 밀면 화면이 움직입니다')}
     cancelStroke();startPan(e);return;
@@ -1846,7 +1851,7 @@ async function bdSave(){
 bdCv.addEventListener('pointerdown',e=>{
   if($('pop').classList.contains('open')){e.preventDefault();closePop();return}
   if(S.tool==='hand'||S.tool==='laser')return;
-  if(e.pointerType==='touch'&&!S.fingerDraws)return;   /* 손가락은 필기하지 않습니다 (마우스·펜은 필기) */
+  if(!isWriter(e.pointerType)&&!S.fingerDraws)return;  /* 손가락은 필기하지 않습니다 */
   ghostShow(e);
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
   const r=bdCv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
@@ -2045,7 +2050,8 @@ function setTool(t,btn){
   document.querySelectorAll('#tools button').forEach(b=>b.classList.remove('on'));
   if(btn)btn.classList.add('on');
   applyCursor();
-  const el=$('toolNow');if(el)el.textContent=TOOL_NAME[t]||'펜';
+  const el=$('toolNow');
+  if(el)el.textContent=(TOOL_NAME[t]||'펜')+(S.fingerDraws?'':' · 손가락=이동');
   showSize();
   showColor();
   if(S.doc)redraw();
