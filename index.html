@@ -201,7 +201,7 @@ try{
   #folderPick{position:fixed;inset:0;background:rgba(8,13,18,.72);display:none;
     align-items:center;justify-content:center;z-index:45;padding:24px}
   #folderPick.open{display:flex}
-  #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
+  #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;contain:layout style;
     background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
     box-shadow:0 10px 28px rgba(0,0,0,.5)}
   #pop.open{display:flex}
@@ -1428,8 +1428,8 @@ async function doRender(my){
   /* 화질 — 원본 PDF 해상도(72dpi) 기준으로 최소 3배는 확보해 글자가 뭉개지지 않게 합니다.
      화면에 맞춰 축소된 상태에서도 원본보다 크게 그립니다. */
   const BUDGET=42e6;                                   /* 약 4200만 픽셀까지 허용 */
-  const MIN_SCALE=3;                                   /* 원본 대비 최소 3배 */
-  let dpr=Math.max(MIN_SCALE/Math.max(S.scale,0.01), window.devicePixelRatio||1, 2.5);
+  const MIN_SCALE=S.split?4:3;                         /* 칠판을 켜면 좁아지므로 더 크게 */
+  let dpr=Math.max(MIN_SCALE/Math.max(S.scale,0.01), window.devicePixelRatio||1, S.split?3.2:2.5);
   dpr=Math.min(dpr,6);
   const need=vp.width*vp.height;
   if(need*dpr*dpr>BUDGET)dpr=Math.max(2,Math.sqrt(BUDGET/need));
@@ -2175,6 +2175,7 @@ function setTool(t,btn){
   const sh=$('sheet');if(sh){sh.style.transform='';sh.style.transformOrigin=''}
   S.tool=t;
   S.barAt=performance.now();               /* 도구를 고른 직후 화면 이동을 막습니다 */
+  clearTimeout(sharpTimer);                /* 예약된 다시 그리기를 취소합니다 */
   if(t==='hand'){const pp=$('pop');if(pp){pp.classList.remove('open');showMask(false)}}
   document.querySelectorAll('#tools button').forEach(b=>b.classList.remove('on'));
   if(btn)btn.classList.add('on');
@@ -2193,6 +2194,7 @@ function showColor(){
     if(sv)sv.style.color=b.classList.contains('on')?'#1a1a12':S.colors[key];
   }
   applyCursor();
+  clearTimeout(sharpTimer);                 /* 색을 고르는 동안 다시 그리지 않습니다 */
 }
 $('btnPen').onclick=e=>{setTool('pen',e.currentTarget);openPop(e.currentTarget,'pen')};
 /* 색 고르는 작은 창 — 형광펜·레이저 버튼을 누르면 바로 뜹니다 */
@@ -2412,7 +2414,7 @@ $('btnSplit').onclick=async()=>{
   $('btnSplit').classList.toggle('on',S.split);
   $('board').hidden=!S.split;
   $('board').style.display=S.split?'':'none';
-  S.fitting=true;S.tx=0;S.ty=0;
+  S.vz=1;S.fitting=true;S.tx=0;S.ty=0;
   if(S.split){bdResize();await bdLoad()}
   if(S.doc)await renderPage();
   toast(S.split?'오른쪽 칠판을 켰습니다 — PDF와 따로 씁니다':'칠판을 닫았습니다');
@@ -2985,7 +2987,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='13.5';
+const APP_VER='13.6';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
