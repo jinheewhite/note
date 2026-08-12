@@ -1427,13 +1427,12 @@ async function doRender(my){
   S.rendered={w:vp.width,h:vp.height};
   /* 화질 — 원본 PDF 해상도(72dpi) 기준으로 최소 3배는 확보해 글자가 뭉개지지 않게 합니다.
      화면에 맞춰 축소된 상태에서도 원본보다 크게 그립니다. */
-  const BUDGET=42e6;                                   /* 약 4200만 픽셀까지 허용 */
-  const MIN_SCALE=3;                                   /* 원본 대비 최소 3배 */
-  const zNow=S.vz||1;                                  /* 화면에서 늘려 보고 있는 배율 */
-  let dpr=Math.max(MIN_SCALE/Math.max(S.scale,0.01), (window.devicePixelRatio||1)*zNow, 2.5*zNow);
+  const BUDGET=60e6;                                   /* 약 6000만 픽셀까지 허용 */
+  const MIN_SCALE=4.5;                                 /* 원본 대비 최소 4.5배 — 확대해도 선명 */
+  let dpr=Math.max(MIN_SCALE/Math.max(S.scale,0.01), (window.devicePixelRatio||1)*2, 4);
   dpr=Math.min(dpr,8);
   const need=vp.width*vp.height;
-  if(need*dpr*dpr>BUDGET)dpr=Math.max(2,Math.sqrt(BUDGET/need));
+  if(need*dpr*dpr>BUDGET)dpr=Math.max(2.5,Math.sqrt(BUDGET/need));
   S.dpr=dpr;
   for(const cv of [pdfCv,inkCv,fxCv]){
     cv.width=Math.round(vp.width*dpr);cv.height=Math.round(vp.height*dpr);
@@ -1634,12 +1633,10 @@ function applyView(k){
 let sharpTimer=null;
 function sharpenSoon(ms){
   clearTimeout(sharpTimer);
-  sharpTimer=setTimeout(async()=>{
-    if(!S.doc||!S.vz||S.vz===1)return;
-    if(S.drawing||S.pan||S.pinch)return;     /* 쓰거나 움직이는 중에는 미룹니다 */
-    /* 위치와 배율은 그대로 두고 해상도만 올립니다 — 화면이 움직이지 않습니다 */
-    await renderPage();
-  },ms||260);
+  /* 확대 뒤에는 다시 그리지 않습니다. 처음부터 넉넉한 해상도로 그려 두어
+     늘려 보아도 선명하고, 화면이 조금도 움직이지 않습니다. */
+}
+function noop(){
 }
 function quickZoom(f,cx,cy){
   S.fitting=false;
@@ -1656,7 +1653,6 @@ function quickZoom(f,cx,cy){
   }else{S.tx*=f;S.ty*=f}
   clampView();applyView();
   $('zoomInfo').textContent=Math.round(S.scale*S.vz/S.fitScale*100)+'%';
-  sharpenSoon();
 }
 /* 페이지가 화면보다 클 때만 그만큼 움직입니다. 끝을 넘겨 끌면 다음/이전 쪽으로 넘어갑니다 */
 /* 넘김 감도 — 작은 화면에서는 너무 쉽게 넘어가지 않도록 화면 크기에 맞춥니다 */
@@ -1788,7 +1784,7 @@ async function endPinch(){
   if(Math.abs(k-1)<.03){settleView();return}
   S.vz=(S.vz||1)*k;S.fitting=false;
   clampView();applyView();
-  sharpenSoon(200);
+  $('zoomInfo').textContent=Math.round(S.scale*S.vz/S.fitScale*100)+'%';
 }
 
 inkCv.addEventListener('dragstart',e=>e.preventDefault());
@@ -2984,7 +2980,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='13.3';
+const APP_VER='13.4';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
