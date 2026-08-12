@@ -219,6 +219,10 @@ try{
   #updBar[hidden]{display:none!important}
   #updBar button{min-height:40px;padding:0 14px;font-size:13.5px}
   #updBar #updLater{background:transparent;border-color:rgba(0,0,0,.25);color:#1a1a12}
+  #diag{position:fixed;left:10px;top:70px;z-index:200;background:rgba(0,0,0,.82);
+    color:#9be89b;font:12px/1.6 monospace;padding:10px 12px;border-radius:10px;
+    max-width:46vw;max-height:60vh;overflow:auto;white-space:pre-wrap;pointer-events:none}
+  #diag[hidden]{display:none!important}
   #popMask{position:fixed;inset:0;z-index:59;display:none;background:transparent}
   #popMask.open{display:block}
   #pop button{width:52px;height:52px;min-height:52px;padding:0;border-radius:50%;
@@ -531,6 +535,7 @@ try{
   <button id="updLater">나중에</button>
 </div>
 
+<div id="diag" hidden></div>
 <div id="popMask"></div>
 <button id="btnClose" hidden></button>
 <div id="pop"></div>
@@ -1464,6 +1469,7 @@ async function doRender(my){
   for(const cx of [ictx,fctx]){cx.imageSmoothingEnabled=true;try{cx.imageSmoothingQuality='high'}catch(e){}}
   S.vz=1;
   S.tx=keepTx;S.ty=keepTy;
+  diag('다시그림');
   await loadStrokes();
   redraw();
   $('pageInfo').textContent=`${S.page} / ${S.pages}`;
@@ -1630,6 +1636,23 @@ function edgeTap(e){
 }
 
 /* 손가락 하나 ─ 화면 밀기 */
+/* ── 진단: 무엇이 화면을 움직이는지 기록합니다 (Ctrl+D) ── */
+let diagOn=false, diagLog=[];
+function diag(tag){
+  if(!diagOn)return;
+  const st=$('stage');
+  diagLog.unshift(`${tag}  tx=${Math.round(S.tx)} ty=${Math.round(S.ty)} `+
+    `sc=${(S.scale||0).toFixed(2)} vz=${(S.vz||1).toFixed(2)} fit=${S.fitting?'Y':'N'} `+
+    `stage=${st.clientWidth}x${st.clientHeight} cv=${Math.round(S.rendered.w)}x${Math.round(S.rendered.h)}`);
+  diagLog=diagLog.slice(0,14);
+  $('diag').textContent=diagLog.join('\n');
+}
+window.addEventListener('keydown',e=>{
+  if(e.ctrlKey&&(e.key==='d'||e.key==='D')){
+    e.preventDefault();diagOn=!diagOn;$('diag').hidden=!diagOn;
+    diagLog=[];$('diag').textContent='진단 켜짐 — 펜을 눌러 보세요';
+  }
+});
 function applyView(k){
   const z=(k||1)*(S.vz||1);
   const s=z!==1?` scale(${z})`:'';
@@ -1709,6 +1732,7 @@ async function settleView(){
 async function flip(dir){
   const to=S.page+dir;
   if(to<1||to>S.pages)return;
+  diag('쪽넘김 시작');
   S.vz=1;
   await saveNow();
   S.page=to;
@@ -2184,9 +2208,13 @@ function setTool(t,btn){
   applyCursor();
   const el=$('toolNow');
   if(el)el.textContent=TOOL_NAME[t]||'펜';
+  diag('도구선택 전');
   showSize();
   paintSwatches();showColor();
   if(S.doc)redraw();
+  diag('도구선택 후');
+  requestAnimationFrame(()=>diag('도구선택 다음틀'));
+  setTimeout(()=>diag('도구선택 0.4초뒤'),400);
 }
 function colorKey(){return (S.tool==='hl'||S.tool==='laser')?S.tool:'pen'}
 function curColor(){return S.colors[colorKey()]}
@@ -3005,7 +3033,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='14.2';
+const APP_VER='14.3';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
