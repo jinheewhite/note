@@ -89,6 +89,7 @@ try{
   .pen i{width:22px;height:22px;border-radius:50%;display:block}
   .pen.on{background:var(--ink-3);border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.25)}
   #btnPen svg,#btnHl svg,#btnEraser svg,#btnLaser svg{display:block}
+  button:focus{outline:none}
   #tools .tool{width:54px;opacity:.82;transition:opacity .12s;position:relative}
   #tools .tool:hover{opacity:1}
   #tools .tool:hover::before{
@@ -2196,6 +2197,11 @@ for(const id of ['topbar','dock']){
   if(el)['pointerdown','pointerup'].forEach(ev=>
     el.addEventListener(ev,()=>{S.barAt=performance.now()},true));
 }
+/* 버튼을 눌러도 초점을 남기지 않습니다 (스크롤·방향키 오작동 방지) */
+document.addEventListener('pointerup',e=>{
+  const b=e.target.closest&&e.target.closest('button');
+  if(b&&b.blur)setTimeout(()=>b.blur(),0);
+},true);
 document.querySelector('header')?.addEventListener('pointerdown',()=>{S.barAt=performance.now()},true);
 document.querySelector('header')?.addEventListener('pointerup',()=>{S.barAt=performance.now()},true);
 document.querySelector('#board .boardTop')?.addEventListener('pointerdown',()=>{S.barAt=performance.now()},true);
@@ -2434,6 +2440,11 @@ $('btnClear').onclick=()=>{
 function zoom(f,cx,cy){ quickZoom(f,cx,cy) }
 $('btnZoomIn').onclick=()=>zoom(1.25);
 $('btnZoomOut').onclick=()=>zoom(1/1.25);
+for(const id of ['topbar','dock']){
+  const el=$(id);
+  if(el)el.addEventListener('wheel',e=>{e.stopPropagation()},{passive:true});
+}
+document.querySelector('header')?.addEventListener('wheel',e=>{e.stopPropagation()},{passive:true});
 $('stage').addEventListener('wheel',e=>{
   if(!S.doc)return;
   e.preventDefault();
@@ -2447,7 +2458,9 @@ $('stage').addEventListener('wheel',e=>{
       if(performance.now()-(S.wheelAt||0)>420){S.wheelAt=performance.now();flip(e.deltaY>0?1:-1)}
       return;
     }
+    if(barBusy())return;                 /* 버튼을 막 눌렀으면 스크롤을 무시합니다 */
     S.ty-=e.deltaY;clampView();applyView();
+    diag('휠 스크롤');
   }
 },{passive:false});
 $('btnFit').onclick=()=>{S.vz=1;S.fitting=true;S.tx=0;S.ty=0;renderPage()};
@@ -3049,7 +3062,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='14.9';
+const APP_VER='15.0';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
