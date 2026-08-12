@@ -59,7 +59,8 @@ try{
   #topbar .quit{background:#5a2330;border-color:#7d3244;color:#ffd9df;font-weight:700}
   #topbar .quit:hover{background:#7d3244}
   body.bar-top #topbar,html.bar-top #topbar{order:-9;border-bottom:1px solid var(--line);border-top:0}
-  header{min-height:var(--bar);flex:0 0 auto;background:var(--ink-2);border-top:1px solid var(--line);
+  header{height:var(--bar);min-height:var(--bar);max-height:var(--bar);flex:0 0 auto;
+    background:var(--ink-2);border-top:1px solid var(--line);
     display:flex;align-items:center;justify-content:center;gap:8px;padding:0 12px;
     overflow-x:auto;overflow-y:hidden}
   header::-webkit-scrollbar{height:0}
@@ -201,7 +202,8 @@ try{
   #folderPick{position:fixed;inset:0;background:rgba(8,13,18,.72);display:none;
     align-items:center;justify-content:center;z-index:45;padding:24px}
   #folderPick.open{display:flex}
-  #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;contain:layout style;
+  #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
+    contain:layout style size;pointer-events:auto;isolation:isolate;
     background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
     box-shadow:0 10px 28px rgba(0,0,0,.5)}
   #pop.open{display:flex}
@@ -449,9 +451,7 @@ try{
     <button id="btnClear" title="이 쪽의 필기를 모두 지웁니다">쪽 비우기</button>
   </div>
 
-  <div class="status">
-    <span class="saved">도구 <b id="toolNow">펜</b></span>
-  </div>
+  <span class="saved" id="toolNow" hidden>펜</span>
 </header>
 
 <div id="dock">
@@ -2175,7 +2175,7 @@ function setTool(t,btn){
   if(btn)btn.classList.add('on');
   applyCursor();
   const el=$('toolNow');
-  if(el)el.textContent=(TOOL_NAME[t]||'펜')+(S.fingerDraws?'':' · 손가락=이동');
+  if(el)el.textContent=TOOL_NAME[t]||'펜';
   showSize();
   showColor();
   if(S.doc)redraw();
@@ -2984,7 +2984,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='13.9';
+const APP_VER='14.0';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
