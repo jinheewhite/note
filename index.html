@@ -2661,8 +2661,33 @@ function renderInstallBox(){
     installPrompt=null;renderInstallBox();
   };
 }
-if('serviceWorker' in navigator&&location.protocol.startsWith('http'))
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+/* 서버의 최신 버전과 다르면 옛 서비스워커·저장 파일을 스스로 지우고 새로 받습니다 */
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
+  (async()=>{
+    try{
+      const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});
+      if(r.ok){
+        const latest=(await r.json()).version;
+        if(latest&&parseFloat(latest)>parseFloat(APP_VER)){
+          const once=sessionStorage.getItem('pn.selfHeal');
+          if(!once){
+            sessionStorage.setItem('pn.selfHeal','1');
+            for(const reg of await navigator.serviceWorker.getRegistrations())await reg.unregister();
+            if(window.caches)for(const k of await caches.keys())await caches.delete(k);
+            const u=new URL(location.href);
+            u.searchParams.set('v',Date.now());
+            location.replace(u.toString());
+            return;
+          }
+        }
+      }
+    }catch(e){}
+    try{
+      const reg=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
+      reg.update();
+    }catch(e){}
+  })();
+}
 
 function openPicker(){
   const el=$('fileInput');
@@ -2923,7 +2948,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='12.2';
+const APP_VER='12.3';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
