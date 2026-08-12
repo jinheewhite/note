@@ -1188,6 +1188,31 @@ const Backup={
       return list.length;
     }catch(e){return 0}
   },
+  /* 그 자료로 만들어진 파일들을 다른 폴더로 실제로 옮깁니다 */
+  async moveFiles(baseName,fromFolder,toFolder){
+    if(!this.ok||!this.handle)return 0;
+    try{
+      const r=await this.root();
+      const src = fromFolder ? await r.getDirectoryHandle(this.safe(fromFolder),{create:true}) : r;
+      const dst = toFolder   ? await r.getDirectoryHandle(this.safe(toFolder),{create:true})   : r;
+      if(this.safe(fromFolder||'')===this.safe(toFolder||''))return 0;
+      const want=[];
+      for await (const [nm,h] of src.entries()){
+        if(h.kind!=='file')continue;
+        if(nm.indexOf(baseName)>=0&&(nm.endsWith('.pdf')||nm.endsWith('.json'))&&!nm.startsWith('판서노트_백업'))
+          want.push([nm,h]);
+      }
+      let moved=0;
+      for(const [nm,h] of want){
+        const f=await h.getFile();
+        const nh=await dst.getFileHandle(nm,{create:true});
+        const w=await nh.createWritable();
+        await w.write(await f.arrayBuffer());await w.close();
+        await src.removeEntry(nm);moved++;
+      }
+      return moved;
+    }catch(e){return 0}
+  },
   async addFolder(name){
     if(!this.ok||!this.handle)return;
     try{ const r=await this.root(); await r.getDirectoryHandle(this.safe(name),{create:true}) }catch(e){}
@@ -2054,7 +2079,11 @@ $('btnClose').onclick=async()=>{
   }catch(e){}
   S.rendered={w:0,h:0};S.pdfW=1;
   BD.strokes=[];BD.cur=null;bdRedraw();     /* 칠판도 비웁니다 */
+  S.split=false;
+  try{localStorage.setItem('pn.split','0')}catch(e){}
+  $('btnSplit').classList.remove('on');
   $('board').hidden=true;
+  $('board').style.display='none';
   $('dockPage').textContent='– / –';
   $('fileName').textContent='파일 없음';
   $('rail').innerHTML='';
@@ -2155,6 +2184,7 @@ $('btnSplit').onclick=async()=>{
   try{localStorage.setItem('pn.split',S.split?'1':'0')}catch(e){}
   $('btnSplit').classList.toggle('on',S.split);
   $('board').hidden=!S.split;
+  $('board').style.display=S.split?'':'none';
   S.fitting=true;S.tx=0;S.ty=0;
   if(S.split){bdResize();await bdLoad()}
   if(S.doc)await renderPage();
@@ -2265,9 +2295,12 @@ async function pickFolder(file){
     b.textContent=label;b.className=(file.folder||'')===val?'on':'';
     b.onclick=async()=>{
       const rec=await Store.getFile(file.id);
+      const from=(rec&&rec.folder)||'';
       if(rec){rec.folder=val;await Store.putFile(rec)}
-      box.classList.remove('open');renderRecent();
-      toast(val?`"${val}" 폴더로 옮겼습니다`:'폴더에서 꺼냈습니다');
+      if(S.fileId===file.id)S.folder=val;
+      box.classList.remove('open');showMask(false);renderRecent();
+      const moved=await Backup.moveFiles(file.name.replace(/\.pdf$/i,''),from,val);
+      toast((val?`"${val}" 폴더로 옮겼습니다`:'폴더에서 꺼냈습니다')+(moved?` (파일 ${moved}개 이동)`:''));
     };
     row.appendChild(b);
   };
@@ -2286,10 +2319,13 @@ async function pickFolder(file){
     const fs=await getFolders();
     if(!fs.includes(name)){fs.push(name);await setFolders(fs);await Backup.addFolder(name)}
     const rec=await Store.getFile(file.id);
+    const from=(rec&&rec.folder)||'';
     if(rec){rec.folder=name;await Store.putFile(rec)}
-    box.classList.remove('open');
+    if(S.fileId===file.id)S.folder=name;
+    box.classList.remove('open');showMask(false);
     await renderFolders();await renderRecent();
-    toast(`"${name}" 폴더로 옮겼습니다`);
+    const moved=await Backup.moveFiles(file.name.replace(/\.pdf$/i,''),from,name);
+    toast(`"${name}" 폴더로 옮겼습니다`+(moved?` (파일 ${moved}개 이동)`:''));
   };
   row.appendChild(mk);
   sheet.querySelector('#pickCancel').onclick=()=>box.classList.remove('open');
@@ -2351,11 +2387,13 @@ function cardMenu(f){
   const sheet=document.createElement('div');
   sheet.className='sheet';sheet.style.width='min(420px,92vw)';
   sheet.innerHTML=`<h2>${f.name.replace(/\.pdf$/i,'')}</h2>`+
-    '<p>자료와 필기는 지워지지 않습니다. 정리만 할 수 있습니다.</p>'+
     '<div class="row" style="margin-top:16px;flex-direction:column;align-items:stretch;gap:8px">'+
     `<button id="mPin">${f.pin?'📌 맨 앞 고정 해제':'📌 맨 앞에 고정'}</button>`+
-    '<button id="mMove">📁 폴더 옮기기</button></div>'+
-    '<div class="row" style="margin-top:20px;justify-content:flex-end"><button id="mCancel">닫기</button></div>';
+    '<button id="mMove">📁 폴더 옮기기</button>'+
+    '<button id="mRen">✎ 이름 바꾸기</button>'+
+    '<button id="mDel" class="ghost">🗑 서재에서 지우기</button></div>'+
+    '<p style="margin-top:12px">지워도 필기는 남습니다. 같은 파일을 다시 열면 그대로 나옵니다.</p>'+
+    '<div class="row" style="margin-top:16px;justify-content:flex-end"><button id="mCancel">닫기</button></div>';
   box.appendChild(sheet);box.classList.add('open');
   const close=()=>box.classList.remove('open');
   sheet.querySelector('#mCancel').onclick=close;
@@ -2365,6 +2403,22 @@ function cardMenu(f){
     close();renderRecent();
   };
   sheet.querySelector('#mMove').onclick=()=>{close();pickFolder(f)};
+  sheet.querySelector('#mRen').onclick=async()=>{
+    const base=f.name.replace(/\.pdf$/i,'');
+    const nn=(prompt('자료 이름을 바꿉니다',base)||'').trim();
+    if(!nn||nn===base)return;
+    const rec=await Store.getFile(f.id);
+    if(rec){rec.name=nn+'.pdf';await Store.putFile(rec)}
+    if(S.fileId===f.id){S.fileName=nn+'.pdf';$('fileName').textContent=S.fileName}
+    close();renderRecent();toast('이름을 바꿨습니다');
+  };
+  sheet.querySelector('#mDel').onclick=async()=>{
+    if(f.pin){toast('고정된 자료입니다 — 고정을 먼저 해제하세요');return}
+    if(!confirm(`서재에서 "${f.name}" 을 지웁니다.\n필기와 저장된 PDF 파일은 지워지지 않습니다.`))return;
+    await Store.delFile(f.id);
+    if(S.fileId===f.id&&$('btnClose'))$('btnClose').click();
+    close();renderRecent();toast('서재에서 지웠습니다');
+  };
 }
 
 /* 바탕화면 설치 — 크롬이 설치 가능하다고 알려줄 때만 버튼이 보입니다 */
@@ -2643,7 +2697,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='9.6';
+const APP_VER='9.9';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
@@ -2878,6 +2932,7 @@ $('jsonInput').onchange=async e=>{
   updFullBtn();
   $('btnSplit').classList.toggle('on',S.split);
   $('board').hidden=!S.split;
+  $('board').style.display=S.split?'':'none';
   try{const bl=localStorage.getItem('pn.boardLeft')==='1';
       document.body.classList.toggle('board-left',bl);
       document.documentElement.classList.toggle('board-left',bl)}catch(e){}
