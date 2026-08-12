@@ -1467,7 +1467,6 @@ async function doRender(my){
   ictx.setTransform(dpr,0,0,dpr,0,0);
   fctx.setTransform(dpr,0,0,dpr,0,0);
   for(const cx of [ictx,fctx]){cx.imageSmoothingEnabled=true;try{cx.imageSmoothingQuality='high'}catch(e){}}
-  S.vz=1;
   S.tx=keepTx;S.ty=keepTy;             /* 보고 있던 위치를 그대로 지킵니다 */
   diag('다시그림');
   await loadStrokes();
@@ -1475,7 +1474,7 @@ async function doRender(my){
   $('pageInfo').textContent=`${S.page} / ${S.pages}`;
   $('dockPage').textContent=`${S.page} / ${S.pages}`;
   $('zoomInfo').textContent=Math.round(S.scale*(S.vz||1)/S.fitScale*100)+'%';
-  clampView();applyView();
+  applyView();                          /* 위치를 다시 계산하지 않습니다 */
   buildRail();
 }
 
@@ -3045,7 +3044,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='14.7';
+const APP_VER='14.8';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
