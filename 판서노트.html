@@ -113,7 +113,7 @@ try{
 
   #stage{flex:1;overflow:hidden;background:#26333f;position:relative;touch-action:none;
     display:flex;align-items:center;justify-content:center}
-  #dock{position:fixed;right:18px;bottom:calc(var(--bar) + 14px);z-index:25;
+  #dock{position:fixed;right:18px;bottom:calc(var(--bar) + 14px);z-index:25;display:none;
     background:rgba(30,43,56,.96);border:1px solid var(--line);border-radius:14px;
     padding:6px;display:flex;align-items:center;gap:5px;box-shadow:0 8px 26px rgba(0,0,0,.45)}
   #dock button{min-height:52px;font-size:15px}
@@ -179,6 +179,7 @@ try{
     justify-content:center;border-width:2px}
   #pop button i{width:24px;height:24px;border-radius:50%;display:block}
   #pop button.on{border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.3)}
+  body.faux-full{position:fixed;inset:0;width:100vw;height:100vh;z-index:9990}
   #ghost{position:fixed;z-index:70;display:none;pointer-events:none;
     filter:drop-shadow(0 3px 6px rgba(0,0,0,.45))}
   #pop.wide{flex-direction:column;gap:8px}
@@ -274,9 +275,9 @@ try{
     #topbar .datechip input{width:100px;font-size:13px}
     #topbar #btnClose2,#topbar #btnQuit2{font-size:12.5px;padding:0 9px}
     #dock button{min-height:44px;font-size:13px;padding:0 10px}
+    #dock{display:flex}
     .pageBtn{display:inline-flex}
     #dock .mono.pageBtn{display:inline-block}
-    #dock #btnFull{display:none}
     aside{width:56px}
     aside .p{margin:4px 7px;height:40px}
     #board{flex:0 0 50%}
@@ -318,6 +319,7 @@ try{
     <label>수업 날짜</label>
     <input type="date" id="dateInput">
   </div>
+  <button id="btnFull" title="전체화면 (F11)">⛶ 전체화면</button>
   <button class="icon" id="btnBarPos" title="도구 막대를 위/아래로 옮깁니다">⇅</button>
   <button class="icon" id="btnMore" title="설정 · 저장 · 백업">⚙︎</button>
   <button id="btnClose2" title="이 자료만 닫고 서재로 돌아갑니다">✕ 자료 닫기</button>
@@ -411,7 +413,6 @@ try{
   <button class="icon pageBtn" id="btnPrev2" title="이전 쪽">◀</button>
   <span class="mono pageBtn" id="dockPage">– / –</span>
   <button class="icon pageBtn" id="btnNext2" title="다음 쪽">▶</button>
-  <button id="btnFull" title="전체화면 (F11)">⛶ 전체화면</button>
 </div>
 
 <main>
@@ -1241,7 +1242,7 @@ const S={
   tool:'pen',colors:{pen:'#111111',hl:'#f5c400',laser:'#ff3b30'},sizes:{pen:4,hl:12,laser:8,eraser:10},
   drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false,
   fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,pinch:null,tx:0,ty:0,tap:null,flipAt:0,
-  lib:'',folder:'',q:'',sort:'recent',view:'grid',split:false,pdfW:1,downAt:null,pickedOnce:false,rot:0
+  lib:'',folder:'',q:'',sort:'recent',view:'grid',split:false,pdfW:1,downAt:null,pickedOnce:false,rot:0,barAt:0
 };
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 const noteKey=(f,d,p)=>`${f}|${d}|${p}`;
@@ -1468,7 +1469,7 @@ function applyView(k){
 /* 넘김 감도 — 작은 화면에서는 너무 쉽게 넘어가지 않도록 화면 크기에 맞춥니다 */
 function flipDist(){
   const st=$('stage');
-  return Math.max(110,Math.min(240,Math.round(st.clientWidth*0.22)));
+  return Math.max(60,Math.min(140,Math.round(st.clientWidth*0.10)));
 }
 function limits(){
   const st=$('stage');
@@ -1519,7 +1520,9 @@ async function flip(dir){
              {duration:180,easing:'ease-out'});
   document.querySelector(`#rail .p[data-p="${to}"]`)?.scrollIntoView({block:'nearest'});
 }
+function barBusy(){ return performance.now()-(S.barAt||0)<450 }
 function startPan(e){
+  if(barBusy())return;                 /* 버튼을 막 누른 직후에는 밀리지 않게 */
   S.pan={id:e.pointerId,x:e.clientX,y:e.clientY,tx:S.tx,ty:S.ty,
          t:performance.now(),type:e.pointerType};
 }
@@ -1528,14 +1531,19 @@ function swipeFlip(e){
   const p=S.pan;if(!p)return false;
   if(p.type==='mouse')return false;
   const dx=e.clientX-p.x, dy=e.clientY-p.y, dt=performance.now()-p.t;
-  if(dt>600)return false;
-  if(Math.abs(dx)<70||Math.abs(dx)<Math.abs(dy)*1.6)return false;
+  if(dt>900)return false;
+  if(Math.abs(dx)<38||Math.abs(dx)<Math.abs(dy)*1.05)return false;
   const dir=dx<0?1:-1;
   if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return false;
   flip(dir);return true;
 }
 function movePan(e){
-  const p=S.pan;if(p.id!==e.pointerId)return;
+  const p=S.pan;if(!p||p.id!==e.pointerId)return;
+  const dx=e.clientX-p.x, dy=e.clientY-p.y;
+  if(!p.go){                            /* 12px 넘게 움직여야 비로소 밀기로 봅니다 */
+    if(Math.hypot(dx,dy)<7)return;
+    p.go=true;p.x=e.clientX;p.y=e.clientY;p.tx=S.tx;p.ty=S.ty;return;
+  }
   S.tx=p.tx+(e.clientX-p.x);S.ty=p.ty+(e.clientY-p.y);
   clampView(true);applyView();
   autoFlip(e);
@@ -1911,6 +1919,16 @@ function ghostMove(e){
 }
 function ghostHide(){ghost.style.display='none'}
 
+/* 막대(버튼)를 만진 시각을 기록해 두었다가, 곧이어 들어오는 화면 이동을 무시합니다 */
+for(const id of ['topbar','dock']){
+  const el=$(id);
+  if(el)['pointerdown','pointerup'].forEach(ev=>
+    el.addEventListener(ev,()=>{S.barAt=performance.now()},true));
+}
+document.querySelector('header')?.addEventListener('pointerdown',()=>{S.barAt=performance.now()},true);
+document.querySelector('header')?.addEventListener('pointerup',()=>{S.barAt=performance.now()},true);
+document.querySelector('#board .boardTop')?.addEventListener('pointerdown',()=>{S.barAt=performance.now()},true);
+
 /* ══════════════════════════════════════════════════════════
    6. 도구
    ══════════════════════════════════════════════════════════ */
@@ -2025,10 +2043,19 @@ $('btnClose').onclick=async()=>{
   S.pages=0;S.page=1;S.strokes=[];S.cur=null;S.pageHas=new Set();
   S.tx=0;S.ty=0;S.fitting=true;laser.list=[];
   try{
-    ictx.clearRect(0,0,S.rendered.w,S.rendered.h);
-    fctx.clearRect(0,0,S.rendered.w,S.rendered.h);
-    pctx.clearRect(0,0,S.rendered.w,S.rendered.h);
+    for(const cv of [pdfCv,inkCv,fxCv]){
+      const cx=cv.getContext('2d');
+      cx.setTransform(1,0,0,1,0,0);
+      cx.clearRect(0,0,cv.width,cv.height);
+      cv.width=0;cv.height=0;
+      cv.style.width='0px';cv.style.height='0px';
+    }
+    const sh=$('sheet');sh.style.width='0px';sh.style.height='0px';sh.style.transform='';
   }catch(e){}
+  S.rendered={w:0,h:0};S.pdfW=1;
+  BD.strokes=[];BD.cur=null;bdRedraw();     /* 칠판도 비웁니다 */
+  $('board').hidden=true;
+  $('dockPage').textContent='– / –';
   $('fileName').textContent='파일 없음';
   $('rail').innerHTML='';
   $('pageInfo').textContent='– / –';
@@ -2037,13 +2064,35 @@ $('btnClose').onclick=async()=>{
   btn.textContent=label;btn.disabled=false;
   if(!saved)toast('자료를 닫았습니다 — 필기는 저장되어 있습니다');
 };
-$('btnFull').onclick=()=>{
-  if(document.fullscreenElement){setWantFull(false);document.exitFullscreen()}
-  else{setWantFull(true);goFull()}
+/* 전체화면 — 브라우저가 막으면 앱을 화면 가득 채우는 방식으로 대신합니다 */
+function isFull(){return !!document.fullscreenElement||document.body.classList.contains('faux-full')}
+function fauxFull(on){
+  document.body.classList.toggle('faux-full',!!on);
+  try{localStorage.setItem('pn.faux',on?'1':'0')}catch(e){}
+  setTimeout(()=>{if(S.fitting&&S.doc)renderPage();if(S.split)bdResize()},250);
+}
+function updFullBtn(){
+  const on=isFull();
+  $('btnFull').textContent=on?'⛶ 전체화면 끄기':'⛶ 전체화면';
+  $('btnFull').classList.toggle('on',on);
+}
+$('btnFull').onclick=async()=>{
+  if(isFull()){
+    setWantFull(false);
+    if(document.fullscreenElement){try{await document.exitFullscreen()}catch(e){}}
+    fauxFull(false);updFullBtn();toast('전체화면을 껐습니다');
+    return;
+  }
+  setWantFull(true);
+  let ok=false;
+  try{ await document.documentElement.requestFullscreen(); ok=!!document.fullscreenElement }catch(e){ ok=false }
+  if(!ok){ fauxFull(true); toast('화면을 가득 채웠습니다') }
+  updFullBtn();
 };
 document.addEventListener('fullscreenchange',()=>{
   const on=!!document.fullscreenElement;
-  $('btnFull').classList.toggle('on',on);
+  if(on)fauxFull(false);
+  updFullBtn();
   if(!on&&wantFull())toast('전체화면이 풀렸습니다 — 화면을 한 번 누르면 다시 들어갑니다');
   if(S.doc)setTimeout(()=>{if(S.fitting)renderPage()},250);
 });
@@ -2538,10 +2587,33 @@ try{setBarPos(localStorage.getItem('pn.barTop')==='1')}catch(e){setBarPos(false)
 
 $('btnQuit2').onclick=()=>$('btnQuit').click();
 $('btnQuit').onclick=async()=>{
-  if(!confirm('판서노트를 닫을까요?\n필기는 저장되어 있습니다.'))return;
-  if(S.doc){await saveNow();await Backup.write(true);await Backup.writePdf();await AutoDL.run(true)}
-  setTimeout(()=>{window.close();setTimeout(()=>toast('창 오른쪽 위 ✕ 로 닫아 주세요'),400)},900);
+  if(!confirm('판서노트를 종료할까요?\n필기를 저장한 뒤 정리합니다.'))return;
+  const b=$('btnQuit2');const lab=b?b.textContent:'';
+  if(b){b.textContent='정리 중…';b.disabled=true}
+  try{
+    if(S.doc){await saveNow();await Backup.write(true);await Backup.writePdf();await AutoDL.run(true)}
+  }catch(e){}
+  /* 자료를 닫고 전체화면을 풀어 깨끗한 상태로 만듭니다 */
+  try{ if(S.doc)await $('btnClose').click() }catch(e){}
+  try{ setWantFull(false); if(document.fullscreenElement)await document.exitFullscreen(); fauxFull(false); updFullBtn(); }catch(e){}
+  if(b){b.textContent=lab;b.disabled=false}
+  $('modal').classList.remove('open');
+  window.close();                       /* 앱으로 설치한 경우에는 여기서 닫힙니다 */
+  setTimeout(()=>{
+    if(!document.hidden)showQuitScreen();
+  },600);
 };
+/* 브라우저 탭은 스크립트로 닫을 수 없어, 안전하게 끝났다는 화면을 보여 줍니다 */
+function showQuitScreen(){
+  const w=$('welcome');
+  w.hidden=false;w.style.display='';
+  w.innerHTML=
+    '<h1>저장을 마쳤습니다</h1>'+
+    '<p>필기와 파일이 모두 저장되었습니다.<br>이제 창을 닫으셔도 됩니다.</p>'+
+    '<p style="color:var(--chalk);font-weight:700">브라우저 오른쪽 위 ✕ 또는 탭의 ✕ 를 눌러 주세요</p>'+
+    '<button class="primary big" id="btnBackHome">판서노트로 돌아가기</button>';
+  $('btnBackHome').onclick=()=>location.reload();
+}
 $('btnCloseModal').onclick=$('btnX').onclick=()=>{$('modal').classList.remove('open');renderWhere()};
 $('modal').onclick=e=>{if(e.target.id==='modal')$('modal').classList.remove('open')};
 
@@ -2571,7 +2643,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='9.1';
+const APP_VER='9.6';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
@@ -2802,6 +2874,8 @@ $('jsonInput').onchange=async e=>{
   $('modeBadge').innerHTML=Store.mode==='idb'?'':modeBadge();
   try{S.sort=localStorage.getItem('pn.sort')||'recent';S.view=localStorage.getItem('pn.view')||'grid';
       S.split=localStorage.getItem('pn.split')==='1'}catch(e){}
+  try{if(localStorage.getItem('pn.faux')==='1')fauxFull(true)}catch(e){}
+  updFullBtn();
   $('btnSplit').classList.toggle('on',S.split);
   $('board').hidden=!S.split;
   try{const bl=localStorage.getItem('pn.boardLeft')==='1';
