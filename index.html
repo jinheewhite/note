@@ -1390,6 +1390,7 @@ async function loadPdf(bytes,name,id){
   buildRail();
   S.fitting=true;
   S.edited=false;                      /* 이번에 손댄 적이 없습니다 */
+  AutoDL.dirty=false;AutoDL.lastKey='';
   await renderPage();
   if(S.split){bdResize();await bdLoad()}
   /* 화면 크기가 확정된 뒤 한 번 더 그려 첫 화면이 어긋나지 않게 합니다 */
@@ -2830,7 +2831,7 @@ $('btnPdf').onclick=async()=>{
 
 /* 폴더를 연결하지 않은 기기에서는 다운로드 폴더로 자동 저장합니다 */
 const AutoDL={
-  timer:null, dirty:false, at:0,
+  timer:null, dirty:false, at:0, lastKey:'',
   on(){ try{return localStorage.getItem('pn.autodl')!=='0'}catch(e){return true} },
   set(v){ try{localStorage.setItem('pn.autodl',v?'1':'0')}catch(e){} },
   schedule(){
@@ -2839,9 +2840,11 @@ const AutoDL={
     clearTimeout(this.timer);
     this.timer=setTimeout(()=>this.run(),90000);    /* 필기가 1분 30초 멈추면 */
   },
+  key(){ return `${S.fileId}|${S.date}` },
   async run(force){
     if(!S.doc||S.busy||Backup.ok||!this.on())return;
     if(!S.edited)return;                            /* 이번에 손대지 않았으면 저장하지 않습니다 */
+    if(!this.dirty&&this.lastKey===this.key())return;  /* 바뀐 게 없으면 다시 받지 않습니다 */
     if(!force){
       if(!this.dirty)return;
       if(Date.now()-this.at<300000)return;          /* 자동 저장은 너무 자주 하지 않도록 */
@@ -2851,7 +2854,7 @@ const AutoDL={
       const doc=await buildPdf();
       if(!doc)return;
       doc.save(`판서노트_${baseName()}_${S.date}.pdf`);
-      this.dirty=false;this.at=Date.now();
+      this.dirty=false;this.at=Date.now();this.lastKey=this.key();
       toast('판서를 다운로드 폴더에 저장했습니다');
       return true;
     }catch(e){toast('자동 저장에 실패했습니다: '+e.message)}
@@ -2976,7 +2979,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='12.9';
+const APP_VER='13.0';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
