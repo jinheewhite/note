@@ -1408,7 +1408,7 @@ function renderPage(){                       /* 겹쳐 들어와도 순서대로
 }
 async function doRender(my){
   if(!S.doc)return;
-  const keepTx=S.tx, keepTy=S.ty, keepVz=S.vz||1;   /* 보고 있던 위치·확대를 지킵니다 */
+  const keepTx=S.tx, keepTy=S.ty;          /* 보고 있던 위치를 지킵니다 */
   /* 앞의 그리기를 취소하고, 완전히 끝날 때까지 기다립니다 (덧그림 방지) */
   if(renderTask){
     const old=renderTask; renderTask=null;
@@ -1427,12 +1427,12 @@ async function doRender(my){
   S.rendered={w:vp.width,h:vp.height};
   /* 화질 — 원본 PDF 해상도(72dpi) 기준으로 최소 3배는 확보해 글자가 뭉개지지 않게 합니다.
      화면에 맞춰 축소된 상태에서도 원본보다 크게 그립니다. */
-  const BUDGET=60e6;                                   /* 약 6000만 픽셀까지 허용 */
-  const MIN_SCALE=4.5;                                 /* 원본 대비 최소 4.5배 — 확대해도 선명 */
-  let dpr=Math.max(MIN_SCALE/Math.max(S.scale,0.01), (window.devicePixelRatio||1)*2, 4);
-  dpr=Math.min(dpr,8);
+  const BUDGET=42e6;                                   /* 약 4200만 픽셀까지 허용 */
+  const MIN_SCALE=3;                                   /* 원본 대비 최소 3배 */
+  let dpr=Math.max(MIN_SCALE/Math.max(S.scale,0.01), window.devicePixelRatio||1, 2.5);
+  dpr=Math.min(dpr,6);
   const need=vp.width*vp.height;
-  if(need*dpr*dpr>BUDGET)dpr=Math.max(2.5,Math.sqrt(BUDGET/need));
+  if(need*dpr*dpr>BUDGET)dpr=Math.max(2,Math.sqrt(BUDGET/need));
   S.dpr=dpr;
   for(const cv of [pdfCv,inkCv,fxCv]){
     cv.width=Math.round(vp.width*dpr);cv.height=Math.round(vp.height*dpr);
@@ -1454,7 +1454,7 @@ async function doRender(my){
   ictx.setTransform(dpr,0,0,dpr,0,0);
   fctx.setTransform(dpr,0,0,dpr,0,0);
   for(const cx of [ictx,fctx]){cx.imageSmoothingEnabled=true;try{cx.imageSmoothingQuality='high'}catch(e){}}
-  S.vz=keepVz;
+  S.vz=1;
   S.tx=keepTx;S.ty=keepTy;
   await loadStrokes();
   redraw();
@@ -1633,10 +1633,14 @@ function applyView(k){
 let sharpTimer=null;
 function sharpenSoon(ms){
   clearTimeout(sharpTimer);
-  /* 확대 뒤에는 다시 그리지 않습니다. 처음부터 넉넉한 해상도로 그려 두어
-     늘려 보아도 선명하고, 화면이 조금도 움직이지 않습니다. */
-}
-function noop(){
+  sharpTimer=setTimeout(async()=>{
+    if(!S.doc||!S.vz||S.vz===1)return;
+    if(S.drawing||S.pan||S.pinch)return;
+    const z=S.vz;
+    S.scale=Math.max(.3,Math.min(6,S.scale*z));
+    S.tx*=z;S.ty*=z;S.vz=1;S.fitting=false;
+    await renderPage();
+  },ms||220);
 }
 function quickZoom(f,cx,cy){
   S.fitting=false;
@@ -1653,6 +1657,7 @@ function quickZoom(f,cx,cy){
   }else{S.tx*=f;S.ty*=f}
   clampView();applyView();
   $('zoomInfo').textContent=Math.round(S.scale*S.vz/S.fitScale*100)+'%';
+  sharpenSoon();
 }
 /* 페이지가 화면보다 클 때만 그만큼 움직입니다. 끝을 넘겨 끌면 다음/이전 쪽으로 넘어갑니다 */
 /* 넘김 감도 — 작은 화면에서는 너무 쉽게 넘어가지 않도록 화면 크기에 맞춥니다 */
@@ -1784,7 +1789,7 @@ async function endPinch(){
   if(Math.abs(k-1)<.03){settleView();return}
   S.vz=(S.vz||1)*k;S.fitting=false;
   clampView();applyView();
-  $('zoomInfo').textContent=Math.round(S.scale*S.vz/S.fitScale*100)+'%';
+  sharpenSoon(200);
 }
 
 inkCv.addEventListener('dragstart',e=>e.preventDefault());
@@ -2980,7 +2985,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='13.4';
+const APP_VER='13.5';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
