@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>판서노트 복구</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:#141d26;color:#e8eef4;font-family:'Malgun Gothic','맑은 고딕',sans-serif;padding:24px}
+  .box{max-width:520px;text-align:center}
+  h1{font-size:26px;margin:0 0 10px}
+  p{color:#8fa3b5;line-height:1.7;margin:0 0 8px;font-size:15px}
+  #log{background:#1e2b38;border:1px solid #3d5165;border-radius:10px;
+    padding:14px;margin:20px 0;text-align:left;font-size:14px;line-height:1.9}
+  a.btn{display:inline-block;background:#f5d547;color:#1a1a12;font-weight:800;font-size:17px;
+    padding:16px 30px;border-radius:12px;text-decoration:none;margin-top:8px}
+  .ok{color:#f5d547;font-weight:700}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>판서노트 복구</h1>
+  <p>오래된 파일을 지우고 최신 버전으로 되돌립니다.<br>필기와 자료는 지워지지 않습니다.</p>
+  <div id="log">정리하는 중…</div>
+  <a class="btn" id="go" href="./?fixed=1" style="display:none">판서노트 열기</a>
+</div>
+<script>
+(async()=>{
+  const log=document.getElementById('log');
+  const line=t=>{log.innerHTML+='<div>'+t+'</div>'};
+  log.innerHTML='';
+  try{
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      for(const r of regs)await r.unregister();
+      line('✔ 오래된 실행 파일 '+regs.length+'개를 지웠습니다');
+    }else line('✔ 지울 실행 파일이 없습니다');
+  }catch(e){line('· 실행 파일 정리 건너뜀')}
+  try{
+    if(window.caches){
+      const ks=await caches.keys();
+      for(const k of ks)await caches.delete(k);
+      line('✔ 저장된 옛 화면 '+ks.length+'개를 지웠습니다');
+    }
+  }catch(e){line('· 화면 정리 건너뜀')}
+  line('<span class="ok">✔ 정리를 마쳤습니다. 필기는 그대로 있습니다.</span>');
+  const go=document.getElementById('go');
+  go.href='./?fixed='+Date.now();
+  go.style.display='inline-block';
+  setTimeout(()=>{location.replace(go.href)},2500);
+})();
+</script>
+</body>
+</html>
