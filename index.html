@@ -1468,7 +1468,8 @@ async function doRender(my){
   fctx.setTransform(dpr,0,0,dpr,0,0);
   for(const cx of [ictx,fctx]){cx.imageSmoothingEnabled=true;try{cx.imageSmoothingQuality='high'}catch(e){}}
   S.vz=1;
-  S.tx=keepTx;S.ty=keepTy;
+  S.tx=S.fitting?0:keepTx;
+  S.ty=S.fitting?0:keepTy;
   diag('다시그림');
   await loadStrokes();
   redraw();
@@ -1698,8 +1699,10 @@ function flipDist(){
 }
 function limits(){
   const st=$('stage'),z=S.vz||1;
-  return {mx:Math.max(70,(S.rendered.w*z-st.clientWidth+48)/2),
-          my:Math.max(70,(S.rendered.h*z-st.clientHeight+48)/2)};
+  /* 화면보다 작으면 움직일 여유가 없습니다 — 가운데 그대로 둡니다 */
+  const ow=S.rendered.w*z-st.clientWidth, oh=S.rendered.h*z-st.clientHeight;
+  return {mx: ow>0 ? ow/2+24 : 0,
+          my: oh>0 ? oh/2+24 : 0};
 }
 function clampView(over){
   const {mx,my}=limits(), o=over?flipDist()+40:0;
@@ -1737,9 +1740,11 @@ async function flip(dir){
   await saveNow();
   S.page=to;
   S.fitting=true;
+  S.tx=0;S.ty=0;
   await renderPage();
   S.tx=0;S.ty=0;                       /* 새 쪽은 가운데에서 시작합니다 */
   clampView();applyView();
+  diag('쪽넘김 끝');
   const sh=$('sheet');
   sh.animate([{opacity:.4},{opacity:1}],{duration:160,easing:'ease-out'});
   document.querySelector(`#rail .p[data-p="${to}"]`)?.scrollIntoView({block:'nearest'});
@@ -3035,7 +3040,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='14.4';
+const APP_VER='14.5';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
