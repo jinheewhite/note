@@ -459,7 +459,7 @@ try{
 </main>
 
 <div id="welcome">
-  <h1>PDF를 열어 주세요</h1>
+  <h1>PDF와 칠판을 자유롭게</h1>
   <p>필기하신 내용은 <b>판서노트_파일명_필기날짜</b> 로 저장됩니다.</p>
   <button class="primary big" id="btnOpen2">📂 PDF 열기</button>
   <div id="verLabel" style="color:var(--text-dim);font-size:12px;letter-spacing:1px">판서노트</div>
@@ -2791,7 +2791,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='11.1';
+const APP_VER='11.3';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
@@ -2804,9 +2804,10 @@ function renderUpdBox(){
 /* 앱을 열 때 조용히 새 버전을 확인하고, 있으면 알려줍니다 */
 async function autoCheckUpdate(){
   if(!navigator.onLine)return;
+  if(S.doc)return;                     /* 수업 중에는 알리지 않습니다 */
   try{
-    const today=todayStr();
-    if(localStorage.getItem('pn.updSeen')===today+'|'+APP_VER)return;   /* 오늘 이미 안내함 */
+    const seen=localStorage.getItem('pn.updSkip');
+    if(seen&&Date.now()-(+seen)<7*24*3600*1000)return;   /* 한 번 미루면 일주일 조용히 */
   }catch(e){}
   try{
     const r=await fetch(VERSION_URL,{cache:'no-store'});
@@ -2818,12 +2819,14 @@ async function autoCheckUpdate(){
     $('updNow').onclick=()=>{$('updBar').hidden=true;hardUpdate()};
     $('updLater').onclick=()=>{
       $('updBar').hidden=true;
-      try{localStorage.setItem('pn.updSeen',todayStr()+'|'+APP_VER)}catch(e){}
+      try{localStorage.setItem('pn.updSkip',String(Date.now()))}catch(e){}
+      toast('일주일 동안 다시 알리지 않습니다');
     };
   }catch(e){}
 }
 /* 저장된 옛 파일을 완전히 버리고 새 파일로 다시 엽니다 */
 async function hardUpdate(){
+  try{localStorage.removeItem('pn.updSkip')}catch(e){}
   try{
     if('serviceWorker' in navigator){
       const regs=await navigator.serviceWorker.getRegistrations();
