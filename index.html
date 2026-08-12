@@ -202,6 +202,11 @@ try{
   #folderPick{position:fixed;inset:0;background:rgba(8,13,18,.72);display:none;
     align-items:center;justify-content:center;z-index:45;padding:24px}
   #folderPick.open{display:flex}
+  .swatches{display:inline-flex;align-items:center;gap:5px;padding:0 4px;flex:0 0 auto}
+  .swatches button{width:36px;height:36px;min-height:36px;padding:0;border-radius:50%;
+    justify-content:center;border-width:2px;border-color:var(--line);background:var(--ink-3)}
+  .swatches button i{width:18px;height:18px;border-radius:50%;display:block}
+  .swatches button.on{border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.3)}
   #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
     contain:layout style size;pointer-events:auto;isolation:isolate;
     background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
@@ -356,6 +361,7 @@ try{
     <span class="dot"></span>
     <span><b>판서노트</b><small id="fileName">파일 없음</small></span>
   </div>
+  <button id="btnClear" title="이 쪽의 필기를 모두 지웁니다">쪽 비우기</button>
   <button id="btnPdf" class="primary">PDF로 저장</button>
   <button id="btnOpen" hidden>PDF 열기</button>
   <button id="btnPng" hidden>쪽 그림</button>
@@ -386,6 +392,7 @@ try{
   </g>
       </svg>
     </button>
+    <span class="swatches" id="swatches"></span>
     <button class="icon tool" data-label="형광펜" id="btnHl" title="형광펜">
       <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
   <g transform="translate(3.2 21.8) rotate(-45)">
@@ -448,7 +455,7 @@ try{
 
   <div class="grp">
     <button class="icon" id="btnUndo" title="되돌리기">↩︎</button>
-    <button id="btnClear" title="이 쪽의 필기를 모두 지웁니다">쪽 비우기</button>
+
   </div>
 
   <span class="saved" id="toolNow" hidden>펜</span>
@@ -2177,11 +2184,24 @@ function setTool(t,btn){
   const el=$('toolNow');
   if(el)el.textContent=TOOL_NAME[t]||'펜';
   showSize();
-  showColor();
+  paintSwatches();showColor();
   if(S.doc)redraw();
 }
 function colorKey(){return (S.tool==='hl'||S.tool==='laser')?S.tool:'pen'}
 function curColor(){return S.colors[colorKey()]}
+function paintSwatches(){
+  const box=$('swatches');if(!box)return;
+  const key=colorKey(), list=PALETTES[key]||PALETTES.pen;
+  box.innerHTML='';
+  list.forEach(([c,nm])=>{
+    const b=document.createElement('button');
+    b.title=nm;b.innerHTML=`<i style="background:${c}"></i>`;
+    if(S.colors[key]===c)b.classList.add('on');
+    b.onclick=()=>{S.colors[key]=c;S.barAt=performance.now();paintSwatches();showColor()};
+    box.appendChild(b);
+  });
+  box.style.display=(S.tool==='eraser'||S.tool==='hand')?'none':'inline-flex';
+}
 function showColor(){
   for(const [id,key] of [['btnPen','pen'],['btnHl','hl'],['btnLaser','laser']]){
     const b=$(id),sv=b&&b.querySelector('svg');
@@ -2190,7 +2210,7 @@ function showColor(){
   applyCursor();
   clearTimeout(sharpTimer);                 /* 색을 고르는 동안 다시 그리지 않습니다 */
 }
-$('btnPen').onclick=e=>{setTool('pen',e.currentTarget);openPop(e.currentTarget,'pen')};
+$('btnPen').onclick=e=>setTool('pen',e.currentTarget);
 /* 색 고르는 작은 창 — 형광펜·레이저 버튼을 누르면 바로 뜹니다 */
 const PALETTES={
   pen:  [['#111111','검정'],['#ffffff','흰색'],['#e02424','빨강'],['#1d6fe0','파랑'],['#12a150','초록'],['#f5c400','노랑']],
@@ -2232,8 +2252,8 @@ document.addEventListener('pointerdown',e=>{
     closePop();
 },true);
 
-$('btnHl').onclick=e=>{setTool('hl',e.currentTarget);openPop(e.currentTarget,'hl')};
-$('btnEraser').onclick=e=>{setTool('eraser',e.currentTarget);openEraserPop(e.currentTarget)};
+$('btnHl').onclick=e=>setTool('hl',e.currentTarget);
+$('btnEraser').onclick=e=>setTool('eraser',e.currentTarget);
 function openEraserPop(anchor){
   const pop=$('pop');pop.innerHTML='';pop.classList.add('wide');
   const mk=(label,fn,primary)=>{
@@ -2262,7 +2282,7 @@ $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
   b.addEventListener('pointerdown',start);
   ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,stop));
 })();
-$('btnLaser').onclick=e=>{setTool('laser',e.currentTarget);openPop(e.currentTarget,'laser')};
+$('btnLaser').onclick=e=>setTool('laser',e.currentTarget);
 /* 전체화면 유지 — 한 번 켜 두면 다음에 열 때도, 중간에 풀려도 다시 들어갑니다.
    브라우저 규칙상 화면을 한 번 눌러야(사용자 동작) 다시 전체화면이 됩니다. */
 const FULL_KEY='pn.keepFull';
@@ -2984,7 +3004,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='14.0';
+const APP_VER='14.1';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3275,7 +3295,7 @@ $('jsonInput').onchange=async e=>{
   $('verLabel').textContent='판서노트 '+APP_VER;
   setTimeout(autoCheckUpdate,2500);
   setTool('pen',$('btnPen'));
-  showColor();updateTouchBtn();
+  paintSwatches();showColor();updateTouchBtn();
   markSaved();
   let t;window.addEventListener('resize',()=>{clearTimeout(t);t=setTimeout(()=>{
     if(S.fitting&&S.doc)renderPage();
