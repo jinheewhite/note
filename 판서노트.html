@@ -1408,6 +1408,7 @@ function renderPage(){                       /* 겹쳐 들어와도 순서대로
 }
 async function doRender(my){
   if(!S.doc)return;
+  const keepTx=S.tx, keepTy=S.ty;          /* 보고 있던 위치를 지킵니다 */
   /* 앞의 그리기를 취소하고, 완전히 끝날 때까지 기다립니다 (덧그림 방지) */
   if(renderTask){
     const old=renderTask; renderTask=null;
@@ -1421,7 +1422,6 @@ async function doRender(my){
   const rot=((S.rot||0)%360+360)%360;
   S.fitScale=Math.max(.3,($('stage').clientWidth-56)/pg.getViewport({scale:1,rotation:rot}).width);
   if(S.fitting)S.scale=S.fitScale;
-  S.vz=1;
   const vp=pg.getViewport({scale:S.scale,rotation:rot});
   S.pdfW=vp.width;
   S.rendered={w:vp.width,h:vp.height};
@@ -1454,6 +1454,8 @@ async function doRender(my){
   ictx.setTransform(dpr,0,0,dpr,0,0);
   fctx.setTransform(dpr,0,0,dpr,0,0);
   for(const cx of [ictx,fctx]){cx.imageSmoothingEnabled=true;try{cx.imageSmoothingQuality='high'}catch(e){}}
+  S.vz=1;
+  S.tx=keepTx;S.ty=keepTy;
   await loadStrokes();
   redraw();
   $('pageInfo').textContent=`${S.page} / ${S.pages}`;
@@ -1633,6 +1635,7 @@ function sharpenSoon(ms){
   clearTimeout(sharpTimer);
   sharpTimer=setTimeout(async()=>{
     if(!S.doc||!S.vz||S.vz===1)return;
+    if(S.drawing||S.pan||S.pinch)return;     /* 쓰거나 움직이는 중에는 미룹니다 */
     const z=S.vz;
     S.scale=Math.max(.3,Math.min(6,S.scale*z));
     S.tx*=z;S.ty*=z;S.vz=1;S.fitting=false;
@@ -2170,6 +2173,7 @@ function setTool(t,btn){
   if(typeof ptrs!=='undefined')ptrs.clear();
   const sh=$('sheet');if(sh){sh.style.transform='';sh.style.transformOrigin=''}
   S.tool=t;
+  S.barAt=performance.now();               /* 도구를 고른 직후 화면 이동을 막습니다 */
   if(t==='hand'){const pp=$('pop');if(pp){pp.classList.remove('open');showMask(false)}}
   document.querySelectorAll('#tools button').forEach(b=>b.classList.remove('on'));
   if(btn)btn.classList.add('on');
@@ -2980,7 +2984,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='13.1';
+const APP_VER='13.2';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
