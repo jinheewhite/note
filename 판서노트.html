@@ -34,7 +34,7 @@ try{
   body.bar-top header,html.bar-top header{border-top:0;border-bottom:1px solid var(--line)}
   .mono{font-family:'SF Mono',Consolas,'D2Coding',monospace;font-variant-numeric:tabular-nums}
 
-  header{height:var(--bar);flex:0 0 auto;background:var(--ink-2);border-top:1px solid var(--line);
+  header{min-height:var(--bar);flex:0 0 auto;background:var(--ink-2);border-top:1px solid var(--line);
     display:flex;align-items:center;gap:8px;padding:0 12px;overflow-x:auto;overflow-y:hidden}
   header::-webkit-scrollbar{height:0}
   .brand{display:flex;align-items:center;gap:9px;padding-right:12px;margin-right:4px;border-right:1px solid var(--line);flex:0 0 auto}
@@ -100,7 +100,7 @@ try{
 
   #stage{flex:1;overflow:hidden;background:#26333f;position:relative;touch-action:none;
     display:flex;align-items:center;justify-content:center}
-  #dock{position:fixed;right:18px;bottom:calc(var(--bar) + 14px);z-index:15;
+  #dock{position:fixed;right:18px;bottom:calc(var(--bar) + 14px);z-index:25;
     background:rgba(30,43,56,.96);border:1px solid var(--line);border-radius:14px;
     padding:6px;display:flex;align-items:center;gap:5px;box-shadow:0 8px 26px rgba(0,0,0,.45)}
   #dock button{min-height:52px;font-size:15px}
@@ -160,6 +160,8 @@ try{
     background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
     box-shadow:0 10px 28px rgba(0,0,0,.5)}
   #pop.open{display:flex}
+  #popMask{position:fixed;inset:0;z-index:59;display:none;background:transparent}
+  #popMask.open{display:block}
   #pop button{width:52px;height:52px;min-height:52px;padding:0;border-radius:50%;
     justify-content:center;border-width:2px}
   #pop button i{width:24px;height:24px;border-radius:50%;display:block}
@@ -264,6 +266,17 @@ try{
     .sheet{padding:18px}
     #pop button{width:46px;height:46px;min-height:46px}
   }
+  /* 전자칠판·태블릿처럼 폭이 부족하면 도구 막대를 두 줄로 */
+  @media (max-width:1500px){
+    header{flex-wrap:wrap;height:auto;overflow:visible;padding:6px 10px;row-gap:6px}
+    .status{width:100%;order:9;margin-left:0;padding-left:0;justify-content:flex-end}
+    .grp{border-right:0}
+    .status{margin-left:auto}
+    #welcome{inset:0 0 auto 0;height:calc(100% - 132px)}
+    body.bar-top #welcome,html.bar-top #welcome{inset:132px 0 0 0;height:auto}
+    #dock{bottom:auto;top:8px;right:14px}
+    body.bar-top #dock,html.bar-top #dock{top:auto;bottom:14px}
+  }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -344,6 +357,7 @@ try{
     <span class="mono" id="zoomInfo" style="min-width:56px;text-align:center;color:var(--text-dim)">100%</span>
     <button class="icon" id="btnZoomIn" title="확대">＋</button>
     <button class="icon" id="btnFit" title="화면에 맞추기">⤢</button>
+    <button class="icon" id="btnRotate" title="화면 돌리기">⟳</button>
     <button id="btnSplit" title="오른쪽에 칠판을 엽니다">▥ 칠판</button>
   </div>
 
@@ -426,6 +440,7 @@ try{
   </div>
 </div>
 
+<div id="popMask"></div>
 <div id="pop"></div>
 <div id="folderPick"></div>
 
@@ -483,7 +498,7 @@ try{
   </div>
 </div>
 
-<input type="file" id="fileInput" accept="application/pdf" hidden>
+<input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
 <input type="file" id="jsonInput" accept="application/json,.json" hidden>
 <div id="toast"></div>
 
@@ -1203,7 +1218,7 @@ const S={
   tool:'pen',colors:{pen:'#111111',hl:'#f5c400',laser:'#ff3b30'},sizes:{pen:4,hl:12,laser:8,eraser:10},
   drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false,
   fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,pinch:null,tx:0,ty:0,tap:null,flipAt:0,
-  lib:'',folder:'',q:'',sort:'recent',view:'grid',split:false,pdfW:1,downAt:null
+  lib:'',folder:'',q:'',sort:'recent',view:'grid',split:false,pdfW:1,downAt:null,pickedOnce:false,rot:0
 };
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 const noteKey=(f,d,p)=>`${f}|${d}|${p}`;
@@ -1224,8 +1239,9 @@ function markSaved(){
 async function makeThumb(doc){
   try{
     const pg=await doc.getPage(1);
-    const s=300/pg.getViewport({scale:1}).width;
-    const vp=pg.getViewport({scale:s});
+    const r0=(pg.rotate||0)%360;
+    const s=300/pg.getViewport({scale:1,rotation:r0}).width;
+    const vp=pg.getViewport({scale:s,rotation:r0});
     const cv=document.createElement('canvas');
     cv.width=Math.floor(vp.width);cv.height=Math.floor(vp.height);
     const cx=cv.getContext('2d');
@@ -1244,9 +1260,12 @@ async function loadPdf(bytes,name,id){
   const w=$('welcome');w.hidden=true;w.style.display='none';
   const prev=await Store.getFile(S.fileId);
   S.folder=(prev&&prev.folder!==undefined)?prev.folder:(S.lib||'');
+  try{S.rot=+(localStorage.getItem('pn.rot.'+S.fileId)||0)||0}catch(e){S.rot=0}
+  if(prev&&prev.lastPage&&prev.lastPage>=1&&prev.lastPage<=S.pages)S.page=prev.lastPage;
   const thumb=(prev&&prev.thumb)||await makeThumb(S.doc);
   await Store.putFile({id:S.fileId,name,data:bytes,opened:Date.now(),
-                       pin:prev&&prev.pin?1:0,folder:S.folder,thumb,pages:S.pages});
+                       pin:prev&&prev.pin?1:0,folder:S.folder,thumb,pages:S.pages,
+                       lastPage:S.page});
   await refreshMarks();
   buildRail();
   S.fitting=true;
@@ -1258,10 +1277,11 @@ async function loadPdf(bytes,name,id){
 async function renderPage(){
   if(!S.doc)return;
   const pg=await S.doc.getPage(S.page);
-  S.fitScale=Math.max(.3,($('stage').clientWidth-56)/pg.getViewport({scale:1}).width);
+  const rot=((pg.rotate||0)+(S.rot||0))%360;
+  S.fitScale=Math.max(.3,($('stage').clientWidth-56)/pg.getViewport({scale:1,rotation:rot}).width);
   if(S.fitting)S.scale=S.fitScale;
   const dpr=Math.min(window.devicePixelRatio||1,2);
-  const vp=pg.getViewport({scale:S.scale});
+  const vp=pg.getViewport({scale:S.scale,rotation:rot});
   S.pdfW=vp.width;
   S.rendered={w:vp.width,h:vp.height};
   S.dpr=dpr;
@@ -1526,6 +1546,7 @@ async function endPinch(){
 inkCv.addEventListener('dragstart',e=>e.preventDefault());
 inkCv.addEventListener('contextmenu',e=>e.preventDefault());
 inkCv.addEventListener('pointerdown',e=>{
+  if($('pop').classList.contains('open')){e.preventDefault();closePop();return}
   if(!S.doc)return;
   e.preventDefault();
   ghostShow(e);
@@ -1617,6 +1638,8 @@ async function saveNow(){
   else await Store.delNote(key);
   if(S.strokes.length)S.pageHas.add(S.page);else S.pageHas.delete(S.page);
   buildRail();markSaved();Backup.schedule();AutoDL.schedule();
+  try{const fr=await Store.getFile(S.fileId);
+      if(fr&&fr.lastPage!==S.page){fr.lastPage=S.page;await Store.putFile(fr)}}catch(e){}
 }
 async function refreshMarks(){
   S.pageHas=new Set();
@@ -1689,6 +1712,7 @@ async function bdSave(){
   markSaved();
 }
 bdCv.addEventListener('pointerdown',e=>{
+  if($('pop').classList.contains('open')){e.preventDefault();closePop();return}
   if(S.tool==='hand'||S.tool==='laser')return;
   ghostShow(e);
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
@@ -1734,13 +1758,13 @@ $('btnBoardBg').onclick=e=>{
     if(k===cur)b.classList.add('on');
     b.onclick=()=>{
       try{localStorage.setItem('pn.boardBg',k)}catch(err){}
-      bdCv.style.background=th.bg;bdRedraw();pop.classList.remove('open');
+      bdCv.style.background=th.bg;bdRedraw();closePop();
       if(th.dark&&['#111111','#1d6fe0'].includes(S.colors.pen))
         toast('어두운 칠판입니다 — 펜 색을 흰색이나 노랑으로 바꿔 보세요');
     };
     pop.appendChild(b);
   }
-  pop.classList.add('open');
+  pop.classList.add('open');showMask(true);
   const r=e.currentTarget.getBoundingClientRect(),pr=pop.getBoundingClientRect();
   pop.style.left=Math.max(10,Math.min(window.innerWidth-pr.width-10,r.left))+'px';
   pop.style.top=(r.bottom+10)+'px';
@@ -1874,7 +1898,7 @@ function setTool(t,btn){
   if(typeof ptrs!=='undefined')ptrs.clear();
   const sh=$('sheet');if(sh){sh.style.transform='';sh.style.transformOrigin=''}
   S.tool=t;
-  if(t==='hand'){const pp=$('pop');if(pp)pp.classList.remove('open')}
+  if(t==='hand'){const pp=$('pop');if(pp){pp.classList.remove('open');showMask(false)}}
   document.querySelectorAll('#tools button').forEach(b=>b.classList.remove('on'));
   if(btn)btn.classList.add('on');
   applyCursor();
@@ -1899,17 +1923,20 @@ const PALETTES={
   hl:   [['#f5c400','노랑'],['#35d07f','초록'],['#2f9bff','파랑'],['#ff7ad9','분홍'],['#ff9f0a','주황']],
   laser:[['#ff3b30','빨강'],['#f5c400','노랑'],['#2f9bff','파랑'],['#35d07f','초록'],['#ff7ad9','분홍']]
 };
+function showMask(on){const m=$('popMask');if(m)m.classList.toggle('open',!!on)}
+function closePop(){$('pop').classList.remove('open');showMask(false)}
+$('popMask').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();closePop()},true);
 function openPop(anchor,tool){
   const pop=$('pop');pop.innerHTML='';pop.classList.remove('wide');
   (PALETTES[tool]||PALETTES.pen).forEach(([c,nm])=>{
     const b=document.createElement('button');
     b.title=nm;b.innerHTML=`<i style="background:${c}"></i>`;
     if(S.colors[tool]===c)b.classList.add('on');
-    b.onclick=()=>{S.colors[tool]=c;showColor();pop.classList.remove('open');
+    b.onclick=()=>{S.colors[tool]=c;showColor();closePop();
       toast(`${TOOL_NAME[tool]} 색을 ${nm}으로 바꿨습니다`)};
     pop.appendChild(b);
   });
-  pop.classList.add('open');
+  pop.classList.add('open');showMask(true);
   const r=anchor.getBoundingClientRect(),pr=pop.getBoundingClientRect();
   let left=r.left+r.width/2-pr.width/2;
   left=Math.max(10,Math.min(window.innerWidth-pr.width-10,left));
@@ -1923,7 +1950,7 @@ document.addEventListener('pointerdown',e=>{
      !e.target.closest('#btnPen')&&!e.target.closest('#btnHl')&&
      !e.target.closest('#btnLaser')&&!e.target.closest('#btnEraser')&&
      !e.target.closest('#btnBoardBg'))
-    pop.classList.remove('open');
+    closePop();
 },true);
 
 $('btnHl').onclick=e=>{setTool('hl',e.currentTarget);openPop(e.currentTarget,'hl')};
@@ -1933,7 +1960,7 @@ function openEraserPop(anchor){
   const mk=(label,fn,primary)=>{
     const b=document.createElement('button');
     b.textContent=label;if(primary)b.className='primary';
-    b.onclick=()=>{pop.classList.remove('open');fn()};
+    b.onclick=()=>{closePop();fn()};
     pop.appendChild(b);
   };
   mk('✎ 문질러 지우기',()=>toast('필기 위를 문지르면 그 획이 지워집니다'));
@@ -1942,7 +1969,7 @@ function openEraserPop(anchor){
     if(!confirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`))return;
     S.strokes=[];redraw();saveNow();toast('이 쪽을 비웠습니다');
   },true);
-  pop.classList.add('open');
+  pop.classList.add('open');showMask(true);
   const r=anchor.getBoundingClientRect(),pr=pop.getBoundingClientRect();
   let left=r.left+r.width/2-pr.width/2;
   left=Math.max(10,Math.min(window.innerWidth-pr.width-10,left));
@@ -2042,6 +2069,14 @@ $('stage').addEventListener('wheel',e=>{
 $('btnFit').onclick=()=>{S.fitting=true;S.tx=0;S.ty=0;renderPage()};
 $('btnPrev2').onclick=()=>flip(-1);
 $('btnNext2').onclick=()=>flip(1);
+$('btnRotate').onclick=async()=>{
+  if(!S.doc)return;
+  S.rot=((S.rot||0)+90)%360;
+  try{if(S.fileId)localStorage.setItem('pn.rot.'+S.fileId,String(S.rot))}catch(e){}
+  S.fitting=true;S.tx=0;S.ty=0;
+  await renderPage();
+  toast('화면을 90도 돌렸습니다');
+};
 $('btnSplit').onclick=async()=>{
   S.split=!S.split;
   try{localStorage.setItem('pn.split',S.split?'1':'0')}catch(e){}
@@ -2294,9 +2329,16 @@ function renderInstallBox(){
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 
-$('btnOpen').onclick=$('btnOpen2').onclick=()=>$('fileInput').click();
+function openPicker(){
+  const el=$('fileInput');
+  try{el.value=''}catch(e){}
+  el.click();
+  setTimeout(()=>{ if(!S.doc&&!S.pickedOnce)toast('파일 선택 창이 안 뜨면 화면을 한 번 누른 뒤 다시 시도해 주세요') },2500);
+}
+$('btnOpen').onclick=$('btnOpen2').onclick=openPicker;
 $('fileInput').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
+  S.pickedOnce=true;
   if(S.doc){await saveNow();await AutoDL.run(true)}   /* 자료를 바꾸기 전에 저장 */
   await loadPdf(await f.arrayBuffer(),f.name);
   e.target.value='';
@@ -2364,7 +2406,7 @@ async function buildPdf(){
   const cv=document.createElement('canvas'),cx=cv.getContext('2d');
   for(const p of pages){
     const pg=await S.doc.getPage(p);
-    const vp=pg.getViewport({scale:1.6});
+    const vp=pg.getViewport({scale:1.6,rotation:((pg.rotate||0)+(S.rot||0))%360});
     cv.width=Math.floor(vp.width);cv.height=Math.floor(vp.height);
     cx.setTransform(1,0,0,1,0,0);
     cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
@@ -2504,7 +2546,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='8.4';
+const APP_VER='8.7';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
