@@ -1338,7 +1338,7 @@ const S={
   drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false,
   fingerDraws:false,penSeen:false,palmSeen:false,penErase:false,pan:null,pinch:null,tx:0,ty:0,tap:null,flipAt:0,
   lib:'',folder:'',q:'',sort:'recent',view:'grid',split:false,pdfW:1,downAt:null,pickedOnce:false,rot:0,barAt:0,
-  hidAt:0,vz:1
+  hidAt:0,vz:1,edited:false
 };
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 const noteKey=(f,d,p)=>`${f}|${d}|${p}`;
@@ -1389,6 +1389,7 @@ async function loadPdf(bytes,name,id){
   await refreshMarks();
   buildRail();
   S.fitting=true;
+  S.edited=false;                      /* 이번에 손댄 적이 없습니다 */
   await renderPage();
   if(S.split){bdResize();await bdLoad()}
   markSaved();
@@ -1580,7 +1581,7 @@ function moveStroke(e){
 function endStroke(){
   if(!S.drawing)return;
   S.drawing=false;S.penErase=false;
-  if(S.cur){S.strokes.push(S.cur);S.cur=null}
+  if(S.cur){S.strokes.push(S.cur);S.cur=null;S.edited=true}
   scheduleSave();
 }
 /* 좁은 화면에서는 좌우 가장자리를 톡 치면 쪽이 넘어갑니다 */
@@ -1841,7 +1842,7 @@ function erase(x,y){
     const [px,py]=toP(p[0],p[1]);
     return Math.hypot(px-x,py-y)<r;
   }));
-  if(S.strokes.length!==before)redraw();
+  if(S.strokes.length!==before){S.edited=true;redraw()}
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -1972,7 +1973,7 @@ function bdEnd(){
   ghostHide();
   if(!BD.drawing)return;
   BD.drawing=false;
-  if(BD.cur){BD.strokes.push(BD.cur);BD.cur=null;bdRedraw()}
+  if(BD.cur){BD.strokes.push(BD.cur);BD.cur=null;S.edited=true;bdRedraw()}
   bdSaveSoon();
 }
 bdCv.addEventListener('pointerup',bdEnd);
@@ -1981,7 +1982,7 @@ bdCv.addEventListener('lostpointercapture',bdEnd);
 function bdErase(x,y){
   const rad=Math.max(16,curSize()*2.2),before=BD.strokes.length;
   BD.strokes=BD.strokes.filter(st=>!st.pts.some(p=>Math.hypot(p[0]*BD.w-x,p[1]*BD.h-y)<rad));
-  if(BD.strokes.length!==before)bdRedraw();
+  if(BD.strokes.length!==before){S.edited=true;bdRedraw()}
 }
 $('btnBoardBg').onclick=e=>{
   const pop=$('pop');pop.innerHTML='';pop.classList.add('wide');
@@ -2016,7 +2017,7 @@ $('btnBoardSwap').onclick=async()=>{
 $('btnBoardClear').onclick=()=>{
   if(!BD.strokes.length){toast('칠판이 비어 있습니다');return}
   if(!confirm('칠판의 필기를 모두 지웁니다. 계속할까요?'))return;
-  BD.strokes=[];bdRedraw();bdSave();toast('칠판을 비웠습니다');
+  BD.strokes=[];S.edited=true;bdRedraw();bdSave();toast('칠판을 비웠습니다');
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -2213,7 +2214,7 @@ function openEraserPop(anchor){
   mk('🧹 이 쪽 전부 지우기',()=>{
     if(!S.strokes.length){toast('이 쪽에는 필기가 없습니다');return}
     if(!confirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`))return;
-    S.strokes=[];redraw();saveNow();toast('이 쪽을 비웠습니다');
+    S.strokes=[];S.edited=true;redraw();saveNow();toast('이 쪽을 비웠습니다');
   },true);
   pop.classList.add('open');showMask(true);
   const r=anchor.getBoundingClientRect(),pr=pop.getBoundingClientRect();
@@ -2251,7 +2252,7 @@ $('btnClose').onclick=async()=>{
   if(!S.doc){toast('열려 있는 자료가 없습니다');return}
   const btn=$('btnClose2'),label=btn.textContent;
   await saveNow();
-  const hasInk=S.pageHas.size>0||BD.strokes.length>0;   /* 필기가 있을 때만 저장합니다 */
+  const hasInk=S.edited&&(S.pageHas.size>0||BD.strokes.length>0);   /* 이번에 손댔을 때만 저장합니다 */
   let saved=false;
   if(hasInk){
     btn.textContent='저장 중…';btn.disabled=true;
@@ -2337,10 +2338,10 @@ function bumpSize(d){
 }
 $('btnThin').onclick=()=>bumpSize(-1);
 $('btnThick').onclick=()=>bumpSize(1);
-$('btnUndo').onclick=()=>{S.strokes.pop();redraw();scheduleSave()};
+$('btnUndo').onclick=()=>{if(S.strokes.length)S.edited=true;S.strokes.pop();redraw();scheduleSave()};
 $('btnClear').onclick=()=>{
   if(!S.strokes.length)return;
-  if(confirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`)){S.strokes=[];redraw();saveNow()}
+  if(confirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`)){S.strokes=[];S.edited=true;redraw();saveNow()}
 };
 function zoom(f,cx,cy){ quickZoom(f,cx,cy) }
 $('btnZoomIn').onclick=()=>zoom(1.25);
@@ -2699,7 +2700,7 @@ $('btnOpen').onclick=$('btnOpen2').onclick=openPicker;
 $('fileInput').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   S.pickedOnce=true;
-  if(S.doc){await saveNow();await AutoDL.run(true)}   /* 자료를 바꾸기 전에 저장 */
+  if(S.doc){await saveNow();if(S.edited)await AutoDL.run(true)}   /* 손댄 경우에만 저장 */
   await loadPdf(await f.arrayBuffer(),f.name);
   e.target.value='';
 };
@@ -2814,6 +2815,7 @@ const AutoDL={
   },
   async run(force){
     if(!S.doc||S.busy||Backup.ok||!this.on())return;
+    if(!S.edited)return;                            /* 이번에 손대지 않았으면 저장하지 않습니다 */
     if(!force){
       if(!this.dirty)return;
       if(Date.now()-this.at<300000)return;          /* 자동 저장은 너무 자주 하지 않도록 */
@@ -2880,7 +2882,7 @@ $('btnQuit').onclick=async()=>{
   try{
     if(S.doc){
       await saveNow();
-      if(S.pageHas.size||BD.strokes.length){
+      if(S.edited&&(S.pageHas.size||BD.strokes.length)){
         await Backup.write(true);await Backup.writePdf();await AutoDL.run(true);
       }
     }
@@ -2948,7 +2950,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='12.3';
+const APP_VER='12.4';
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
 function renderUpdBox(){
