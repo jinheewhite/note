@@ -1408,7 +1408,7 @@ function renderPage(){                       /* 겹쳐 들어와도 순서대로
 }
 async function doRender(my){
   if(!S.doc)return;
-  const keepTx=S.tx, keepTy=S.ty;          /* 보고 있던 위치를 지킵니다 */
+  const keepTx=S.tx, keepTy=S.ty, keepVz=S.vz||1;   /* 보고 있던 위치·확대를 지킵니다 */
   /* 앞의 그리기를 취소하고, 완전히 끝날 때까지 기다립니다 (덧그림 방지) */
   if(renderTask){
     const old=renderTask; renderTask=null;
@@ -1429,8 +1429,9 @@ async function doRender(my){
      화면에 맞춰 축소된 상태에서도 원본보다 크게 그립니다. */
   const BUDGET=42e6;                                   /* 약 4200만 픽셀까지 허용 */
   const MIN_SCALE=3;                                   /* 원본 대비 최소 3배 */
-  let dpr=Math.max(MIN_SCALE/Math.max(S.scale,0.01), window.devicePixelRatio||1, 2.5);
-  dpr=Math.min(dpr,6);
+  const zNow=S.vz||1;                                  /* 화면에서 늘려 보고 있는 배율 */
+  let dpr=Math.max(MIN_SCALE/Math.max(S.scale,0.01), (window.devicePixelRatio||1)*zNow, 2.5*zNow);
+  dpr=Math.min(dpr,8);
   const need=vp.width*vp.height;
   if(need*dpr*dpr>BUDGET)dpr=Math.max(2,Math.sqrt(BUDGET/need));
   S.dpr=dpr;
@@ -1454,7 +1455,7 @@ async function doRender(my){
   ictx.setTransform(dpr,0,0,dpr,0,0);
   fctx.setTransform(dpr,0,0,dpr,0,0);
   for(const cx of [ictx,fctx]){cx.imageSmoothingEnabled=true;try{cx.imageSmoothingQuality='high'}catch(e){}}
-  S.vz=1;
+  S.vz=keepVz;
   S.tx=keepTx;S.ty=keepTy;
   await loadStrokes();
   redraw();
@@ -1636,11 +1637,9 @@ function sharpenSoon(ms){
   sharpTimer=setTimeout(async()=>{
     if(!S.doc||!S.vz||S.vz===1)return;
     if(S.drawing||S.pan||S.pinch)return;     /* 쓰거나 움직이는 중에는 미룹니다 */
-    const z=S.vz;
-    S.scale=Math.max(.3,Math.min(6,S.scale*z));
-    S.tx*=z;S.ty*=z;S.vz=1;S.fitting=false;
+    /* 위치와 배율은 그대로 두고 해상도만 올립니다 — 화면이 움직이지 않습니다 */
     await renderPage();
-  },ms||220);
+  },ms||260);
 }
 function quickZoom(f,cx,cy){
   S.fitting=false;
@@ -1701,6 +1700,7 @@ async function settleView(){
 async function flip(dir){
   const to=S.page+dir;
   if(to<1||to>S.pages)return;
+  S.vz=1;
   await saveNow();
   S.page=to;
   await renderPage();
@@ -2984,7 +2984,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='13.2';
+const APP_VER='13.3';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
