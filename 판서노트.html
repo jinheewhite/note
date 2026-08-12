@@ -2031,9 +2031,7 @@ $('btnBoardBg').onclick=e=>{
     pop.appendChild(b);
   }
   pop.classList.add('open');showMask(true);
-  const r=e.currentTarget.getBoundingClientRect(),pr=pop.getBoundingClientRect();
-  pop.style.left=Math.max(10,Math.min(window.innerWidth-pr.width-10,r.left))+'px';
-  pop.style.top=(r.bottom+10)+'px';
+  placePop(e.currentTarget);
 };
 $('btnBoardSwap').onclick=async()=>{
   const left=!document.body.classList.contains('board-left');
@@ -2203,6 +2201,16 @@ const PALETTES={
   hl:   [['#f5c400','노랑'],['#35d07f','초록'],['#2f9bff','파랑'],['#ff7ad9','분홍'],['#ff9f0a','주황']],
   laser:[['#ff3b30','빨강'],['#f5c400','노랑'],['#2f9bff','파랑'],['#35d07f','초록'],['#ff7ad9','분홍']]
 };
+/* 색창은 도구 막대와 같은 높이에서 버튼 옆으로 나옵니다 — 화면을 가리지 않습니다 */
+function placePop(anchor){
+  const pop=$('pop'), r=anchor.getBoundingClientRect(), pr=pop.getBoundingClientRect();
+  let left=r.right+10;
+  if(left+pr.width>window.innerWidth-10)left=Math.max(10,r.left-pr.width-10);
+  pop.style.left=left+'px';
+  let top=r.top+r.height/2-pr.height/2;
+  top=Math.max(8,Math.min(window.innerHeight-pr.height-8,top));
+  pop.style.top=top+'px';
+}
 function showMask(on){const m=$('popMask');if(m)m.classList.toggle('open',!!on)}
 function closePop(){$('pop').classList.remove('open');showMask(false)}
 $('popMask').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();closePop()},true);
@@ -2217,12 +2225,7 @@ function openPop(anchor,tool){
     pop.appendChild(b);
   });
   pop.classList.add('open');showMask(true);
-  const r=anchor.getBoundingClientRect(),pr=pop.getBoundingClientRect();
-  let left=r.left+r.width/2-pr.width/2;
-  left=Math.max(10,Math.min(window.innerWidth-pr.width-10,left));
-  pop.style.left=left+'px';
-  const up=r.top>window.innerHeight/2;
-  pop.style.top=(up?r.top-pr.height-10:r.bottom+10)+'px';
+  placePop(anchor);
 }
 document.addEventListener('pointerdown',e=>{
   const pop=$('pop');
@@ -2250,12 +2253,7 @@ function openEraserPop(anchor){
     S.strokes=[];S.edited=true;redraw();saveNow();toast('이 쪽을 비웠습니다');
   },true);
   pop.classList.add('open');showMask(true);
-  const r=anchor.getBoundingClientRect(),pr=pop.getBoundingClientRect();
-  let left=r.left+r.width/2-pr.width/2;
-  left=Math.max(10,Math.min(window.innerWidth-pr.width-10,left));
-  pop.style.left=left+'px';
-  const up=r.top>window.innerHeight/2;
-  pop.style.top=(up?r.top-pr.height-10:r.bottom+10)+'px';
+  placePop(anchor);
 }
 $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
 (()=>{                                   /* 길게 누르면 손가락 필기 전환 */
@@ -2987,7 +2985,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='13.6';
+const APP_VER='13.7';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
