@@ -340,6 +340,11 @@ try{
   .cfmBox{background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
     width:min(420px,86vw);padding:22px 22px 16px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
   .cfmBox p{margin:0 0 18px;white-space:pre-wrap;line-height:1.55;font-size:15.5px}
+  .edgeTag{position:fixed;left:50%;transform:translateX(-50%);z-index:45;
+    background:rgba(30,43,56,.92);border:1px solid var(--line);border-radius:999px;
+    color:var(--text);font-size:14px;padding:7px 16px;pointer-events:none;
+    opacity:0;transition:opacity .18s}
+  .edgeTag.show{opacity:1}
   .badge.warn .lamp{background:#ff8a4c}
   .datelist{display:flex;flex-wrap:wrap;gap:7px}
   .datelist button{min-height:40px;padding:0 13px;font-size:13.5px}
@@ -644,6 +649,7 @@ try{
 <input type="file" id="fileInput" accept=".pdf,application/pdf" class="offscreen">
 <input type="file" id="jsonInput" accept=".json,application/json" class="offscreen">
 <div id="toast"></div>
+<div id="edgeTag" class="edgeTag"></div>
 <div id="cfmMask" class="cfmMask">
   <div class="cfmBox">
     <p id="cfmMsg"></p>
@@ -1859,15 +1865,23 @@ function clampView(over){
 /* 세로 자료는 위아래로, 가로 자료는 좌우로 넘깁니다 */
 function isWide(){ return S.rendered.w > S.rendered.h }
 function flipDir(){
-  const {mx,my}=limits(), d=flipDist();
-  if(S.ty<-my-d)return 1;
-  if(S.ty> my+d)return -1;
-  if(S.tx<-mx-d)return 1;
-  if(S.tx> mx+d)return -1;
+  const {mx,my}=limits(), d=flipDist()+50, p=S.pan;
+  if(S.ty<-my-d)return (!p||p.atBot)?1:0;   /* 끝에서 시작한 손짓만 넘깁니다 */
+  if(S.ty> my+d)return (!p||p.atTop)?-1:0;
+  if(S.tx<-mx-d)return (!p||p.atR)?1:0;
+  if(S.tx> mx+d)return (!p||p.atL)?-1:0;
   return 0;
 }
 async function autoFlip(e){
   if(S.flipAt&&performance.now()-S.flipAt<520)return;
+  /* 끝에 닿는 순간 알려줍니다 */
+  {
+    const {my}=limits(),p=S.pan;
+    if(p&&!p.edgeSaid){
+      if(S.ty<=-my+2&&!p.atBot){p.edgeSaid=true;edgeTag(S.page>=S.pages?'▛ 마지막 쪽입니다':'▼ 이 쪽의 끝 — 한 번 더 밀면 다음 쪽','bot')}
+      else if(S.ty>=my-2&&!p.atTop){p.edgeSaid=true;edgeTag(S.page<=1?'▛ 첫 쪽입니다':'▲ 이 쪽의 처음 — 한 번 더 밀면 이전 쪽','top')}
+    }
+  }
   const dir=flipDir();
   if(!dir)return;
   if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return;
@@ -1913,8 +1927,21 @@ function barBusy(){ return performance.now()-(S.barAt||0)<450 ||
                           performance.now()-(S.flipAt||0)<500 }
 function startPan(e){
   if(barBusy())return;                 /* 버튼을 막 누른 직후에는 밀리지 않게 */
+  const {mx,my}=limits();
   S.pan={id:e.pointerId,x:e.clientX,y:e.clientY,tx:S.tx,ty:S.ty,
-         t:performance.now(),type:e.pointerType};
+         t:performance.now(),type:e.pointerType,
+         /* 손짓을 '이미 끝에 닿은 상태'에서 시작했는지 기억합니다 —
+            읽다가 끝에 닿은 손짓으로는 넘어가지 않고, 끝에서 다시 민 손짓만 넘깁니다 */
+         atTop:S.ty>=my-2,atBot:S.ty<=-my+2,atL:S.tx>=mx-2,atR:S.tx<=-mx+2};
+}
+/* 페이지 처음·끝 안내 */
+function edgeTag(msg,pos){
+  const el=$('edgeTag');if(!el)return;
+  el.textContent=msg;
+  el.style.top=pos==='top'?'70px':'';
+  el.style.bottom=pos==='top'?'':'calc(var(--bar) + 16px)';
+  el.classList.add('show');
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),1100);
 }
 /* 손가락으로 좌우로 슥 그으면 쪽이 넘어갑니다 */
 function swipeFlip(e){
@@ -3411,7 +3438,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='18.8';
+const APP_VER='18.9';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
