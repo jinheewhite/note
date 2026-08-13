@@ -81,8 +81,8 @@ try{
     max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .grp{display:flex;align-items:center;gap:6px;flex:0 0 auto;padding-right:10px;margin-right:2px;border-right:1px solid var(--line)}
   .grp:last-child{border-right:0}
-  /* 확대·칠판 묶음은 항상 오른쪽 끝에 붙입니다 (펜은 왼쪽에 그대로) */
-  #rightGrp{margin-left:auto;border-right:0}
+  /* 모든 도구를 왼쪽에 모아 붙입니다 — 오른쪽 빈 공간이 EJ Pen 자리입니다 */
+  #rightGrp{border-right:0}
   #btnFinger{min-width:74px;justify-content:center}
   #btnFinger.move{border-color:var(--chalk-dim);color:var(--chalk)}
 
@@ -3447,7 +3447,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='19.0';
+const APP_VER='19.1';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
