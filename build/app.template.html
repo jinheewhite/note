@@ -224,13 +224,7 @@ try{
     background:transparent;border-color:transparent;color:var(--text-dim);
     overflow:hidden;white-space:nowrap;flex:0 0 auto}
   .ghosticon:hover{background:var(--ink-2);color:var(--text)}
-  .search{background:var(--ink-2);border:1px solid var(--line);border-radius:10px;color:var(--text);
-    font:inherit;font-size:13.5px;padding:0 12px;height:40px;width:150px;outline:none}
-  .search:focus{border-color:var(--chalk);width:200px}
   .shelfwrap{flex:1;overflow-y:auto;padding:8px 34px 24px}
-  .libfoot{display:flex;align-items:center;gap:14px;justify-content:center;
-    padding:10px 30px;border-top:1px solid var(--line);color:var(--text-dim);font-size:11.5px}
-  .libfoot .copy{opacity:.7}
   #welcome[hidden]{display:none!important}
   body.bar-top #welcome,html.bar-top #welcome{inset:calc(56px + var(--bar)) 0 0 0}
   #welcome h1{font-size:30px;margin:0;letter-spacing:-.6px;text-align:center}
@@ -368,20 +362,19 @@ try{
   #topbar .brand{order:-9}
   body.board-left #boardCtl,html.board-left #boardCtl{order:-5}
   .cfmBox{background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
-    width:min(420px,86vw);padding:22px 22px 16px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+    width:min(420px,86vw);padding:22px 22px 16px;box-shadow:0 20px 60px rgba(0,0,0,.4);
+    max-height:88vh;overflow:auto}
   .cfmBox p{margin:0 0 18px;white-space:pre-wrap;line-height:1.55;font-size:15.5px}
   .guideRows{display:flex;flex-direction:column;gap:11px}
   .guideRows div{display:flex;gap:12px;align-items:baseline}
   .guideRows b{flex:0 0 175px;font-size:14.5px;white-space:nowrap}
-  .guideRows span{color:var(--text-dim);font-size:13.5px;line-height:1.45;white-space:nowrap}
+  .guideRows span{color:var(--text-dim);font-size:13.5px;line-height:1.45}
   .edgeTag{position:fixed;left:50%;transform:translateX(-50%);z-index:45;
     background:rgba(30,43,56,.92);border:1px solid var(--line);border-radius:999px;
     color:var(--text);font-size:14px;padding:7px 16px;pointer-events:none;
     opacity:0;transition:opacity .18s}
   .edgeTag.show{opacity:1}
   .badge.warn .lamp{background:#ff8a4c}
-  .datelist{display:flex;flex-wrap:wrap;gap:7px}
-  .datelist button{min-height:40px;padding:0 13px;font-size:13.5px}
 
   #toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(20px);background:var(--chalk);
     color:#1a1a12;font-weight:700;padding:13px 24px;border-radius:999px;opacity:0;pointer-events:none;
@@ -404,7 +397,6 @@ try{
     #welcome .big{min-height:58px;font-size:16px;padding:0 22px}
     .recent{width:96vw}
     .libbar{flex-wrap:wrap;gap:6px}
-    .search{width:100%;order:9}
     .shelf{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px 10px;max-height:40vh}
     .card .nm{font-size:12px}
     .where{flex-direction:column;align-items:stretch;gap:8px;padding:12px}
@@ -592,7 +584,6 @@ try{
       <button id="btnExplore" class="ghosticon" title="저장 폴더 탐색 — 저장된 판서 PDF를 봅니다">🗂</button>
     </div>
     <div class="acts">
-      <input id="libSearch" class="search" type="search" placeholder="검색" autocomplete="off">
       <button id="btnSync" class="ghosticon" title="새로고침">🔄</button>
       <button id="btnUp" class="ghosticon" hidden title="뒤로">←</button>
       <button id="btnRenameFolder" class="ghosticon" hidden title="폴더 이름 바꾸기">✎</button>
@@ -608,11 +599,8 @@ try{
     <p id="libEmpty" class="empty">＋ 를 눌러 수업 자료를 불러오세요</p>
   </div>
 
-  <div class="libfoot">
-    <span id="saveWhere" class="where" hidden></span>
-    <span id="verLabel">판서노트</span>
-    <span class="copy">© 2026 강진희</span>
-  </div>
+  <span id="saveWhere" class="where" hidden></span>
+  <span id="verLabel" hidden></span>
   <button class="primary big" id="btnOpen2" hidden>PDF 열기</button>
   <div id="modeBadge" hidden></div>
 </div>
@@ -632,7 +620,7 @@ try{
 <div id="modal">
   <div class="sheet">
     <div class="sheetTop">
-      <h2>설정</h2>
+      <h2>설정 <small id="verLabel2" style="font-weight:400;font-size:13px;color:var(--text-dim)"></small></h2>
       <button id="btnX" class="primary" title="닫기">✕ 닫기</button>
     </div>
     <button id="btnQuit" hidden>⏻ 프로그램 종료</button>
@@ -652,9 +640,6 @@ try{
 
       <h4>업데이트</h4>
       <div id="updBox" class="setBox"></div>
-
-      <h4>이 파일의 판서 날짜</h4>
-      <div class="datelist setBox" id="dateList"><span style="color:var(--text-dim);font-size:14px">아직 없습니다</span></div>
 
       <h4>백업</h4>
       <div class="setBox">
@@ -701,8 +686,14 @@ try{
       <div><b>▥ 한 번 더</b><span>칠판만 전체 화면으로 씁니다</span></div>
       <div><b>＋ NEW</b><span>칠판 쪽을 계속 추가할 수 있습니다</span></div>
       <div><b>🖐 손 도구</b><span>칠판을 잡고 끌어서 옮깁니다</span></div>
-      <div><b>✂ 오리기</b><span>둘러서 오리면 ✋ 로 바뀝니다</span></div>
-      <div><b>▥ / 📄 손잡이</b><span>오린 그림을 칠판↔PDF로 보냅니다</span></div>
+    </div>
+    <h3 style="margin:18px 0 12px;font-size:16px;color:var(--text-dim)">✂ 오리기 — 그림을 떼어 옮기기</h3>
+    <div class="guideRows">
+      <div><b>① ✂ 누르고 두르기</b><span>가져올 그림 둘레를 한 바퀴 둘러 주세요</span></div>
+      <div><b>② 손을 떼면</b><span>그 자리에 조각이 떠오르고, 도구가 ✋ 로 바뀝니다</span></div>
+      <div><b>③ ✋ 로 끌기</b><span>PDF 위 어디로든 옮길 수 있습니다</span></div>
+      <div><b>▥ 왼쪽 위</b><span>칠판으로 보냅니다 (칠판에서는 📄 로 되돌립니다)</span></div>
+      <div><b>↘ 오른쪽 아래</b><span>크기 조절 — 오른쪽 위 ✕ 는 지우기</span></div>
     </div>
     <div class="row" style="justify-content:flex-end;margin-top:16px">
       <button id="guideOk" class="primary">알겠습니다</button>
@@ -2894,7 +2885,6 @@ $('btnSync').onclick=async()=>{
     toast(gone.length?`${gone.length}개를 정리했습니다`:'저장 폴더와 같습니다');
   }catch(e){toast('저장 폴더를 읽지 못했습니다')}
 };
-$('libSearch').oninput=e=>{S.q=e.target.value.trim().toLowerCase();renderRecent()};
 function setSort(v){
   S.sort=v;
   try{localStorage.setItem('pn.sort',v)}catch(e){}
@@ -3220,12 +3210,39 @@ function paintOn(cx,strokes,w,h){
     cx.restore();
   }
 }
+/* 칠판 한 쪽을 그림으로 그려 냅니다 — 화면에서 보던 그대로, 아래로 쓴 것까지 전부 */
+function paintBoardPage(cx,W,rec,aspect){
+  const th=BOARD_BG[bdBgKey()]||BOARD_BG.white;
+  const strokes=(rec&&rec.strokes)||[], imgs=(rec&&rec.imgs)||[];
+  let bottom=0;
+  const legY=q=>q*aspect;                       /* 옛 방식으로 저장된 획 */
+  strokes.forEach(st=>{const a=st.u?1:aspect;for(const q of st.pts)if(q[1]*a>bottom)bottom=q[1]*a});
+  imgs.forEach(it=>{const b=it.y+it.w*it.ar;if(b>bottom)bottom=b});
+  const worldH=Math.max(aspect,bottom+0.03);
+  const H=Math.round(W*worldH);
+  cx.canvas.width=W;cx.canvas.height=H;
+  cx.setTransform(1,0,0,1,0,0);
+  cx.fillStyle=th.bg;cx.fillRect(0,0,W,H);
+  if(th.line){
+    cx.save();cx.strokeStyle=th.line;cx.lineWidth=Math.max(1,W/1400);
+    const gap=W*0.036;
+    for(let y=gap;y<H;y+=gap){cx.beginPath();cx.moveTo(0,y);cx.lineTo(W,y);cx.stroke()}
+    if(th.grid)for(let x=gap;x<W;x+=gap){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,H);cx.stroke()}
+    cx.restore();
+  }
+  return {H,strokes,imgs,legY};
+}
 async function buildPdf(){
-  if(!S.doc)return null;
-  const pages=[...S.pageHas]
+  const pages=(S.doc?[...S.pageHas]:[])
       .map(Number).filter(p=>Number.isFinite(p)&&p>=1&&p<=S.pages)
       .sort((a,b)=>a-b);
-  if(!pages.length)return null;
+  /* 오늘 이 자료의 칠판 쪽 — 마지막에 몰아서 붙입니다 */
+  const boards=(await Store.allNotes())
+      .filter(nn=>nn&&nn.file===S.fileId&&nn.date===S.date&&
+                  typeof nn.page==='string'&&nn.page.startsWith('BOARD')&&
+                  ((nn.strokes&&nn.strokes.length)||(nn.imgs&&nn.imgs.length)))
+      .sort((a,b)=>(parseInt(a.page.slice(5))||1)-(parseInt(b.page.slice(5))||1));
+  if(!pages.length&&!boards.length)return null;
   const {jsPDF}=window.jspdf;let doc=null;
   const cv=document.createElement('canvas'),cx=cv.getContext('2d');
   for(const p of pages){
@@ -3249,6 +3266,37 @@ async function buildPdf(){
     else doc.addPage(fmt,land?'l':'p');
     const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
     const r=Math.min(pw/cv.width,ph/cv.height),w=cv.width*r,h=cv.height*r;
+    doc.addImage(img,'JPEG',(pw-w)/2,(ph-h)/2,w,h);
+  }
+  /* ── 칠판 쪽 ── */
+  const aspect=(BD.w>1&&BD.h>1)?(BD.h/BD.w):0.56;
+  for(const rec of boards){
+    const W=2000;
+    const {H,strokes,imgs,legY}=paintBoardPage(cx,W,rec,aspect);
+    for(const it of imgs){                       /* 오려 붙인 그림이 먼저 */
+      try{
+        const im=await new Promise((ok,no)=>{const q=new Image();q.onload=()=>ok(q);q.onerror=no;q.src=it.src});
+        cx.drawImage(im,it.x*W,it.y*W,it.w*W,it.w*it.ar*W);
+      }catch(e){}
+    }
+    for(const st of strokes){                    /* 칠판 필기 — 화면과 같은 곡선으로 */
+      const pts=st.pts;if(!pts.length)continue;
+      const P=q=>[q[0]*W,(st.u?q[1]:legY(q[1]))*W];
+      cx.save();cx.lineCap='round';cx.lineJoin='round';cx.strokeStyle=st.color;
+      if(st.mode==='hl'){cx.globalAlpha=.32;cx.lineCap='butt'}
+      cx.lineWidth=st.w*W;
+      if(pts.length===1){
+        const [x,y]=P(pts[0]);
+        cx.beginPath();cx.arc(x,y,st.w*W/2,0,Math.PI*2);cx.fillStyle=st.color;cx.fill();
+      }else smoothPath(cx,pts.map(P));
+      cx.restore();
+    }
+    const img=cv.toDataURL('image/jpeg',.95), land=W>H;
+    const fmt=[land?842:595,land?595:842];
+    if(!doc)doc=new jsPDF({orientation:land?'l':'p',unit:'pt',format:fmt});
+    else doc.addPage(fmt,land?'l':'p');
+    const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
+    const r=Math.min(pw/W,ph/H),w=W*r,h=H*r;
     doc.addImage(img,'JPEG',(pw-w)/2,(ph-h)/2,w,h);
   }
   return doc;
@@ -3293,7 +3341,7 @@ const AutoDL={
       if(!this.dirty)return;
       if(Date.now()-this.at<300000)return;          /* 자동 저장은 너무 자주 하지 않도록 */
     }
-    if(!S.pageHas.size)return;                      /* 판서가 아예 없으면 건너뜀 */
+    if(!S.pageHas.size&&!BD.strokes.length&&!(BD.imgs||[]).length)return;   /* 판서도 칠판도 없으면 건너뜀 */
     try{
       const doc=await buildPdf();
       if(!doc)return;
@@ -3316,19 +3364,6 @@ function modeBadge(){
 $('btnMore').onclick=async()=>{
   renderUpdBox();renderInstallBox();renderDirBox();renderAutoBox();
   $('modeInfo').innerHTML=modeBadge()+`<p style="margin-top:10px">${MODE_TEXT[Store.mode].d}</p>`;
-  const dates=[...new Set((await Store.allNotes())
-      .filter(n=>n&&n.file===S.fileId&&n.strokes&&n.strokes.length).map(n=>n.date))].sort().reverse();
-  const el=$('dateList');
-  if(!dates.length)el.innerHTML='<span style="color:var(--text-dim);font-size:14px">아직 없습니다</span>';
-  else{
-    el.innerHTML='';
-    dates.forEach(d=>{
-      const b=document.createElement('button');
-      b.className=d===S.date?'on':'';b.textContent=d;
-      b.onclick=()=>{$('dateInput').value=d;$('dateInput').dispatchEvent(new Event('change'));$('modal').classList.remove('open')};
-      el.appendChild(b);
-    });
-  }
   $('modal').classList.add('open');
 };
 function setBarPos(top){
@@ -3356,7 +3391,7 @@ $('btnQuit').onclick=async()=>{
   try{
     if(S.doc){
       await saveNow();
-      if(S.edited&&(S.pageHas.size||BD.strokes.length)){
+      if(S.edited&&(S.pageHas.size||BD.strokes.length||(BD.imgs||[]).length)){
         await Backup.write(true);await Backup.writePdf();await AutoDL.run(true);
       }
     }
@@ -3424,7 +3459,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='21.1';
+const APP_VER='21.5';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3736,7 +3771,7 @@ $('jsonInput').onchange=async e=>{
    ══════════════════════════════════════════════════════════ */
 (async()=>{
   const step=async(fn)=>{try{await fn()}catch(e){console.warn('시작 단계 건너뜀',e)}};
-  $('verLabel').textContent='판서노트 '+APP_VER;
+  $('verLabel2').textContent=APP_VER;
   loadFinger();updateTouchBtn();
   await step(()=>Store.init());
   await step(async()=>{ if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist() });
@@ -3760,7 +3795,7 @@ $('jsonInput').onchange=async e=>{
   await step(()=>renderFolders());
   await step(()=>renderRecent());
   await step(()=>renderWhere());
-  $('verLabel').textContent='판서노트 '+APP_VER;
+  $('verLabel2').textContent=APP_VER;
   setTimeout(autoCheckUpdate,2500);
   setTimeout(showGuide,900);                 /* 켤 때마다 손동작 안내 */
   setTool('pen',$('btnPen'));
