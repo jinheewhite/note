@@ -146,7 +146,6 @@ try{
     background:rgba(30,43,56,.96);border:1px solid var(--line);border-radius:14px;
     padding:6px;display:flex;align-items:center;gap:5px;box-shadow:0 8px 26px rgba(0,0,0,.45)}
   #dock button{min-height:52px;font-size:15px}
-  #btnZoomIn,#btnZoomOut{font-size:23px;font-weight:700}
   #dock .mono{min-width:66px;text-align:center;font-size:14px;color:var(--text-dim)}
   #dock .sep{width:1px;height:28px;background:var(--line);margin:0 4px}
   .pageBtn{display:none}
@@ -316,6 +315,13 @@ try{
   .badge{display:inline-flex;align-items:center;gap:7px;background:var(--ink);border:1px solid var(--line);
     border-radius:999px;padding:8px 14px;font-size:13px}
   .badge .lamp{width:9px;height:9px;border-radius:50%;background:var(--chalk)}
+  /* 브라우저 기본 확인창(confirm)은 전체화면을 강제로 풀어버려서, 직접 만든 창을 씁니다 */
+  .cfmMask{display:none;position:fixed;inset:0;z-index:9999;background:rgba(10,14,18,.55);
+    align-items:center;justify-content:center}
+  .cfmMask.open{display:flex}
+  .cfmBox{background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
+    width:min(420px,86vw);padding:22px 22px 16px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .cfmBox p{margin:0 0 18px;white-space:pre-wrap;line-height:1.55;font-size:15.5px}
   .badge.warn .lamp{background:#ff8a4c}
   .datelist{display:flex;flex-wrap:wrap;gap:7px}
   .datelist button{min-height:40px;padding:0 13px;font-size:13.5px}
@@ -473,9 +479,7 @@ try{
   </div>
 
   <div class="grp" id="rightGrp">
-    <button class="icon" id="btnZoomOut" title="축소">−</button>
-    <span class="mono" id="zoomInfo" style="min-width:56px;text-align:center;color:var(--text-dim)">100%</span>
-    <button class="icon" id="btnZoomIn" title="확대">＋</button>
+    <span class="mono" id="zoomInfo" hidden>100%</span>
     <button class="icon" id="btnUpDown" title="한 화면씩 아래로 (끝나면 위로)">⇕</button>
     <button class="icon" id="btnFit" title="화면에 맞추기">⤢</button>
     <button class="icon" id="btnRotate" title="화면 돌리기">⟳</button>
@@ -625,6 +629,15 @@ try{
 <input type="file" id="fileInput" accept=".pdf,application/pdf" class="offscreen">
 <input type="file" id="jsonInput" accept=".json,application/json" class="offscreen">
 <div id="toast"></div>
+<div id="cfmMask" class="cfmMask">
+  <div class="cfmBox">
+    <p id="cfmMsg"></p>
+    <div class="row" style="justify-content:flex-end;gap:8px">
+      <button id="cfmNo" class="ghost">취소</button>
+      <button id="cfmYes" class="primary">확인</button>
+    </div>
+  </div>
+</div>
 
 <script id="pdfjsLib">/**
  * @licstart The following is the entire license notice for the
@@ -1372,7 +1385,7 @@ const S={
   strokes:[],pageHas:new Set(),
   tool:'pen',colors:{pen:'#111111',hl:'#f5c400',laser:'#ff3b30'},sizes:{pen:4,hl:12,laser:8,eraser:10},
   drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false,
-  fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,pinch:null,tx:0,ty:0,tap:null,flipAt:0,
+  fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,tx:0,ty:0,tap:null,flipAt:0,
   lib:'',folder:'',q:'',sort:'recent',view:'grid',split:false,pdfW:1,downAt:null,pickedOnce:false,rot:0,barAt:0,
   hidAt:0,vz:1,edited:false
 };
@@ -1383,6 +1396,18 @@ const pdfCv=$('pdfCv'),inkCv=$('inkCv'),fxCv=$('fxCv'),
       pctx=pdfCv.getContext('2d'),ictx=inkCv.getContext('2d'),fctx=fxCv.getContext('2d');
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400)}
+/* 브라우저 기본 confirm()은 전체화면을 강제로 풀어버립니다 — 화면 안에서 직접 묻습니다 */
+function askConfirm(msg){
+  return new Promise(res=>{
+    $('cfmMsg').textContent=msg;
+    const mask=$('cfmMask'),yes=$('cfmYes'),no=$('cfmNo');
+    mask.classList.add('open');
+    const done=v=>{mask.classList.remove('open');yes.onclick=null;no.onclick=null;res(v)};
+    yes.onclick=()=>done(true);
+    no.onclick=()=>done(false);
+    mask.onclick=e=>{if(e.target===mask)done(false)};
+  });
+}
 function markSaved(){
   $('saved').innerHTML = Store.mode==='memory'
     ? '<b style="color:#ff8a4c">●</b> 저장 안 됨'
@@ -1726,7 +1751,7 @@ function sharpenSoon(ms){
   clearTimeout(sharpTimer);
   sharpTimer=setTimeout(async()=>{
     if(!S.doc||!S.vz||S.vz===1)return;
-    if(S.drawing||S.pan||S.pinch)return;
+    if(S.drawing||S.pan)return;
     const z=S.vz;
     S.scale=Math.max(.3,Math.min(6,S.scale*z));
     S.tx*=z;S.ty*=z;S.vz=1;S.fitting=false;
@@ -1798,7 +1823,7 @@ async function flip(dir){
   if(to<1||to>S.pages)return;
   diag('쪽넘김 시작');
   /* 넘기는 순간 진행 중인 손가락 조작을 모두 끊습니다 (넘긴 뒤 화면이 밀리지 않게) */
-  S.pan=null;S.pinch=null;ptrs.clear();
+  S.pan=null;ptrs.clear();
   S.barAt=performance.now();
   S.vz=1;
   await saveNow();
@@ -1873,38 +1898,8 @@ function movePan(e){
   autoFlip(e);
 }
 
-/* 손가락 둘 ─ 확대·축소 */
-function two(){const a=[...ptrs.values()];return [a[0],a[1]]}
-function startPinch(){
-  const [a,b]=two();if(!a||!b)return;
-  S.pinch={d:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),k:1,mx:(a.x+b.x)/2,my:(a.y+b.y)/2,
-           sx:(a.x+b.x)/2,sy:(a.y+b.y)/2,tx:S.tx,ty:S.ty};
-}
-function movePinch(){
-  const [a,b]=two();if(!a||!b||!S.pinch)return;
-  S.pinch.k=1;                                          /* 두 손가락은 확대하지 않습니다 */
-  const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
-  S.tx+=mx-S.pinch.mx;S.ty+=my-S.pinch.my;
-  S.pinch.mx=mx;S.pinch.my=my;
-  clampView();applyView();
-}
-async function endPinch(){
-  if(!S.pinch)return;
-  const pk=S.pinch;
-  if(pk){                                   /* 두 손가락으로 그으면 쪽이 넘어갑니다 */
-    const dx=pk.mx-pk.sx, dy=pk.my-pk.sy;
-    const a=Math.abs(dx)>=Math.abs(dy)?dx:dy;
-    if(Math.abs(a)>60){
-      const dir=a<0?1:-1;
-      if(!((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))){S.pinch=null;return flip(dir)}
-    }
-  }
-  const k=pk?pk.k:1;S.pinch=null;
-  if(Math.abs(k-1)<.03){settleView();return}
-  S.vz=(S.vz||1)*k;S.fitting=false;
-  clampView();applyView();
-  sharpenSoon(200);
-}
+/* 두 손가락 기능은 뺐습니다 — 손가락 여러 개도 그냥 화면 밀기로 다룹니다.
+   확대·축소는 화면을 두 번 톡톡 치는 것으로만 합니다 */
 
 inkCv.addEventListener('dragstart',e=>e.preventDefault());
 inkCv.addEventListener('contextmenu',e=>e.preventDefault());
@@ -1922,10 +1917,7 @@ inkCv.addEventListener('pointerdown',e=>{
   S.downAt={t:performance.now(),x:e.clientX,y:e.clientY};
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
   try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
-  if(!isWriter(e.pointerType)){
-    if(ptrs.size===2){cancelStroke();startPinch();return}
-    if(ptrs.size>=3){cancelStroke();S.pinch=null;startPan(e);return}
-  }
+  if(!isWriter(e.pointerType)&&ptrs.size>=2){cancelStroke();startPan(e);return}
   if(isPalm(e)){
     if(!S.palmSeen){S.palmSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 밀면 화면이 움직입니다')}
     cancelStroke();undoTouchSmudge();startPan(e);return;
@@ -1936,12 +1928,25 @@ inkCv.addEventListener('pointermove',e=>{
   ghostMove(e);
   const p=ptrs.get(e.pointerId);if(!p)return;
   p.x=e.clientX;p.y=e.clientY;
-  if(S.pinch)return movePinch();
   if(S.pan)return movePan(e);
   if(S.drawing)moveStroke(e);
 });
 /* 두 번 톡톡 치면 확대 — 두 손가락이 안 되는 칠판을 위한 대안입니다 */
-function doubleTapZoom(e){ return false }   /* 두 번 톡톡 확대는 쓰지 않습니다 */
+/* 화면을 두 번 톡톡 — 확대 두 단계뿐입니다: 100%(화면 맞춤) ↔ 확대 */
+const TAP_ZOOM=2.2;
+function doubleTapZoom(e){
+  if(!S.doc)return false;
+  const now=performance.now(), last=S.lastTap;
+  S.lastTap={t:now,x:e.clientX,y:e.clientY};
+  if(!last||now-last.t>380||Math.hypot(e.clientX-last.x,e.clientY-last.y)>40)return false; /* 첫 번째 톡 — 대기 */
+  S.lastTap=null;                                          /* 두 번째 톡 — 여기서 전환합니다 */
+  if((S.vz||1)>1.05){                                       /* 이미 확대돼 있으면 화면에 맞춥니다 */
+    S.vz=1;S.fitting=true;S.tx=0;S.ty=0;renderPage();
+  }else{                                                    /* 아니면 누른 자리를 기준으로 확대합니다 */
+    quickZoom(TAP_ZOOM/(S.vz||1),e.clientX,e.clientY);
+  }
+  return true;
+}
 function release(e){
   ghostHide();
   const dn=S.downAt;S.downAt=null;
@@ -1952,7 +1957,6 @@ function release(e){
   }
   if(!ptrs.has(e.pointerId))return;
   ptrs.delete(e.pointerId);
-  if(S.pinch){if(ptrs.size<2)endPinch();return}
   if(S.pan){
     if(!ptrs.size){
       const moved=Math.hypot(e.clientX-S.pan.x,e.clientY-S.pan.y);
@@ -2146,9 +2150,9 @@ $('btnBoardSwap').onclick=async()=>{
   if(S.doc&&S.fitting)await renderPage();
   toast(left?'칠판이 왼쪽으로 갔습니다':'칠판이 오른쪽으로 갔습니다');
 };
-$('btnBoardClear').onclick=()=>{
+$('btnBoardClear').onclick=async()=>{
   if(!BD.strokes.length){toast('칠판이 비어 있습니다');return}
-  if(!confirm('칠판의 필기를 모두 지웁니다. 계속할까요?'))return;
+  if(!await askConfirm('칠판의 필기를 모두 지웁니다. 계속할까요?'))return;
   BD.strokes=[];S.edited=true;bdRedraw();bdSave();toast('칠판을 비웠습니다');
 };
 
@@ -2277,7 +2281,7 @@ document.querySelector('#board .boardTop')?.addEventListener('pointerdown',()=>{
 const TOOL_NAME={pen:'펜',hl:'형광펜',eraser:'지우개',hand:'이동',laser:'레이저'};
 function setTool(t,btn){
   /* 이전 도구로 그리던 상태·터치 정보를 전부 정리 — 안 하면 도구가 바뀌지 않는 것처럼 보입니다 */
-  S.drawing=false;S.cur=null;S.penErase=false;S.pan=null;S.pinch=null;
+  S.drawing=false;S.cur=null;S.penErase=false;S.pan=null;
   if(typeof ptrs!=='undefined')ptrs.clear();
   const sh=$('sheet');if(sh){sh.style.transform='';sh.style.transformOrigin=''}
   S.tool=t;
@@ -2373,9 +2377,9 @@ function openEraserPop(anchor){
     pop.appendChild(b);
   };
   mk('✎ 문질러 지우기',()=>toast('필기 위를 문지르면 그 획이 지워집니다'));
-  mk('🧹 이 쪽 전부 지우기',()=>{
+  mk('🧹 이 쪽 전부 지우기',async()=>{
     if(!S.strokes.length){toast('이 쪽에는 필기가 없습니다');return}
-    if(!confirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`))return;
+    if(!await askConfirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`))return;
     S.strokes=[];S.edited=true;redraw();saveNow();toast('이 쪽을 비웠습니다');
   },true);
   pop.classList.add('open');showMask(true);
@@ -2489,13 +2493,12 @@ function bumpSize(d){
 $('btnThin').onclick=()=>bumpSize(-1);
 $('btnThick').onclick=()=>bumpSize(1);
 $('btnUndo').onclick=()=>{if(S.strokes.length)S.edited=true;S.strokes.pop();redraw();scheduleSave()};
-$('btnClear').onclick=()=>{
+$('btnClear').onclick=async()=>{
   if(!S.strokes.length)return;
-  if(confirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`)){S.strokes=[];S.edited=true;redraw();saveNow()}
+  if(await askConfirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`)){S.strokes=[];S.edited=true;redraw();saveNow()}
 };
 function zoom(f,cx,cy){ quickZoom(f,cx,cy) }
-$('btnZoomIn').onclick=()=>zoom(1.25);
-$('btnZoomOut').onclick=()=>zoom(1/1.25);
+/* 확대·축소 버튼은 뺐습니다 — 두 손가락 확대·축소는 그대로 됩니다 */
 for(const id of ['topbar','dock']){
   const el=$(id);
   if(el)el.addEventListener('wheel',e=>{e.stopPropagation()},{passive:true});
@@ -2601,7 +2604,7 @@ $('btnSync').onclick=async()=>{
     const after=before.filter(x=>onDisk.has(Backup.safe(x)));
     const gone=before.filter(x=>!onDisk.has(Backup.safe(x)));
     if(gone.length){
-      if(!confirm(`저장 폴더에 없는 폴더 ${gone.length}개를 서재에서도 없앱니다.\n(${gone.join(', ')})\n자료와 필기는 남고 "전체"로 옮겨집니다.`))return;
+      if(!await askConfirm(`저장 폴더에 없는 폴더 ${gone.length}개를 서재에서도 없앱니다.\n(${gone.join(', ')})\n자료와 필기는 남고 "전체"로 옮겨집니다.`))return;
       await setFolders(after);
       for(const fl of await Store.allFiles()){
         if(fl&&fl.folder&&gone.includes(fl.folder)){fl.folder='';await Store.putFile(fl)}
@@ -2799,7 +2802,7 @@ function cardMenu(f){
   };
   sheet.querySelector('#mDel').onclick=async()=>{
     if(f.pin){toast('고정된 자료입니다 — 고정을 먼저 해제하세요');return}
-    if(!confirm(`서재에서 "${f.name}" 을 지웁니다.\n필기와 저장된 PDF 파일은 지워지지 않습니다.`))return;
+    if(!await askConfirm(`서재에서 "${f.name}" 을 지웁니다.\n필기와 저장된 PDF 파일은 지워지지 않습니다.`))return;
     await Store.delFile(f.id);
     if(S.fileId===f.id&&$('btnClose'))$('btnClose').click();
     close();renderRecent();toast('서재에서 지웠습니다');
@@ -3053,7 +3056,7 @@ try{setBarPos(localStorage.getItem('pn.barTop')==='1')}catch(e){setBarPos(false)
 
 $('btnQuit2').onclick=()=>$('btnQuit').click();
 $('btnQuit').onclick=async()=>{
-  if(!confirm('판서노트를 종료할까요?\n필기를 저장한 뒤 정리합니다.'))return;
+  if(!await askConfirm('판서노트를 종료할까요?\n필기를 저장한 뒤 정리합니다.'))return;
   const b=$('btnQuit2');const lab=b?b.textContent:'';
   if(b){b.textContent='정리 중…';b.disabled=true}
   try{
@@ -3127,7 +3130,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='16.1';
+const APP_VER='16.4';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3213,10 +3216,10 @@ async function checkUpdate(){
     }
     if(!verNewer(latest,APP_VER)){toast(`이미 최신입니다 (${APP_VER})`);return}
     if(location.protocol.startsWith('http')){
-      if(!confirm(`새 버전 ${latest} 이 있습니다.\n지금 업데이트할까요? (필기는 그대로 유지됩니다)`))return;
+      if(!await askConfirm(`새 버전 ${latest} 이 있습니다.\n지금 업데이트할까요? (필기는 그대로 유지됩니다)`))return;
       await hardUpdate();
     }else{
-      if(!confirm(`새 버전 ${latest} 이 있습니다.\n새 파일을 내려받은 뒤 판서노트.html 을 덮어써 주세요.`))return;
+      if(!await askConfirm(`새 버전 ${latest} 이 있습니다.\n새 파일을 내려받은 뒤 판서노트.html 을 덮어써 주세요.`))return;
       if(!txt){
         b.textContent='내려받는 중…';
         const r2=await fetch(UPDATE_URL,{cache:'no-store'});
@@ -3304,7 +3307,7 @@ async function browseSaved(dirHandle,path){
         const msg=isDir&&atRoot
           ? `"${name}" 폴더를 삭제합니다.\n안에 든 파일이 모두 지워지고, 서재의 같은 이름 폴더도 없어집니다.\n(자료와 필기는 남고 "전체"로 옮겨집니다)`
           : `"${name}" 을(를) 삭제합니다.\n되돌릴 수 없습니다. 계속할까요?`;
-        if(!confirm(msg))return;
+        if(!await askConfirm(msg))return;
         try{
           await dir.removeEntry(name,{recursive:isDir});
           if(isDir&&atRoot){                 /* 앱 목록에서도 지워야 다시 만들어지지 않습니다 */
