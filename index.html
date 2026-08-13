@@ -1887,10 +1887,14 @@ async function flip(dir){
   /* 넘기는 순간 진행 중인 손가락 조작을 모두 끊습니다 (넘긴 뒤 화면이 밀리지 않게) */
   S.pan=null;ptrs.clear();
   S.barAt=performance.now();
+  /* 확대해 둔 배율은 다음 쪽에서도 그대로 유지합니다 */
+  const keep=!S.fitting||((S.vz||1)>1.02);
+  const keepScale=S.scale*(S.vz||1);
   S.vz=1;
   await saveNow();
   S.page=to;
-  S.fitting=true;
+  if(keep){S.fitting=false;S.scale=keepScale}
+  else S.fitting=true;
   S.tx=0;S.ty=0;
   await renderPage();
   {                                    /* 넘긴 방향의 시작점부터 보입니다 */
@@ -2408,6 +2412,10 @@ function railJump(label,toPage){
 window.addEventListener('resize',()=>{ if(S.doc)buildRail() });
 async function goto(p){
   if(p<1||p>S.pages||p===S.page||S.busy)return;
+  const keep=!S.fitting||((S.vz||1)>1.02);
+  const keepScale=S.scale*(S.vz||1);
+  S.vz=1;
+  if(keep){S.fitting=false;S.scale=keepScale}
   await saveNow();S.page=p;S.tx=0;await renderPage();
   const {my}=limits();S.ty=my;clampView();applyView();
   document.querySelector(`#rail .p[data-p="${p}"]`)?.scrollIntoView({block:'nearest'});
@@ -3403,7 +3411,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='18.6';
+const APP_VER='18.7';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
