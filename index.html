@@ -398,12 +398,16 @@ try{
   <span class="tstat">
     <span class="saved">쪽 <b id="pageInfo">– / –</b></span>
   </span>
-  <div class="datechip" id="dateChip">
+  <div class="datechip" id="dateChip" hidden>
     <input type="date" id="dateInput" title="수업 날짜 — 바꾸면 그날 판서를 봅니다">
   </div>
   <span class="saved" id="saved" hidden>—</span>
+  <span id="boardCtl" hidden style="display:flex;align-items:center;gap:6px">
+    <button id="btnBoardBg" class="mini" title="칠판 바탕을 바꿉니다">칠판 바탕</button>
+    <button id="btnBoardSwap" class="mini" title="칠판과 PDF 자리를 바꿉니다">⇄ 자리 바꾸기</button>
+    <button id="btnBoardClear" class="mini">칠판 비우기</button>
+  </span>
   <button id="btnFull" title="전체화면 (F11)">⛶ 전체화면</button>
-  <button class="icon" id="btnBarPos" title="도구 막대를 위/아래로 옮깁니다">⇅</button>
   <button class="icon" id="btnMore" title="설정 · 저장 · 백업">⚙︎</button>
   <button id="btnClose2" title="이 자료만 닫고 서재로 돌아갑니다">✕ 자료 닫기</button>
   <button id="btnQuit2" class="quit" title="판서노트를 완전히 끕니다">⏻ 프로그램 종료</button>
@@ -500,13 +504,6 @@ try{
   <aside id="rail"></aside>
   <div class="row2">
   <div id="board" hidden>
-    <div class="boardTop">
-      <b>칠판</b>
-      <span class="hint">PDF와 따로 씁니다 · 쪽을 넘겨도 그대로 남습니다</span>
-      <button id="btnBoardBg" class="mini" title="칠판 바탕을 바꿉니다">칠판 바탕</button>
-      <button id="btnBoardSwap" class="mini" title="칠판과 PDF 자리를 바꿉니다">⇄ 자리 바꾸기</button>
-      <button id="btnBoardClear" class="mini">칠판 비우기</button>
-    </div>
     <canvas id="bdCv"></canvas>
   </div>
 
@@ -2157,8 +2154,13 @@ $('btnBoardBg').onclick=e=>{
   const cur=bdBgKey();
   for(const [k,th] of Object.entries(BOARD_BG)){
     const b=document.createElement('button');
-    b.innerHTML=`<i style="display:inline-block;width:22px;height:22px;border-radius:5px;`+
-      `background:${th.bg};border:1px solid #7d8b99;margin-right:10px;vertical-align:-5px"></i>${th.name}`;
+    b.style.cssText='display:flex;align-items:center;gap:12px;justify-content:flex-start;white-space:nowrap';
+    const sw=document.createElement('span');   /* 색 견본 — <i>는 공통 CSS가 덮어써서 span으로 만듭니다 */
+    sw.style.cssText=`flex:0 0 auto;width:24px;height:24px;border-radius:6px;`+
+      `background:${th.bg};border:1px solid #7d8b99`;
+    const nm=document.createElement('span');
+    nm.textContent=th.name;
+    b.appendChild(sw);b.appendChild(nm);
     if(k===cur)b.classList.add('on');
     b.onclick=()=>{
       try{localStorage.setItem('pn.boardBg',k)}catch(err){}
@@ -2462,6 +2464,7 @@ $('btnClose').onclick=async()=>{
   $('btnSplit').classList.remove('on');
   $('board').hidden=true;
   $('board').style.display='none';
+  syncBoardCtl();
   $('dockPage').textContent='– / –';
   $('fileName').textContent='파일 없음';
   $('rail').innerHTML='';
@@ -2569,12 +2572,14 @@ $('btnRotate').onclick=async()=>{
   await renderPage();
   toast('화면을 90도 돌렸습니다');
 };
+function syncBoardCtl(){const bc=$('boardCtl');if(bc){bc.hidden=!S.split;bc.style.display=S.split?'flex':'none'}}
 $('btnSplit').onclick=async()=>{
   S.split=!S.split;
   try{localStorage.setItem('pn.split',S.split?'1':'0')}catch(e){}
   $('btnSplit').classList.toggle('on',S.split);
   $('board').hidden=!S.split;
   $('board').style.display=S.split?'':'none';
+  syncBoardCtl();
   /* 보고 있던 크기를 그대로 둡니다 — 칠판을 켠다고 글자가 작아지지 않습니다 */
   const keepScale=S.scale*(S.vz||1);
   S.vz=1;S.fitting=false;S.tx=0;S.ty=0;
@@ -3072,11 +3077,11 @@ function setBarPos(top){
   $('btnBarTop').classList.toggle('on',!!top);
   if(S.doc&&S.fitting)renderPage();
 }
-$('btnBarPos').onclick=()=>{
+$('btnBarPos')&&($('btnBarPos').onclick=()=>{
   const top=!document.body.classList.contains('bar-top');
   setBarPos(top);
   toast(top?'도구 막대를 위로 옮겼습니다':'도구 막대를 아래로 옮겼습니다');
-};
+});
 $('btnBarBottom').onclick=()=>setBarPos(false);
 $('btnBarTop').onclick=()=>setBarPos(true);
 try{setBarPos(localStorage.getItem('pn.barTop')==='1')}catch(e){setBarPos(false)}
@@ -3157,7 +3162,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='17.0';
+const APP_VER='17.2';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3447,6 +3452,7 @@ $('jsonInput').onchange=async e=>{
   $('btnSplit').classList.toggle('on',S.split);
   $('board').hidden=!S.split;
   $('board').style.display=S.split?'':'none';
+  syncBoardCtl();
   try{const bl=localStorage.getItem('pn.boardLeft')==='1';
       document.body.classList.toggle('board-left',bl);
       document.documentElement.classList.toggle('board-left',bl)}catch(e){}
