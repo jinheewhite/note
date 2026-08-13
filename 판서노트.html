@@ -154,8 +154,10 @@ try{
   #inkCv{position:absolute;inset:0;touch-action:none;cursor:crosshair;-webkit-user-drag:none}
   canvas{-webkit-user-drag:none;user-select:none}
   #fxCv{position:absolute;inset:0;pointer-events:none}
-  #board{flex:0 0 44%;display:flex;flex-direction:column;background:#f7f8fa;
+  .row2{display:flex;flex:1;min-height:0;min-width:0}
+  #board{flex:0 0 44%;max-width:44%;display:flex;flex-direction:column;background:#f7f8fa;
     border-left:2px solid var(--line);min-width:0;order:2}
+  #stage{flex:1 1 0;min-width:0}
   /* 칠판을 왼쪽으로 */
   body.board-left #board,html.board-left #board{order:0;border-left:0;border-right:2px solid var(--line)}
   body.board-left #stage,html.board-left #stage{order:1}
@@ -455,7 +457,7 @@ try{
     </button>
     <span class="tsep2"></span>
     <button class="tool" data-label="이동" id="btnHand" title="끌어서 화면 옮기기">✋</button>
-    <button id="btnFinger" title="손가락으로도 필기할지 정합니다">✍ 손필기</button>
+
   </div>
 
   <div class="grp size-wrap">
@@ -491,6 +493,7 @@ try{
 
 <main>
   <aside id="rail"></aside>
+  <div class="row2">
   <div id="board" hidden>
     <div class="boardTop">
       <b>칠판</b>
@@ -508,6 +511,7 @@ try{
       <canvas id="inkCv"></canvas>
       <canvas id="fxCv"></canvas>
     </div>
+  </div>
   </div>
 </main>
 
@@ -1367,7 +1371,7 @@ const S={
   strokes:[],pageHas:new Set(),
   tool:'pen',colors:{pen:'#111111',hl:'#f5c400',laser:'#ff3b30'},sizes:{pen:4,hl:12,laser:8,eraser:10},
   drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false,
-  fingerDraws:false,penSeen:false,palmSeen:false,penErase:false,pan:null,pinch:null,tx:0,ty:0,tap:null,flipAt:0,
+  fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,pinch:null,tx:0,ty:0,tap:null,flipAt:0,
   lib:'',folder:'',q:'',sort:'recent',view:'grid',split:false,pdfW:1,downAt:null,pickedOnce:false,rot:0,barAt:0,
   hidAt:0,vz:1,edited:false
 };
@@ -1596,26 +1600,20 @@ function pos(e){
 }
 function penDown(){for(const p of ptrs.values())if(p.type==='pen')return true;return false}
 /* 손바닥은 접촉 면적이 넓습니다. 도구가 무엇이든 손바닥으로 밀면 화면이 움직입니다 */
+/* 손바닥처럼 넓게 닿으면 이동·쪽넘김, 손끝·펜은 필기 */
 function isPalm(e){
-  if(e.pointerType!=='touch')return false;    /* 펜·마우스는 절대 손바닥으로 보지 않습니다 */
-  if(S.fingerDraws)return false;
-  return (e.width>=40||e.height>=40);
+  if(e.pointerType!=='touch')return false;
+  return ((e.width||0)>=28||(e.height||0)>=28);
 }
 /* 펜·마우스 = 필기 / 손가락 = 이동·넘김 */
 function isWriter(type){ return type==='pen'||type==='mouse' }
-function canDraw(type){
-  if(isWriter(type))return S.tool!=='hand';   /* 펜·마우스는 이동 도구일 때만 이동 */
-  return S.fingerDraws&&S.tool!=='hand';      /* 손가락은 기본이 이동 */
+function canDraw(type,e){
+  if(S.tool==='hand')return false;             /* ✋ 를 고르면 무엇으로든 이동 */
+  if(e&&isPalm(e))return false;                /* 손바닥으로 밀면 이동 */
+  return true;                                 /* 펜·손끝·마우스는 필기 */
 }
 function updateTouchBtn(){
-  const f=$('btnFinger');
-  if(f){
-    f.classList.toggle('on',S.fingerDraws);
-    f.textContent=S.fingerDraws?'✍ 손필기 켬':'✍ 손필기 끔';
-    f.title=S.fingerDraws?'손가락으로도 필기합니다':'손가락은 넘김·이동만 합니다';
-  }
-  const b=$('btnHand');if(!b)return;
-  b.title='끌어서 화면 옮기기';
+  const b=$('btnHand');if(b)b.title='끌어서 화면 옮기기 · 쪽 넘기기';
 }
 /* 손가락으로 그릴 수 있게 켜고 끕니다 (EJ Pen 같은 칠판 프로그램이 켜져 있을 때 필요) */
 document.addEventListener('DOMContentLoaded',()=>{},{once:true});
@@ -1806,7 +1804,7 @@ const SW={id:null,x:0,y:0,t:0,type:''};
 inkCv.addEventListener('pointerdown',e=>{
   if(!S.doc)return;
   if(e.pointerType!=='touch')return;          /* 손가락만 넘김 대상 */
-  if(S.fingerDraws&&S.tool!=='hand')return;   /* 손필기 중에는 이동 도구일 때만 넘김 */
+  if(S.tool!=='hand'&&!isPalm(e))return;      /* 손바닥이나 ✋ 이동일 때 넘깁니다 */
   if(penDown())return;
   if(ptrs.size>1){SW.id=null;return}
   SW.id=e.pointerId;SW.x=e.clientX;SW.y=e.clientY;SW.t=performance.now();SW.type=e.pointerType;
@@ -1894,7 +1892,7 @@ inkCv.addEventListener('pointerdown',e=>{
     if(!S.palmSeen){S.palmSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 밀면 화면이 움직입니다')}
     cancelStroke();startPan(e);return;
   }
-  if(canDraw(e.pointerType))startStroke(e);else startPan(e);
+  if(canDraw(e.pointerType,e))startStroke(e);else startPan(e);
 });
 inkCv.addEventListener('pointermove',e=>{
   ghostMove(e);
@@ -2047,7 +2045,7 @@ async function bdSave(){
 bdCv.addEventListener('pointerdown',e=>{
   if($('pop').classList.contains('open')){e.preventDefault();closePop();return}
   if(S.tool==='hand'||S.tool==='laser')return;
-  if(!isWriter(e.pointerType)&&!S.fingerDraws)return;  /* 손가락은 필기하지 않습니다 */
+
   ghostShow(e);
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
   const r=bdCv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
@@ -2346,12 +2344,7 @@ function openEraserPop(anchor){
   placePop(anchor);
 }
 $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
-$('btnFinger').onclick=()=>{
-  S.fingerDraws=!S.fingerDraws;
-  try{localStorage.setItem('pn.finger',S.fingerDraws?'1':'0')}catch(e){}
-  updateTouchBtn();
-  toast(S.fingerDraws?'손가락으로도 필기합니다':'손가락은 넘김·이동만 합니다');
-};
+
 (()=>{                                   /* 길게 누르면 손가락 필기 전환 */
   let tm=null;const b=$('btnHand');
   const start=()=>{tm=setTimeout(()=>{
@@ -3106,7 +3099,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='15.7';
+const APP_VER='15.9';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3379,7 +3372,7 @@ $('jsonInput').onchange=async e=>{
   $('modeBadge').innerHTML=Store.mode==='idb'?'':modeBadge();
   try{S.sort=localStorage.getItem('pn.sort')||'recent';S.view=localStorage.getItem('pn.view')||'grid';
       S.split=localStorage.getItem('pn.split')==='1';
-      S.fingerDraws=localStorage.getItem('pn.finger')==='1'}catch(e){}
+}catch(e){}
   try{if(localStorage.getItem('pn.faux')==='1')fauxFull(true)}catch(e){}
 
   updFullBtn();
