@@ -1624,7 +1624,12 @@ function pos(e){
   const sx=r.width?S.rendered.w/r.width:1, sy=r.height?S.rendered.h/r.height:1;
   return [(e.clientX-r.left)*sx,(e.clientY-r.top)*sy];
 }
-function penDown(){for(const p of ptrs.values())if(p.type==='pen')return true;return false}
+/* 이 기기가 펜 뗌 신호를 놓쳐도, 0.6초 넘게 안 움직인 펜은 더 이상 '닿아 있다'고 보지 않습니다 */
+function penDown(){
+  const now=performance.now();
+  for(const p of ptrs.values())if(p.type==='pen'&&now-(p.t||0)<600)return true;
+  return false;
+}
 /* 손바닥은 접촉 면적이 넓습니다. 도구가 무엇이든 손바닥으로 밀면 화면이 움직입니다 */
 /* 손바닥처럼 넓게 닿으면 이동·쪽넘김, 손끝·펜은 필기 */
 /* 지금 닿은 손가락 자신은 빼고, '다른' 손가락이 이미 닿아 있는지만 셉니다 */
@@ -1917,7 +1922,7 @@ inkCv.addEventListener('pointerdown',e=>{
   }
   if(e.pointerType==='touch'&&penDown())return;   /* 펜을 쥔 손바닥은 무시 */
   S.downAt={t:performance.now(),x:e.clientX,y:e.clientY};
-  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType,t:performance.now()});
   try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
   if(!isWriter(e.pointerType)&&ptrs.size>=2){cancelStroke();startPan(e);return}
   if(isPalm(e)){
@@ -1929,7 +1934,7 @@ inkCv.addEventListener('pointerdown',e=>{
 inkCv.addEventListener('pointermove',e=>{
   ghostMove(e);
   const p=ptrs.get(e.pointerId);if(!p)return;
-  p.x=e.clientX;p.y=e.clientY;
+  p.x=e.clientX;p.y=e.clientY;p.t=performance.now();
   if(S.pan)return movePan(e);
   if(S.drawing)moveStroke(e);
 });
@@ -3148,7 +3153,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='16.5';
+const APP_VER='16.6';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
