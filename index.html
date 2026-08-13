@@ -1683,13 +1683,24 @@ function redraw(){
 }
 /* 그리는 중에는 새로 이어진 부분만 덧그립니다 — 전자칠판에서 훨씬 부드럽습니다 */
 function drawLast(){
-  /* 쓰는 동안에는 마지막 조각만 곧장 이어 그립니다 — 전체를 다시 그리면
-     필기가 쌓일수록 점점 느려집니다. 곡선 다듬기는 획을 뗄 때 한 번만 합니다 */
+  /* 쓰는 동안에도 곧바로 곡선으로 잇습니다 — 세 점의 가운데를 지나는 곡선이라
+     각지지 않으면서, 마지막 한 조각만 그리므로 필기가 쌓여도 느려지지 않습니다 */
   const st=S.cur;if(!st)return;
-  const pts=st.pts;
-  if(pts.length<2)return;
-  ictx.save();ictx.lineCap='round';ictx.lineJoin='round';ictx.strokeStyle=st.color;
-  segment(st,pts[pts.length-2],pts[pts.length-1],st.w*S.pdfW);
+  const P=st.pts, n=P.length;
+  if(n<2)return;
+  const T=i=>toP(P[i][0],P[i][1]);
+  ictx.save();ictx.lineCap='round';ictx.lineJoin='round';
+  ictx.strokeStyle=st.color;ictx.lineWidth=st.w*S.pdfW;
+  if(n===2){
+    const a=T(0),b=T(1);
+    ictx.beginPath();ictx.moveTo(a[0],a[1]);ictx.lineTo(b[0],b[1]);ictx.stroke();
+  }else{
+    const a=T(n-3),b=T(n-2),c=T(n-1);
+    ictx.beginPath();
+    ictx.moveTo((a[0]+b[0])/2,(a[1]+b[1])/2);
+    ictx.quadraticCurveTo(b[0],b[1],(b[0]+c[0])/2,(b[1]+c[1])/2);
+    ictx.stroke();
+  }
   ictx.restore();
 }
 
@@ -1791,13 +1802,15 @@ function startStroke(e){
   S.cur={mode:S.tool,color:curColor(),w:(S.tool==='hl'?curSize()*2.2:curSize())/S.pdfW,pts:[toN(x,y)]};
   paintStroke(S.cur);
 }
-const STEADY=0.42;                       /* 손떨림 보정 세기 (0=없음, 커질수록 차분) */
+/* 곡선으로 이어 그리게 되면서 보정을 세게 걸 필요가 없어졌습니다.
+   세게 걸면 글씨가 펜보다 늦게 따라와 답답합니다 */
+const STEADY=0.22;                       /* 손떨림 보정 세기 (0=없음, 커질수록 차분) */
 function moveStroke(e){
   if(!S.cur&&!(S.penErase||S.tool==='eraser'||S.tool==='laser')){S.drawing=false;return}
   let [x,y]=pos(e);
   /* 새 점을 직전 점 쪽으로 살짝 당깁니다 — 잔떨림이 걸러져 글씨가 차분해집니다 */
   if(S.cur){x=S.last[0]+(x-S.last[0])*(1-STEADY);y=S.last[1]+(y-S.last[1])*(1-STEADY)}
-  if(Math.hypot(x-S.last[0],y-S.last[1])<0.8)return;    /* 점 솎아내기 */
+  if(Math.hypot(x-S.last[0],y-S.last[1])<0.35)return;   /* 너무 겹치는 점만 솎아냅니다 */
   S.last=[x,y];
   if(S.tool==='laser'){laserPoint(x,y,false);return}
   if(S.penErase||S.tool==='eraser'){erase(x,y);return}
@@ -2225,7 +2238,9 @@ const BD={strokes:[],cur:null,drawing:false,last:null,w:1,h:1,timer:null,
 /* 칠판은 "가로폭 = 1" 인 자기만의 좌표를 씁니다. 세로도 같은 자로 재기 때문에
    반반으로 보든 칠판만 보든 글씨의 모양과 간격이 변하지 않습니다.
    BD.oy 는 위아래로 얼마나 내려서 보고 있는지, BD.ox 는 좌우, BD.vz 는 확대배율입니다. */
-const bdSc=()=>BD.w*(BD.vz||1);              /* 칠판 좌표 → 화면 픽셀 */
+/* 칠판 한 장의 실제 크기는 늘 "화면 전체 폭" 입니다. 반반으로 보면 줄어드는 게 아니라
+   왼쪽 절반만 보이는 것이고, 옆으로 밀면 가려진 오른쪽이 나옵니다 */
+const bdSc=()=>(BD.base||BD.w)*(BD.vz||1);   /* 칠판 좌표 → 화면 픽셀 */
 const bdSX=wx=>(wx-(BD.ox||0))*bdSc();
 const bdSY=wy=>(wy-(BD.oy||0))*bdSc();
 const bdWX=sx=>sx/bdSc()+(BD.ox||0);         /* 화면 픽셀 → 칠판 좌표 */
@@ -2267,6 +2282,7 @@ function bdResize(){
   bdCv.width=Math.round(r.width*dpr);bdCv.height=Math.round(r.height*dpr);
   bdctx.setTransform(dpr,0,0,dpr,0,0);
   BD.w=r.width;BD.h=r.height;
+  BD.base=Math.max(320,document.documentElement.clientWidth||window.innerWidth||r.width);
   bdClamp();bdRedraw();
 }
 function bdPaint(st){
@@ -2344,7 +2360,7 @@ function bdScrollBar(){
 }
 function bdClamp(){
   const k=bdSc(), wW=BD.w/k;
-  BD.ox=Math.max(0,Math.min(Math.max(0,1-wW),BD.ox||0));   /* 좌우로는 칠판 밖으로 안 나갑니다 */
+  BD.ox=Math.max(0,Math.min(Math.max(0,1-wW),BD.ox||0));   /* 가려진 오른쪽까지만 갑니다 */
   BD.oy=Math.max(0,Math.min(bdBottom(),BD.oy||0));         /* 마지막 글씨 아래로 한 화면까지 */
 }
 function bdFarTouch(e){                                    /* 이미 닿은 손과 멀면 = 다른 손 */
@@ -2418,7 +2434,7 @@ bdCv.addEventListener('pointerdown',e=>{
   if(e.pointerType==='touch')bdPtrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   ghostShow(e);
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
-  BD.drawing=true;BD.palm=false;BD.last=[x,y];
+  BD.drawing=true;BD.palm=false;BD.last=[x,y];BD.prev=null;
   if(S.tool==='eraser'){bdErase(x,y);return}
   BD.cur={u:1,mode:S.tool,color:curColor(),
           w:(S.tool==='hl'?curSize()*2.2:curSize())/bdSc(),pts:[[bdWX(x),bdWY(y)]]};
@@ -2440,17 +2456,23 @@ bdCv.addEventListener('pointermove',e=>{
   const r=bdCv.getBoundingClientRect();
   let x=(e.clientX-r.left)*(BD.w/r.width),y=(e.clientY-r.top)*(BD.h/r.height);
   if(BD.cur){x=BD.last[0]+(x-BD.last[0])*(1-STEADY);y=BD.last[1]+(y-BD.last[1])*(1-STEADY)}
-  if(Math.hypot(x-BD.last[0],y-BD.last[1])<0.8)return;
-  const px=BD.last[0],py=BD.last[1];
-  BD.last=[x,y];
+  if(Math.hypot(x-BD.last[0],y-BD.last[1])<0.35)return;
+  const a=BD.prev, b=[BD.last[0],BD.last[1]], c=[x,y];
+  BD.prev=b; BD.last=[x,y];
   if(BD.palm||S.tool==='eraser'){bdErase(x,y);return}
   if(!BD.cur)return;
   BD.cur.pts.push([bdWX(x),bdWY(y)]);
-  /* 쓰는 동안엔 마지막 조각만 그립니다 — 전체 다시 그리기는 뗄 때 한 번 */
+  /* 쓰는 동안에도 곧바로 곡선으로 잇습니다 — 세 점의 가운데를 지나는 곡선이라
+     각지지 않으면서도 마지막 조각만 그려서 빠릅니다 */
   bdctx.save();bdctx.lineCap='round';bdctx.lineJoin='round';
   bdctx.strokeStyle=BD.cur.color;bdctx.lineWidth=BD.cur.w*bdSc();
   if(BD.cur.mode==='hl')bdctx.globalAlpha=.42;
-  bdctx.beginPath();bdctx.moveTo(px,py);bdctx.lineTo(x,y);bdctx.stroke();
+  bdctx.beginPath();
+  if(a){
+    bdctx.moveTo((a[0]+b[0])/2,(a[1]+b[1])/2);
+    bdctx.quadraticCurveTo(b[0],b[1],(b[0]+c[0])/2,(b[1]+c[1])/2);
+  }else{ bdctx.moveTo(b[0],b[1]);bdctx.lineTo(c[0],c[1]) }
+  bdctx.stroke();
   bdctx.restore();
 });
 function bdEnd(e){
@@ -3592,7 +3614,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='20.8';
+const APP_VER='20.9';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
