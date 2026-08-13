@@ -3411,7 +3411,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='18.7';
+const APP_VER='18.8';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3457,7 +3457,13 @@ async function autoCheckUpdate(){
     if(!latest||!verNewer(latest,APP_VER))return;
     $('updMsg').textContent=`새 버전 ${latest} 이 나왔습니다 (지금 ${APP_VER})`;
     $('updBar').hidden=false;
-    $('updNow').onclick=()=>{$('updBar').hidden=true;hardUpdate()};
+    $('updNow').onclick=async()=>{
+      const b=$('updNow'),lab=b.textContent;
+      b.textContent='업데이트 중…';b.disabled=true;
+      const ok=await hardUpdate();
+      b.textContent=lab;b.disabled=false;
+      if(ok!==false)$('updBar').hidden=true;    /* 실패했으면 그대로 두어 다시 누를 수 있게 */
+    };
     $('updLater').onclick=()=>{
       $('updBar').hidden=true;
       try{localStorage.setItem('pn.updSkip',String(Date.now()))}catch(e){}
@@ -3468,6 +3474,18 @@ async function autoCheckUpdate(){
 /* 저장된 옛 파일을 완전히 버리고 새 파일로 다시 엽니다 */
 async function hardUpdate(){
   try{localStorage.removeItem('pn.updSkip')}catch(e){}
+  /* 새 파일이 서버에 실제로 퍼졌는지 먼저 확인합니다 —
+     안 그러면 새로고침해도 옛 파일이 또 열려 "안 되는" 것처럼 보입니다 */
+  try{
+    const r=await fetch(UPDATE_URL+'?v='+Date.now(),{cache:'no-store'});
+    if(r.ok){
+      const m=(await r.text()).match(/const\s+APP_VER='([\d.]+)'/);
+      if(m&&!verNewer(m[1],APP_VER)){
+        toast('새 버전이 아직 서버에 퍼지는 중입니다 — 1~2분 뒤 다시 눌러 주세요');
+        return false;
+      }
+    }
+  }catch(e){toast('인터넷 연결을 확인해 주세요');return false}
   try{
     if('serviceWorker' in navigator){
       const regs=await navigator.serviceWorker.getRegistrations();
@@ -3478,6 +3496,7 @@ async function hardUpdate(){
   const u=new URL(location.href);
   u.searchParams.set('v',Date.now());          /* 주소를 바꿔 캐시를 확실히 건너뜁니다 */
   location.replace(u.toString());
+  return true;
 }
 async function checkUpdate(){
   const b=$('btnUpd');b.textContent='확인 중…';b.disabled=true;
