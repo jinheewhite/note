@@ -173,6 +173,10 @@ try{
   #board .hint{flex:1;color:var(--text-dim);font-size:12px;overflow:hidden;
     text-overflow:ellipsis;white-space:nowrap}
   #bdCv{flex:1;width:100%;touch-action:none;cursor:crosshair;background:#fff}
+  /* 칠판 단독 — PDF와 쪽 목록을 숨기고 칠판이 화면 전체를 씁니다 */
+  body.board-full #stage,html.board-full #stage{display:none}
+  body.board-full aside,html.board-full aside{display:none}
+  body.board-full #board,html.board-full #board{flex:1 1 100%;max-width:100%;border-left:0}
 
   #welcome{position:absolute;inset:56px 0 var(--bar) 0;background:var(--ink);display:flex;flex-direction:column;
     align-items:stretch;justify-content:flex-start;gap:0;padding:0;z-index:20;overflow:hidden}
@@ -485,7 +489,8 @@ try{
 
   <div class="grp" id="rightGrp">
     <span class="mono" id="zoomInfo" hidden>100%</span>
-    <button class="icon" id="btnTglZoom" title="확대 · 다시 누르면 원래대로">🔍</button>
+    <button class="icon" id="btnZoomOut" title="축소">−</button>
+    <button class="icon" id="btnZoomIn" title="확대">＋</button>
     <button class="icon" id="btnFit" title="화면에 맞추기">⤢</button>
     <button class="icon" id="btnRotate" title="화면 돌리기">⟳</button>
 
@@ -1478,7 +1483,9 @@ async function doRender(my){
   if(my!==renderSeq)return;
   /* 자료에 들어 있는 회전값은 무시하고, 오직 ⟳ 로 돌린 값만 씁니다 */
   const rot=((S.rot||0)%360+360)%360;
-  S.fitScale=Math.max(.3,($('stage').clientWidth-56)/pg.getViewport({scale:1,rotation:rot}).width);
+  /* 굿노트처럼 — 가로·세로 중 더 빡빡한 쪽에 맞춰 페이지 전체가 한 화면에 들어옵니다 */
+  const v1=pg.getViewport({scale:1,rotation:rot}), st=$('stage');
+  S.fitScale=Math.max(.3,Math.min((st.clientWidth-56)/v1.width,(st.clientHeight-24)/v1.height));
   if(S.fitting)S.scale=S.fitScale;
   const vp=pg.getViewport({scale:S.scale,rotation:rot});
   S.pdfW=vp.width;
@@ -2488,9 +2495,12 @@ $('btnClose').onclick=async()=>{
   }catch(e){}
   S.rendered={w:0,h:0};S.pdfW=1;
   BD.strokes=[];BD.cur=null;bdRedraw();     /* 칠판도 비웁니다 */
-  S.split=false;
-  try{localStorage.setItem('pn.split','0')}catch(e){}
+  S.splitMode=0;S.split=false;
+  try{localStorage.setItem('pn.splitMode','0')}catch(e){}
+  document.body.classList.remove('board-full');
+  document.documentElement.classList.remove('board-full');
   $('btnSplit').classList.remove('on');
+  $('btnSplit').textContent='▥ 칠판';
   $('board').hidden=true;
   $('board').style.display='none';
   syncBoardCtl();
@@ -2585,12 +2595,8 @@ $('stage').addEventListener('wheel',e=>{
   }
 },{passive:false});
 $('btnFit').onclick=()=>{S.vz=1;S.fitting=true;S.tx=0;S.ty=0;renderPage()};
-$('btnTglZoom').onclick=()=>{            /* 확대 ↔ 원래대로, 두 단계 */
-  if(!S.doc)return;
-  const zoomedIn=S.fitScale?(S.scale*(S.vz||1)>S.fitScale*1.05):((S.vz||1)>1.05);
-  if(zoomedIn){S.vz=1;S.fitting=true;S.tx=0;S.ty=0;renderPage();$('btnTglZoom').classList.remove('on')}
-  else{quickZoom(2.2/(S.vz||1));$('btnTglZoom').classList.add('on')}
-};
+$('btnZoomIn').onclick=()=>{ if(S.doc)quickZoom(1.25) };
+$('btnZoomOut').onclick=()=>{ if(S.doc)quickZoom(1/1.25) };
 $('btnPrev2').onclick=()=>flip(-1);
 $('btnNext2').onclick=()=>flip(1);
 $('btnRotate').onclick=async()=>{
@@ -2602,27 +2608,32 @@ $('btnRotate').onclick=async()=>{
   toast('화면을 90도 돌렸습니다');
 };
 function syncBoardCtl(){const bc=$('boardCtl');if(bc){bc.hidden=!S.split;bc.style.display=S.split?'flex':'none'}}
-$('btnSplit').onclick=async()=>{
-  S.split=!S.split;
-  try{localStorage.setItem('pn.split',S.split?'1':'0')}catch(e){}
+/* ▥ 버튼 한 개로 순환합니다: 끔 → 칠판 반반 → 칠판 단독 → 끔 */
+async function applySplitMode(mode,quiet){
+  S.splitMode=mode;
+  S.split=mode>0;
+  const full=(mode===2);
+  try{localStorage.setItem('pn.splitMode',String(mode))}catch(e){}
+  document.body.classList.toggle('board-full',full);
+  document.documentElement.classList.toggle('board-full',full);
   $('btnSplit').classList.toggle('on',S.split);
+  $('btnSplit').textContent=mode===1?'▥ 칠판만':'▥ 칠판';
   $('board').hidden=!S.split;
   $('board').style.display=S.split?'':'none';
   syncBoardCtl();
-  /* 보고 있던 크기를 그대로 둡니다 — 칠판을 켠다고 글자가 작아지지 않습니다 */
   const keepScale=S.scale*(S.vz||1);
   S.vz=1;S.fitting=false;S.tx=0;S.ty=0;
   S.scale=keepScale;
   if(S.split){bdResize();await bdLoad()}
-  if(S.doc){
+  if(S.doc&&!full){                     /* 단독 모드에서는 PDF가 숨겨져 있어 그리지 않습니다 */
+    S.fitting=true;
     await renderPage();
-    if(S.split){                        /* 페이지 왼쪽부터 보이게 맞춥니다 */
-      const {mx}=limits();
-      S.tx=mx;S.ty=0;clampView();applyView();
-    }
   }
-  toast(S.split?'칠판을 켰습니다 — 글자 크기는 그대로입니다 (⤢ 로 전체 보기)':'칠판을 닫았습니다');
-};
+  if(!quiet)toast(mode===1?'칠판을 켰습니다 — 한 번 더 누르면 칠판만 봅니다'
+                 :mode===2?'칠판만 봅니다 — 한 번 더 누르면 닫힙니다'
+                 :'칠판을 닫았습니다');
+}
+$('btnSplit').onclick=()=>applySplitMode(((S.splitMode||0)+1)%3);
 
 $('dateInput').value=S.date;
 $('dateInput').onchange=async e=>{
@@ -3191,7 +3202,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='17.3';
+const APP_VER='17.5';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3473,15 +3484,13 @@ $('jsonInput').onchange=async e=>{
   await step(()=>Backup.load());
   $('modeBadge').innerHTML=Store.mode==='idb'?'':modeBadge();
   try{S.sort=localStorage.getItem('pn.sort')||'recent';S.view=localStorage.getItem('pn.view')||'grid';
-      S.split=localStorage.getItem('pn.split')==='1';
+      S.splitMode=parseInt(localStorage.getItem('pn.splitMode')||'0')||0;
+      S.split=S.splitMode>0;
 }catch(e){}
   try{if(localStorage.getItem('pn.faux')==='1')fauxFull(true)}catch(e){}
 
   updFullBtn();
-  $('btnSplit').classList.toggle('on',S.split);
-  $('board').hidden=!S.split;
-  $('board').style.display=S.split?'':'none';
-  syncBoardCtl();
+  applySplitMode(S.splitMode||0,true);
   try{const bl=localStorage.getItem('pn.boardLeft')==='1';
       document.body.classList.toggle('board-left',bl);
       document.documentElement.classList.toggle('board-left',bl)}catch(e){}
