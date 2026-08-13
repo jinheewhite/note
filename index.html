@@ -347,7 +347,13 @@ try{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
     padding:6px 0 12px;margin:-6px 0 0;border-bottom:1px solid var(--line)}
   .sheetTop button{min-height:46px;padding:0 18px;font-size:15px}
-  .sheet h4{margin:24px 0 8px;font-size:12px;letter-spacing:1.3px;color:var(--text-dim);font-weight:600}
+  .sheet h4{margin:22px 0 8px;font-size:12px;letter-spacing:1.3px;color:var(--text-dim);font-weight:600}
+  .sheet .setBox{padding-left:14px}
+  #moreSet{margin-top:26px;border-top:1px solid var(--line);padding-top:6px}
+  #moreSet summary{cursor:pointer;list-style:none;color:var(--text-dim);font-size:14px;padding:10px 2px}
+  #moreSet summary::-webkit-details-marker{display:none}
+  #moreSet summary::before{content:'▸ ';font-size:12px}
+  #moreSet[open] summary::before{content:'▾ '}
   .sheet p{color:var(--text-dim);line-height:1.7;margin:0 0 4px;font-size:14px}
   .row{display:flex;gap:8px;flex-wrap:wrap}
   .badge{display:inline-flex;align-items:center;gap:7px;background:var(--ink);border:1px solid var(--line);
@@ -629,45 +635,44 @@ try{
     <button id="btnQuit" hidden>⏻ 프로그램 종료</button>
     <span hidden><button id="btnBarBottom"></button><button id="btnBarTop"></button></span>
 
-    <h4>저장 폴더 (판서 PDF가 저장될 위치)</h4>
-    <div id="dirBox"></div>
+    <h4>저장 폴더</h4>
+    <div id="dirBox" class="setBox"></div>
 
     <h4>자동 내려받기</h4>
-    <div id="autoBox"></div>
+    <div id="autoBox" class="setBox"></div>
 
     <h4>설치</h4>
-    <div id="installBox"></div>
+    <div id="installBox" class="setBox"></div>
 
-    <h4>업데이트</h4>
-    <div id="updBox"></div>
+    <details id="moreSet">
+      <summary>그 밖의 설정</summary>
 
-    <h4>전체화면</h4>
-    <p>오른쪽 아래 ⛶ 버튼으로 켜면, 다음에 열 때도 자동으로 전체화면이 됩니다.
-       주소창까지 완전히 없애려면 크롬 우측 상단 ⋮ → 캐스트·저장 및 공유 → 페이지를 앱으로 설치를 쓰세요.</p>
+      <h4>업데이트</h4>
+      <div id="updBox" class="setBox"></div>
 
-    <h4>현재 저장 방식</h4>
-    <div id="modeInfo"></div>
+      <h4>이 파일의 판서 날짜</h4>
+      <div class="datelist setBox" id="dateList"><span style="color:var(--text-dim);font-size:14px">아직 없습니다</span></div>
 
-    <h4>이 파일의 판서 날짜</h4>
-    <div class="datelist" id="dateList"><span style="color:var(--text-dim);font-size:14px">아직 없습니다</span></div>
+      <h4>백업</h4>
+      <div class="setBox">
+        <p>브라우저 기록을 지우면 판서도 사라집니다. 학기에 한 번씩 받아 두세요.</p>
+        <div class="row" style="margin-top:10px">
+          <button id="btnBackup">판서 전체 백업 받기</button>
+          <button id="btnRestore">백업 불러오기</button>
+        </div>
+      </div>
 
-    <h4>백업</h4>
-    <p>브라우저 사용 기록을 지우면 판서도 함께 사라집니다. 학기 중 한 번씩 백업 파일을 받아 두세요.</p>
-    <div class="row" style="margin-top:10px">
-      <button id="btnBackup">판서 전체 백업 받기</button>
-      <button id="btnRestore">백업 불러오기</button>
-    </div>
+      <h4>현재 저장 방식</h4>
+      <div id="modeInfo" class="setBox"></div>
 
-    <h4>만든 이</h4>
-    <p><b style="color:var(--chalk)">판서노트</b> © 2026 강진희<br>
-       사용은 자유롭습니다. 소스 코드의 복제·수정·재배포와 상업적 이용은 금지합니다.<br>
-       동료 선생님께는 <b>jinheewhite.github.io/note</b> 주소를 안내해 주세요.</p>
-    <div class="row" hidden><button hidden>_</button>
-    </div>
-
-    <div class="row" style="margin-top:26px;justify-content:flex-end">
-      <button class="primary" id="btnCloseModal">닫기</button>
-    </div>
+      <h4>만든 이</h4>
+      <div class="setBox">
+        <p><b style="color:var(--chalk)">판서노트</b> © 2026 강진희<br>
+           동료 선생님께는 <b>jinheewhite.github.io/note</b> 주소를 안내해 주세요.<br>
+           소스 코드의 복제·수정·재배포와 상업적 이용은 금지합니다.</p>
+      </div>
+    </details>
+    <button id="btnCloseModal" hidden></button>
   </div>
 </div>
 
@@ -3231,9 +3236,9 @@ function renderInstallBox(){
   const inApp=isInstalled();
   box.innerHTML=
     (inApp?'<span class="badge"><span class="lamp"></span>지금 앱 창으로 실행 중입니다</span>':'')+
-    '<p style="margin-top:8px">바탕화면에 설치하면 주소창 없이 열리고 인터넷 없이도 실행됩니다.<br>'+
-    '<small style="color:var(--text-dim)">작업표시줄에 두려면 — 설치 후 시작 메뉴에서 <b>판서노트</b>를 찾아 '+
-    '오른쪽 클릭 → <b>작업 표시줄에 고정</b>을 눌러 주세요 (윈도우 규칙상 자동으로는 안 됩니다)</small></p>'+
+    '<p style="margin-top:6px">주소창 없이 열리고, 인터넷 없이도 실행됩니다.<br>'+
+    '<small style="color:var(--text-dim)">작업표시줄에 두려면 — 설치 후 시작 메뉴의 <b>판서노트</b>를 '+
+    '오른쪽 클릭 → <b>작업 표시줄에 고정</b></small></p>'+
     '<div class="row" style="margin-top:10px"><button id="btnInstall" class="primary">⬇ 앱으로 설치하기</button></div>';
   $('btnInstall').onclick=async()=>{
     if(!installPrompt){
@@ -3514,7 +3519,7 @@ function showQuitScreen(){
     '<button class="primary big" id="btnBackHome">판서노트로 돌아가기</button>';
   $('btnBackHome').onclick=()=>location.reload();
 }
-$('btnCloseModal').onclick=$('btnX').onclick=()=>{$('modal').classList.remove('open');renderWhere()};
+$('btnX').onclick=()=>{$('modal').classList.remove('open');renderWhere()};
 $('modal').onclick=e=>{if(e.target.id==='modal')$('modal').classList.remove('open')};
 
 /* 판서가 어디에 저장되는지 서재에서 늘 보이게 합니다 */
@@ -3543,7 +3548,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='20.6';
+const APP_VER='20.7';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3772,7 +3777,7 @@ function renderAutoBox(){
   const on=AutoDL.on();
   box.innerHTML=`<span class="badge ${on?'':'warn'}"><span class="lamp"></span>`+
     `${on?'켜져 있습니다 — 저장 버튼을 누르지 않아도 됩니다':'꺼져 있습니다'}</span>`+
-    '<p style="margin-top:8px">필기가 멈추면 판서 PDF를 다운로드 폴더에 자동으로 내려받습니다.</p>'+
+    '<p style="margin-top:6px">필기가 멈추면 다운로드 폴더로 자동 저장됩니다.</p>'+
     `<div class="row" style="margin-top:10px"><button id="btnAutoDL" class="${on?'':'primary'}">${on?'자동 내려받기 끄기':'자동 내려받기 켜기'}</button></div>`;
   $('btnAutoDL').onclick=()=>{AutoDL.set(!AutoDL.on());renderAutoBox();renderWhere()};
 }
@@ -3787,8 +3792,7 @@ function renderDirBox(){
     box.innerHTML=
       `<span class="badge" style="background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700;font-size:15px">`+
       `<span class="lamp" style="background:#1a1a12"></span>"${Backup.handle.name}" 폴더에 자동 저장 중</span>`+
-      '<p style="margin-top:8px"><small style="color:var(--text-dim)">폴더를 고를 때 선택한 그 위치입니다 — '+
-      '보안 규칙상 브라우저가 전체 경로(C:\\… )는 알려주지 않습니다. 🗂 탐색 버튼으로 안을 바로 볼 수 있습니다.</small></p>'+
+      '<p style="margin-top:6px"><small style="color:var(--text-dim)">고르실 때 선택한 그 위치입니다 · 🗂 로 안을 볼 수 있습니다</small></p>'+
       '<div id="dirTree" class="mono" style="margin-top:8px;line-height:1.9;font-size:14px"></div>'+
       '<div class="row" style="margin-top:10px">'+
       '<button id="btnMkFolder">＋ 새 분류 폴더 만들기</button>'+
@@ -3812,8 +3816,8 @@ function renderDirBox(){
   }
   const again=!!Backup.handle;
   box.innerHTML='<span class="badge warn"><span class="lamp"></span>아직 브라우저 안에만 저장됩니다</span>'+
-    '<p style="margin-top:8px">폴더를 하나 정해 두면 판서 PDF가 자동으로 그곳에 저장됩니다.<br>'+
-    '<b>다운로드·문서 같은 시스템 폴더는 고를 수 없습니다.</b> 그 안에 새 폴더를 만들어 골라 주세요.</p>'+
+    '<p style="margin-top:6px">폴더를 정해 두면 판서 PDF가 그곳에 자동 저장됩니다.<br>'+
+    '<small>다운로드·문서 폴더는 고를 수 없습니다 — 그 안에 새 폴더를 만들어 고르세요</small></p>'+
     `<div class="row" style="margin-top:10px"><button id="btnDirOn" class="primary">📁 ${again?'폴더 다시 연결하기':'저장 폴더 연결하기'}</button></div>`;
   $('btnDirOn').onclick=async()=>{
     const ok=again?await Backup.reauth():await Backup.connect();
