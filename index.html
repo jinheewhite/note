@@ -81,8 +81,12 @@ try{
     max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .grp{display:flex;align-items:center;gap:6px;flex:0 0 auto;padding-right:10px;margin-right:2px;border-right:1px solid var(--line)}
   .grp:last-child{border-right:0}
-  /* 모든 도구를 왼쪽에 모아 붙입니다 — 오른쪽 빈 공간이 EJ Pen 자리입니다 */
-  #rightGrp{border-right:0}
+  /* 왼쪽: 손/이동 → 굵기 → 색·도구.  가운데는 빈 공간(EJ Pen 자리).
+     오른쪽 끝: 돋보기·화면맞춤·돌리기·칠판 */
+  #grpHand{order:1}
+  .size-wrap{order:2}
+  #tools{order:3}
+  #rightGrp{order:9;margin-left:auto;border-right:0}
   #btnFinger{min-width:74px;justify-content:center}
   #btnFinger.move{border-color:var(--chalk-dim);color:var(--chalk)}
 
@@ -444,6 +448,10 @@ try{
 
 <header>
 
+  <div class="grp" id="grpHand">
+    <button id="btnFinger" title="손가락이 필기할지 화면을 옮길지 정합니다">손 ✍</button>
+    <button class="tool" data-label="이동" id="btnHand" title="끌어서 화면 옮기기">✋</button>
+  </div>
   <div class="grp" id="tools">
     <span class="swatches" id="swatches"></span>
     <button class="icon tool" data-label="펜" id="btnPen" title="펜">
@@ -490,10 +498,6 @@ try{
   <path d="M4 22.5 h18" stroke="#8b97a5" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="3 3"/>
       </svg>
     </button>
-    <span class="tsep2"></span>
-    <button class="tool" data-label="이동" id="btnHand" title="끌어서 화면 옮기기">✋</button>
-    <button id="btnFinger" title="손가락이 필기할지 화면을 옮길지 정합니다">손 ✍</button>
-
   </div>
 
   <div class="grp size-wrap">
@@ -3447,7 +3451,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='19.1';
+const APP_VER='19.2';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
