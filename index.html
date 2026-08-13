@@ -1602,10 +1602,15 @@ function pos(e){
 function penDown(){for(const p of ptrs.values())if(p.type==='pen')return true;return false}
 /* 손바닥은 접촉 면적이 넓습니다. 도구가 무엇이든 손바닥으로 밀면 화면이 움직입니다 */
 /* 손바닥처럼 넓게 닿으면 이동·쪽넘김, 손끝·펜은 필기 */
-function touchCount(){let k=0;for(const p of ptrs.values())if(p.type==='touch')k++;return k}
+/* 지금 닿은 손가락 자신은 빼고, '다른' 손가락이 이미 닿아 있는지만 셉니다 */
+function touchCount(excludeId){
+  let k=0;
+  for(const [id,p] of ptrs)if(p.type==='touch'&&id!==excludeId)k++;
+  return k;
+}
 function isPalm(e){
   if(e.pointerType!=='touch')return false;
-  if(touchCount()>=1)return true;              /* 이미 손이 닿아 있으면 손바닥입니다 */
+  if(touchCount(e.pointerId)>=1)return true;   /* 다른 손가락이 이미 닿아 있으면 손바닥입니다 */
   return ((e.width||0)>=22||(e.height||0)>=22);
 }
 /* 펜·마우스 = 필기 / 손가락 = 이동·넘김 */
@@ -3122,7 +3127,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='16.0';
+const APP_VER='16.1';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
