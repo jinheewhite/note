@@ -2022,7 +2022,9 @@ inkCv.addEventListener('pointerdown',e=>{
   if(S.tool!=='hand'&&S.fingerDraws&&!isPalm(e))return;   /* 손이 필기 중일 때만 막습니다 */
   if(penDown())return;
   if(ptrs.size>1){SW.id=null;return}
+  const {mx,my}=limits();
   SW.id=e.pointerId;SW.x=e.clientX;SW.y=e.clientY;SW.t=performance.now();SW.type=e.pointerType;
+  SW.atTop=S.ty>=my-2;SW.atBot=S.ty<=-my+2;SW.atL=S.tx>=mx-2;SW.atR=S.tx<=-mx+2;
 },true);
 inkCv.addEventListener('pointerup',e=>{
   if(SW.id!==e.pointerId)return;
@@ -2031,9 +2033,16 @@ inkCv.addEventListener('pointerup',e=>{
   if(SW.type!=='touch')return;                     /* 펜·마우스는 넘김으로 보지 않습니다 */
   const dx=e.clientX-SW.x, dy=e.clientY-SW.y, dt=performance.now()-SW.t;
   if(dt>1400)return;
-  const a=Math.abs(dx)>=Math.abs(dy)?dx:dy;         /* 위아래·좌우 모두 넘김 */
+  const horiz=Math.abs(dx)>=Math.abs(dy);
+  const a=horiz?dx:dy;
   if(Math.abs(a)<36)return;
   const dir=a<0?1:-1;
+  /* 확대돼서 그 방향으로 아직 볼 곳이 남아 있으면 — 이 밀기는 '보기'입니다 */
+  {
+    const {mx,my}=limits();
+    if(horiz){ if(mx>0&&!((dir>0&&SW.atR)||(dir<0&&SW.atL)))return }
+    else{ if(my>0&&!((dir>0&&SW.atBot)||(dir<0&&SW.atTop)))return }
+  }
   if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return;
   cancelStroke();undoTouchSmudge();          /* 넘기려다 그어진 선을 없던 일로 */
   flip(dir);
@@ -3507,7 +3516,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='19.6';
+const APP_VER='19.7';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
