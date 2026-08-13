@@ -138,6 +138,7 @@ try{
   aside .p:hover{background:var(--ink-3);color:var(--text)}
   aside .p.cur{background:var(--slate);color:#fff;border-color:var(--chalk)}
   aside .p .mark{width:7px;height:7px;border-radius:50%;background:transparent}
+  aside .p.jump{color:var(--chalk);font-weight:700;border:1px solid var(--line)}
   aside .p.has .mark{background:var(--chalk)}
 
   #stage{flex:1;overflow:hidden;background:#26333f;position:relative;touch-action:none;
@@ -2191,16 +2192,29 @@ $('btnBoardClear').onclick=async()=>{
 /* ══════════════════════════════════════════════════════════
    5. 화면 구성
    ══════════════════════════════════════════════════════════ */
+function railFits(){
+  /* 가로 배치에서 쪽 번호가 화면 너비에 다 들어가는지 — 번호 하나에 약 52px */
+  if(!document.documentElement.classList.contains('rail-h'))return true;
+  return S.pages*52+120<=window.innerWidth;
+}
 function buildRail(){
   const rail=$('rail');
-  if(rail.childElementCount!==S.pages){
-    rail.innerHTML='';
-    for(let i=1;i<=S.pages;i++){
-      const d=document.createElement('div');
-      d.className='p';d.dataset.p=i;
-      d.innerHTML=`<span class="mono">${i}</span><span class="mark"></span>`;
-      d.onclick=()=>goto(i);
-      rail.appendChild(d);
+  if(railFits()){
+    if(rail.dataset.group){rail.dataset.group='';rail.innerHTML=''}
+    if(rail.childElementCount!==S.pages){
+      rail.innerHTML='';
+      for(let i=1;i<=S.pages;i++)rail.appendChild(railBtn(i));
+    }
+  }else{
+    /* 지금 쪽이 속한 묶음만 보여주고, « » 로 묶음을 넘깁니다 */
+    const per=Math.max(5,Math.floor((window.innerWidth-260)/52));
+    const g=Math.floor((S.page-1)/per), from=g*per+1, to=Math.min(S.pages,(g+1)*per);
+    const key=`${from}-${to}`;
+    if(rail.dataset.group!==key){
+      rail.dataset.group=key;rail.innerHTML='';
+      if(from>1)rail.appendChild(railJump('«',from-1));
+      for(let i=from;i<=to;i++)rail.appendChild(railBtn(i));
+      if(to<S.pages)rail.appendChild(railJump('»',to+1));
     }
   }
   [...rail.children].forEach(el=>{
@@ -2209,6 +2223,21 @@ function buildRail(){
     el.classList.toggle('has',S.pageHas.has(p));
   });
 }
+function railBtn(i){
+  const d=document.createElement('div');
+  d.className='p';d.dataset.p=i;
+  d.innerHTML=`<span class="mono">${i}</span><span class="mark"></span>`;
+  d.onclick=()=>goto(i);
+  return d;
+}
+function railJump(label,toPage){
+  const d=document.createElement('div');
+  d.className='p jump';
+  d.innerHTML=`<span class="mono">${label}</span>`;
+  d.onclick=()=>goto(toPage);
+  return d;
+}
+window.addEventListener('resize',()=>{ if(S.doc)buildRail() });
 async function goto(p){
   if(p<1||p>S.pages||p===S.page||S.busy)return;
   await saveNow();S.page=p;S.tx=0;await renderPage();
@@ -3162,7 +3191,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='17.2';
+const APP_VER='17.3';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
