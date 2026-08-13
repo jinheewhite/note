@@ -480,7 +480,7 @@ try{
 
   <div class="grp" id="rightGrp">
     <span class="mono" id="zoomInfo" hidden>100%</span>
-    <button class="icon" id="btnUpDown" title="한 화면씩 아래로 (끝나면 위로)">⇕</button>
+    <button class="icon" id="btnTglZoom" title="확대 · 다시 누르면 원래대로">🔍</button>
     <button class="icon" id="btnFit" title="화면에 맞추기">⤢</button>
     <button class="icon" id="btnRotate" title="화면 돌리기">⟳</button>
 
@@ -1573,16 +1573,14 @@ function redraw(){
 }
 /* 그리는 중에는 새로 이어진 부분만 덧그립니다 — 전자칠판에서 훨씬 부드럽습니다 */
 function drawLast(){
+  /* 쓰는 동안에는 마지막 조각만 곧장 이어 그립니다 — 전체를 다시 그리면
+     필기가 쌓일수록 점점 느려집니다. 곡선 다듬기는 획을 뗄 때 한 번만 합니다 */
   const st=S.cur;if(!st)return;
-  if(st.pts.some(p=>p.length>2)){          /* 필압 있는 획은 이어 그리기 */
-    const pts=st.pts;
-    if(pts.length<2)return;
-    ictx.save();ictx.lineCap='round';ictx.lineJoin='round';ictx.strokeStyle=st.color;
-    segment(st,pts[pts.length-2],pts[pts.length-1],st.w*S.pdfW);
-    ictx.restore();
-    return;
-  }
-  redraw();                                 /* 곡선으로 다시 그려 부드럽게 */
+  const pts=st.pts;
+  if(pts.length<2)return;
+  ictx.save();ictx.lineCap='round';ictx.lineJoin='round';ictx.strokeStyle=st.color;
+  segment(st,pts[pts.length-2],pts[pts.length-1],st.w*S.pdfW);
+  ictx.restore();
 }
 
 /* 레이저 — 그린 자리가 1초쯤 뒤 저절로 사라집니다. 저장되지 않습니다 */
@@ -1684,9 +1682,12 @@ function startStroke(e){
   S.cur={mode:S.tool,color:curColor(),w:(S.tool==='hl'?curSize()*2.2:curSize())/S.pdfW,pts:[p]};
   paintStroke(S.cur);
 }
+const STEADY=0.42;                       /* 손떨림 보정 세기 (0=없음, 커질수록 차분) */
 function moveStroke(e){
   if(!S.cur&&!(S.penErase||S.tool==='eraser'||S.tool==='laser')){S.drawing=false;return}
-  const [x,y]=pos(e);
+  let [x,y]=pos(e);
+  /* 새 점을 직전 점 쪽으로 살짝 당깁니다 — 잔떨림이 걸러져 글씨가 차분해집니다 */
+  if(S.cur){x=S.last[0]+(x-S.last[0])*(1-STEADY);y=S.last[1]+(y-S.last[1])*(1-STEADY)}
   if(Math.hypot(x-S.last[0],y-S.last[1])<0.8)return;    /* 점 솎아내기 */
   S.last=[x,y];
   if(S.tool==='laser'){laserPoint(x,y,false);return}
@@ -1703,6 +1704,7 @@ function endStroke(){
     S.strokes.push(S.cur);
     if(S.strokeBy==='touch')S.lastTouch={s:S.cur,at:performance.now()};
     S.cur=null;S.edited=true;
+    redraw();                               /* 뗀 순간 곡선으로 매끈하게 정리 */
   }
   S.strokeBy='';
   scheduleSave();
@@ -2113,12 +2115,21 @@ bdCv.addEventListener('pointerdown',e=>{
 bdCv.addEventListener('pointermove',e=>{
   ghostMove(e);
   if(!BD.drawing)return;
-  const r=bdCv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+  const r=bdCv.getBoundingClientRect();
+  let x=e.clientX-r.left,y=e.clientY-r.top;
+  if(BD.cur){x=BD.last[0]+(x-BD.last[0])*(1-STEADY);y=BD.last[1]+(y-BD.last[1])*(1-STEADY)}
   if(Math.hypot(x-BD.last[0],y-BD.last[1])<0.8)return;
+  const px=BD.last[0],py=BD.last[1];
   BD.last=[x,y];
   if(BD.palm||S.tool==='eraser'){bdErase(x,y);return}
   if(!BD.cur)return;
-  BD.cur.pts.push([x/BD.w,y/BD.h]);bdRedraw();
+  BD.cur.pts.push([x/BD.w,y/BD.h]);
+  /* 쓰는 동안엔 마지막 조각만 그립니다 — 전체 다시 그리기는 뗄 때 한 번 */
+  bdctx.save();bdctx.lineCap='round';bdctx.lineJoin='round';
+  bdctx.strokeStyle=BD.cur.color;bdctx.lineWidth=BD.cur.w*BD.w;
+  if(BD.cur.mode==='hl')bdctx.globalAlpha=.42;
+  bdctx.beginPath();bdctx.moveTo(px,py);bdctx.lineTo(x,y);bdctx.stroke();
+  bdctx.restore();
 });
 function bdEnd(e){
   ghostHide();
@@ -2128,7 +2139,7 @@ function bdEnd(e){
   if(BD.cur){
     BD.strokes.push(BD.cur);
     if(e&&e.pointerType==='touch')BD.lastTouch={s:BD.cur,at:performance.now()};
-    BD.cur=null;S.edited=true;bdRedraw();
+    BD.cur=null;S.edited=true;bdRedraw();   /* 뗀 순간 매끈하게 정리 */
   }
   bdSaveSoon();
 }
@@ -2542,14 +2553,11 @@ $('stage').addEventListener('wheel',e=>{
   }
 },{passive:false});
 $('btnFit').onclick=()=>{S.vz=1;S.fitting=true;S.tx=0;S.ty=0;renderPage()};
-$('btnUpDown').onclick=()=>{             /* 한 화면씩 아래로, 끝나면 맨 위로 */
+$('btnTglZoom').onclick=()=>{            /* 확대 ↔ 원래대로, 두 단계 */
   if(!S.doc)return;
-  const {my}=limits(), step=$('stage').clientHeight*0.8;
-  if(my<=0){toast('페이지 전체가 보입니다');return}
-  S.fitting=false;
-  if(S.ty<=-my+2)S.ty=my;
-  else S.ty=Math.max(-my,S.ty-step);
-  clampView();applyView();
+  const zoomedIn=S.fitScale?(S.scale*(S.vz||1)>S.fitScale*1.05):((S.vz||1)>1.05);
+  if(zoomedIn){S.vz=1;S.fitting=true;S.tx=0;S.ty=0;renderPage();$('btnTglZoom').classList.remove('on')}
+  else{quickZoom(2.2/(S.vz||1));$('btnTglZoom').classList.add('on')}
 };
 $('btnPrev2').onclick=()=>flip(-1);
 $('btnNext2').onclick=()=>flip(1);
@@ -3149,7 +3157,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='16.9';
+const APP_VER='17.0';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
