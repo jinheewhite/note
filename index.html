@@ -68,6 +68,13 @@ try{
   body.bar-top header,html.bar-top header{bottom:auto;top:56px;
     border-top:0;border-bottom:1px solid var(--line)}
   header::-webkit-scrollbar{height:0}
+  /* 좁은 화면(태블릿) — EJ Pen 자리를 비우지 않고 전부 보여줍니다 */
+  @media (max-width:1180px){
+    header{padding-right:12px}
+    header button{min-height:44px;font-size:14px;padding:0 10px}
+    #topbar{gap:4px}
+    #topbar button{font-size:13px;padding:5px 8px}
+  }
   .brand{display:flex;align-items:center;gap:9px;padding-right:12px;margin-right:4px;border-right:1px solid var(--line);flex:0 0 auto}
   .brand b{font-size:17px;letter-spacing:-.3px}
   .brand .dot{width:11px;height:11px;border-radius:2px;background:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.18)}
@@ -2196,7 +2203,7 @@ function bdClamp(){
 }
 function bdFarTouch(e){                                    /* 이미 닿은 손과 멀면 = 다른 손 */
   for(const q of bdPtrs.values()){
-    if(Math.hypot(e.clientX-q.x,e.clientY-q.y)>170)return true;
+    if(Math.hypot(e.clientX-q.x,e.clientY-q.y)>130)return true;
   }
   return false;
 }
@@ -2234,6 +2241,7 @@ bdCv.addEventListener('pointerdown',e=>{
   if(e.pointerType==='touch'&&bdPtrs.size>=1&&bdFarTouch(e)){
     bdPtrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
     try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
+    BD.drawing=false;BD.palm=false;                        /* 그리기·지우기 완전 중단 */
     bdStartPinch(e);
     if(!BD.zoomSeen){BD.zoomSeen=true;toast('양손을 벌리면 칠판이 확대됩니다 — 오므리면 축소')}
     return;
@@ -2247,6 +2255,8 @@ bdCv.addEventListener('pointerdown',e=>{
       if(i>=0){BD.strokes.splice(i,1);bdRedraw()}
       BD.lastTouch=null;
     }
+    bdPtrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
     BD.drawing=true;BD.palm=true;BD.last=[x,y];
     if(!BD.palmSeen){BD.palmSeen=true;toast('칠판: 손바닥으로 문지르면 지워집니다')}
     bdErase(x,y);return;
@@ -2286,7 +2296,7 @@ bdCv.addEventListener('pointermove',e=>{
 function bdEnd(e){
   ghostHide();
   if(e)bdPtrs.delete(e.pointerId);
-  if(BD.pinch){ if(bdPtrs.size<2)BD.pinch=null; return }
+  if(BD.pinch){ if(bdPtrs.size<2){BD.pinch=null;BD.drawing=false;BD.palm=false} return }
   if(!BD.drawing)return;
   BD.drawing=false;BD.palm=false;
   if(BD.cur){
@@ -3408,7 +3418,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='18.1';
+const APP_VER='18.3';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
