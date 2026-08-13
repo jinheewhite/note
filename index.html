@@ -1707,13 +1707,15 @@ function moveStroke(e){
 function strokeSwipeFlip(){
   const st=S.cur;
   if(!st||st.pts.length<4)return 0;
-  if(performance.now()-(S.strokeAt||0)>900)return 0;         /* 빨라야 합니다 */
+  if(performance.now()-(S.strokeAt||0)>1600)return 0;        /* 1.6초 안이면 됩니다 */
   const xs=st.pts.map(p=>p[0]), ys=st.pts.map(p=>p[1]);
   const dx=xs[xs.length-1]-xs[0], dy=ys[ys.length-1]-ys[0];
   const xr=Math.max(...xs)-Math.min(...xs), yr=Math.max(...ys)-Math.min(...ys);
   let dir=0;
-  if(Math.abs(dx)>=0.45&&yr<=0.08)dir=dx<0?1:-1;             /* 가로로 길고 곧게 */
-  else if(Math.abs(dy)>=0.45&&xr<=0.06)dir=dy<0?1:-1;        /* 세로로 길고 곧게 */
+  /* 완벽한 직선이 아니어도 됩니다 — 한쪽 방향으로 화면의 3할 이상,
+     그 방향 움직임이 다른 방향의 두 배가 넘으면 넘김으로 봅니다 */
+  if(Math.abs(dx)>=0.30&&Math.abs(dx)>=yr*2)dir=dx<0?1:-1;   /* 가로로 길게 */
+  else if(Math.abs(dy)>=0.30&&Math.abs(dy)>=xr*2)dir=dy<0?1:-1; /* 세로로 길게 */
   if(!dir)return 0;
   if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return 0;
   return dir;
@@ -3225,7 +3227,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='17.7';
+const APP_VER='17.8';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
