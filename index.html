@@ -133,7 +133,7 @@ try{
   #tools .tool.on{opacity:1;background:var(--chalk);border-color:var(--chalk);color:#1a1a12;
     box-shadow:0 0 0 3px rgba(245,213,71,.3)}
   #btnHand.tool{font-size:20px}
-  .size-wrap{display:flex;align-items:center;gap:3px;padding:0 2px}
+  .size-wrap{display:flex;align-items:center;gap:3px;padding:0;border-right:0;margin-right:0}
   .size-wrap .mono{min-width:34px;text-align:center;font-size:16px}
   .size-wrap button{font-size:22px;font-weight:700}
 
@@ -254,7 +254,7 @@ try{
   #folderPick{position:fixed;inset:0;background:rgba(8,13,18,.72);display:none;
     align-items:center;justify-content:center;z-index:45;padding:24px}
   #folderPick.open{display:flex}
-  .swatches{display:inline-flex;align-items:center;gap:3px;padding:0 2px;flex:0 0 auto;
+  .swatches{display:inline-flex;align-items:center;gap:3px;padding:0;margin-right:0;flex:0 0 auto;
     width:246px;justify-content:center}
   .swatches button{width:28px;height:28px;min-height:28px;padding:0;border-radius:50%;
     justify-content:center;border-width:2px;border-color:var(--line);background:var(--ink-3)}
@@ -449,6 +449,7 @@ try{
   <button id="btnOpen" hidden>PDF 열기</button>
   <span class="tstat">
     <span class="saved">쪽 <b id="pageInfo">– / –</b></span>
+    <button class="icon" id="btnGuide" title="손동작 안내">?</button>
   </span>
   <div class="datechip" id="dateChip" hidden>
     <input type="date" id="dateInput" title="수업 날짜 — 바꾸면 그날 판서를 봅니다">
@@ -465,7 +466,7 @@ try{
   <button id="btnFull" title="전체화면 (F11)">⛶ 전체화면</button>
   <button class="icon" id="btnMore" title="설정 · 저장 · 백업">⚙︎</button>
   <button id="btnClose2" title="이 자료만 닫고 서재로 돌아갑니다">✕ 자료 닫기</button>
-  <button id="btnQuit2" class="quit" title="판서노트를 완전히 끕니다">⏻ 프로그램 종료</button>
+  <button id="btnQuit2" class="quit icon" title="판서노트를 완전히 끕니다 (프로그램 종료)">⏻</button>
 </div>
 
 <header>
@@ -473,7 +474,6 @@ try{
   <div class="grp" id="grpHand">
     <button id="btnFinger" title="손가락이 필기할지 화면을 옮길지 정합니다">손 ✍</button>
     <button class="tool" data-label="이동" id="btnHand" title="끌어서 화면 옮기기">✋</button>
-    <button class="icon" id="btnGuide" title="손동작 안내">❔</button>
   </div>
   <div class="grp" id="tools">
     <span class="swatches" id="swatches"></span>
@@ -1477,7 +1477,6 @@ async function askSaveDir(){
 }
 $('guideOk')&&($('guideOk').onclick=()=>{
   $('guideMask').classList.remove('open');
-  try{localStorage.setItem('pn.guideSeen','1')}catch(e){}
 });
 $('btnGuide')&&($('btnGuide').onclick=showGuide);
 /* 버튼을 길게(0.6초) 누르고 있으면 그 버튼의 설명이 뜹니다.
@@ -1542,7 +1541,6 @@ async function loadPdf(bytes,name,id){
   S.fileId=id||(name+'|'+bytes.byteLength);
   $('fileName').textContent=name;
   const w=$('welcome');w.hidden=true;w.style.display='none';
-  try{if(!localStorage.getItem('pn.guideSeen'))setTimeout(showGuide,700)}catch(e){}
   setTimeout(askSaveDir,1500);
   const prev=await Store.getFile(S.fileId);
   S.folder=(prev&&prev.folder!==undefined)?prev.folder:(S.lib||'');
@@ -3533,7 +3531,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='20.0';
+const APP_VER='20.1';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3853,6 +3851,7 @@ $('jsonInput').onchange=async e=>{
   await step(()=>renderWhere());
   $('verLabel').textContent='판서노트 '+APP_VER;
   setTimeout(autoCheckUpdate,2500);
+  setTimeout(showGuide,900);                 /* 켤 때마다 손동작 안내 */
   setTool('pen',$('btnPen'));
   paintSwatches();showColor();updateTouchBtn();
   markSaved();
