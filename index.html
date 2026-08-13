@@ -701,7 +701,8 @@ try{
       <div><b>▥ 한 번 더</b><span>칠판만 전체 화면으로 씁니다</span></div>
       <div><b>＋ NEW</b><span>칠판 쪽을 계속 추가할 수 있습니다</span></div>
       <div><b>🖐 손 도구</b><span>칠판을 잡고 끌어서 옮깁니다</span></div>
-      <div><b>✂ 오리기</b><span>PDF 그림을 둘러 칠판으로 가져옵니다</span></div>
+      <div><b>✂ 오리기</b><span>둘러서 오리면 ✋ 로 바뀝니다</span></div>
+      <div><b>▥ / 📄 손잡이</b><span>오린 그림을 칠판↔PDF로 보냅니다</span></div>
     </div>
     <div class="row" style="justify-content:flex-end;margin-top:16px">
       <button id="guideOk" class="primary">알겠습니다</button>
@@ -1458,7 +1459,7 @@ const Backup={
 const S={
   doc:null,fileId:null,fileName:'',page:1,pages:0,
   scale:1.3,fitting:true,date:todayStr(),
-  strokes:[],pageHas:new Set(),
+  strokes:[],imgs:[],sel:null,imgDrag:null,pageHas:new Set(),
   tool:'pen',colors:{pen:'#111111',hl:'#f5c400',laser:'#ff3b30'},sizes:{pen:4,hl:12,laser:8,eraser:10},
   drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false,
   fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,tx:0,ty:0,tap:null,flipAt:0,
@@ -1680,10 +1681,93 @@ function paintStroke(st){
   }
   ictx.restore();
 }
+/* 오려서 가져다 놓은 그림 — PDF 쪽에도, 칠판에도 놓을 수 있습니다.
+   좌표는 모두 "쪽 가로폭 = 1" 기준이라 확대해도 자리가 안 틀어집니다 */
+const pdfImgCache=new Map();
+function pImgEl(it){
+  let im=pdfImgCache.get(it.id);
+  if(im)return im;
+  im=new Image(); im.onload=()=>redraw(); im.src=it.src;
+  pdfImgCache.set(it.id,im); return im;
+}
+function pImgRect(it){const W=S.pdfW;return [it.x*W,it.y*W,it.w*W,it.w*it.ar*W]}
+/* 고른 그림에 붙는 손잡이 — ▥ 칠판으로 / ✕ 지우기 / ↘ 크기 */
+function drawHandles(cx,x,y,w,h,leftIcon){
+  cx.save();
+  cx.setLineDash([9,7]);cx.lineWidth=2;cx.strokeStyle='#f0a020';
+  cx.strokeRect(x,y,w,h);cx.setLineDash([]);
+  cx.font='600 17px system-ui,sans-serif';cx.textAlign='center';cx.textBaseline='middle';
+  cx.beginPath();cx.arc(x,y,17,0,Math.PI*2);cx.fillStyle='#3b7ddd';cx.fill();
+  cx.fillStyle='#fff';cx.fillText(leftIcon,x,y+1);
+  cx.beginPath();cx.arc(x+w,y,17,0,Math.PI*2);cx.fillStyle='#e05a4a';cx.fill();
+  cx.fillStyle='#fff';cx.fillText('✕',x+w,y+1);
+  cx.beginPath();cx.arc(x+w,y+h,17,0,Math.PI*2);cx.fillStyle='#f0a020';cx.fill();
+  cx.fillStyle='#fff';cx.fillText('↘',x+w,y+h+1);
+  cx.restore();
+}
+function hitHandles(sx,sy,x,y,w,h,selected){
+  const R=22;
+  if(selected){
+    if(Math.hypot(sx-(x+w),sy-(y+h))<R)return'size';
+    if(Math.hypot(sx-(x+w),sy-y)<R)return'del';
+    if(Math.hypot(sx-x,sy-y)<R)return'send';
+  }
+  if(sx>=x&&sx<=x+w&&sy>=y&&sy<=y+h)return'move';
+  return null;
+}
+function pImgHit(sx,sy){
+  const list=S.imgs||[];
+  for(let i=list.length-1;i>=0;i--){
+    const it=list[i], [x,y,w,h]=pImgRect(it);
+    const m=hitHandles(sx,sy,x,y,w,h,S.sel===it.id);
+    if(m)return{it,mode:m};
+  }
+  return null;
+}
 function redraw(){
   ictx.clearRect(0,0,S.rendered.w,S.rendered.h);
+  for(const it of (S.imgs||[])){
+    const im=pImgEl(it);
+    if(!im.complete||!im.naturalWidth)continue;
+    const [x,y,w,h]=pImgRect(it);
+    ictx.drawImage(im,x,y,w,h);
+    if(S.sel===it.id)drawHandles(ictx,x,y,w,h,'▥');
+  }
   S.strokes.forEach(paintStroke);
   if(S.cur)paintStroke(S.cur);
+}
+async function pImgDel(it){
+  if(!await askConfirm('오려 온 그림을 지웁니다. 계속할까요?'))return;
+  S.imgs=(S.imgs||[]).filter(q=>q!==it);
+  pdfImgCache.delete(it.id);
+  if(S.sel===it.id)S.sel=null;
+  S.edited=true;redraw();scheduleSave();
+}
+/* PDF 쪽 ↔ 칠판 서로 보내기 */
+async function imgToBoard(it){
+  if(!S.splitMode)await applySplitMode(1,true);
+  bdResize();
+  const k=bdSc(), visW=BD.w/k, visH=BD.h/k;
+  let w=(it.w*S.pdfW)/k;                       /* 화면에서 보이던 크기 그대로 */
+  if(w>visW*0.9)w=visW*0.9;
+  if(w*it.ar>visH*0.9)w=visH*0.9/it.ar;
+  BD.imgs=BD.imgs||[];
+  BD.imgs.push({id:it.id,src:it.src,ar:it.ar,w,
+                x:(BD.ox||0)+(visW-w)/2, y:(BD.oy||0)+(visH-w*it.ar)/2});
+  BD.sel=it.id;
+  S.imgs=(S.imgs||[]).filter(q=>q!==it); if(S.sel===it.id)S.sel=null;
+  S.edited=true;redraw();scheduleSave();bdRedraw();bdSaveSoon();
+  toast('칠판으로 보냈습니다');
+}
+function imgToPdf(it){
+  let w=(it.w*bdSc())/S.pdfW;
+  if(w>0.9)w=0.9;
+  S.imgs=S.imgs||[];
+  S.imgs.push({id:it.id,src:it.src,ar:it.ar,w,x:(1-w)/2,y:0.08});
+  S.sel=it.id;
+  BD.imgs=(BD.imgs||[]).filter(q=>q!==it); if(BD.sel===it.id)BD.sel=null;
+  S.edited=true;redraw();scheduleSave();bdRedraw();bdSaveSoon();
+  toast('PDF 쪽으로 보냈습니다 — ✋ 로 옮기세요');
 }
 /* 그리는 중에는 새로 이어진 부분만 덧그립니다 — 전자칠판에서 훨씬 부드럽습니다 */
 function drawLast(){
@@ -2170,22 +2254,14 @@ async function cutEnd(){
   cx.drawImage(pdfCv, x0*dpr,y0*dpr,wc*dpr,hc*dpr, 0,0,out.width,out.height);
   cx.drawImage(inkCv, x0*dpr,y0*dpr,wc*dpr,hc*dpr, 0,0,out.width,out.height);
   cx.restore();
-  await bdAddImage(out.toDataURL('image/png'), wc, hc);
-}
-async function bdAddImage(src,wc,hc){
-  if(!S.splitMode)await applySplitMode(1,true);   /* 칠판이 닫혀 있으면 반반으로 켭니다 */
-  bdResize();
-  const k=bdSc(), ar=hc/wc;
-  const visW=BD.w/k, visH=BD.h/k;
-  let w=wc/k;                                    /* 화면에서 보이던 크기 그대로 */
-  if(w>visW*0.9)w=visW*0.9;
-  if(w*ar>visH*0.9)w=visH*0.9/ar;
+  const W=S.pdfW;
   const it={id:'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
-            src, ar, w,
-            x:(BD.ox||0)+(visW-w)/2, y:(BD.oy||0)+(visH-w*ar)/2};
-  BD.imgs=BD.imgs||[];BD.imgs.push(it);BD.sel=it.id;
-  bdImgEl(it);S.edited=true;bdRedraw();bdSaveSoon();
-  toast('칠판으로 가져왔습니다 — ✋ 로 옮기거나 크기를 바꿉니다');
+            src:out.toDataURL('image/png'), ar:hc/wc, w:wc/W, x:x0/W, y:y0/W};
+  S.imgs=S.imgs||[];S.imgs.push(it);S.sel=it.id;
+  pImgEl(it);S.edited=true;redraw();scheduleSave();
+  setTool('hand',$('btnHand'));                  /* 오리자마자 바로 옮길 수 있게 */
+  S.sel=it.id;redraw();
+  toast('오렸습니다 — 끌어서 옮기고, ▥ 를 누르면 칠판으로 갑니다');
 }
 
 inkCv.addEventListener('dragstart',e=>e.preventDefault());
@@ -2205,6 +2281,18 @@ inkCv.addEventListener('pointerdown',e=>{
     try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
     cutStart(e);return;
   }
+  if(S.tool==='hand'&&(S.imgs||[]).length){                /* ✋ 는 그림을 잡는 손이기도 합니다 */
+    const [sx,sy]=pos(e), hit=pImgHit(sx,sy);
+    if(hit){
+      if(hit.mode==='del'){pImgDel(hit.it);return}
+      if(hit.mode==='send'){imgToBoard(hit.it);return}
+      S.sel=hit.it.id;
+      S.imgDrag={it:hit.it,mode:hit.mode,sx,sy,x0:hit.it.x,y0:hit.it.y,w0:hit.it.w};
+      try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
+      redraw();return;
+    }
+    if(S.sel){S.sel=null;redraw()}
+  }
   S.downAt={t:performance.now(),x:e.clientX,y:e.clientY};
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType,t:performance.now()});
   try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
@@ -2218,6 +2306,12 @@ inkCv.addEventListener('pointerdown',e=>{
 inkCv.addEventListener('pointermove',e=>{
   ghostMove(e);
   if(CUT.on){cutMove(e);return}
+  if(S.imgDrag){
+    const [sx,sy]=pos(e), d=S.imgDrag, W=S.pdfW;
+    if(d.mode==='move'){d.it.x=d.x0+(sx-d.sx)/W;d.it.y=d.y0+(sy-d.sy)/W}
+    else d.it.w=Math.max(0.05,d.w0+(sx-d.sx)/W);
+    redraw();return;
+  }
   const p=ptrs.get(e.pointerId);if(!p)return;
   p.x=e.clientX;p.y=e.clientY;p.t=performance.now();
   if(S.pinch)return movePinch();
@@ -2230,6 +2324,7 @@ function doubleTapZoom(e){ return false }
 function release(e){
   ghostHide();
   if(CUT.on){cutEnd();return}
+  if(S.imgDrag){S.imgDrag=null;S.edited=true;scheduleSave();return}
   const dn=S.downAt;S.downAt=null;
   if(dn&&ptrs.size===1&&performance.now()-dn.t<300&&
      Math.hypot(e.clientX-dn.x,e.clientY-dn.y)<10&&
@@ -2271,14 +2366,18 @@ function erase(x,y){
 async function loadStrokes(){
   const rec=await Store.getNote(noteKey(S.fileId,S.date,S.page));
   S.strokes=rec&&rec.strokes?JSON.parse(JSON.stringify(rec.strokes)):[];
+  S.imgs=rec&&rec.imgs?JSON.parse(JSON.stringify(rec.imgs)):[];
+  S.sel=null;S.imgDrag=null;
 }
 function scheduleSave(){clearTimeout(S.saveTimer);S.saveTimer=setTimeout(saveNow,600)}
 async function saveNow(){
   if(!S.fileId)return;
   const key=noteKey(S.fileId,S.date,S.page);
-  if(S.strokes.length)await Store.putNote({key,file:S.fileId,date:S.date,page:S.page,strokes:S.strokes,at:Date.now()});
+  const has=S.strokes.length||(S.imgs&&S.imgs.length);
+  if(has)await Store.putNote({key,file:S.fileId,date:S.date,page:S.page,
+                              strokes:S.strokes,imgs:S.imgs||[],at:Date.now()});
   else await Store.delNote(key);
-  if(S.strokes.length)S.pageHas.add(S.page);else S.pageHas.delete(S.page);
+  if(has)S.pageHas.add(S.page);else S.pageHas.delete(S.page);
   buildRail();markSaved();Backup.schedule();AutoDL.schedule();
   try{const fr=await Store.getFile(S.fileId);
       if(fr&&fr.lastPage!==S.page){fr.lastPage=S.page;await Store.putFile(fr)}}catch(e){}
@@ -2286,7 +2385,8 @@ async function saveNow(){
 async function refreshMarks(){
   S.pageHas=new Set();
   (await Store.allNotes()).forEach(n=>{
-    if(n&&n.file===S.fileId&&n.date===S.date&&n.strokes&&n.strokes.length)S.pageHas.add(n.page);
+    if(n&&n.file===S.fileId&&n.date===S.date&&
+       ((n.strokes&&n.strokes.length)||(n.imgs&&n.imgs.length)))S.pageHas.add(n.page);
   });
 }
 window.addEventListener('beforeunload',()=>{if(S.strokes.length){saveNow();Backup.write(true)}});
@@ -2449,35 +2549,15 @@ function bdPaintImgs(){
     if(!im.complete||!im.naturalWidth)continue;
     const [x,y,w,h]=bdImgRect(it);
     bdctx.drawImage(im,x,y,w,h);
-    if(BD.sel!==it.id)continue;
-    bdctx.save();
-    bdctx.setLineDash([9,7]);bdctx.lineWidth=2;bdctx.strokeStyle='#f0a020';
-    bdctx.strokeRect(x,y,w,h);bdctx.setLineDash([]);
-    /* 오른쪽 아래 = 크기 조절 */
-    bdctx.beginPath();bdctx.arc(x+w,y+h,15,0,Math.PI*2);
-    bdctx.fillStyle='#f0a020';bdctx.fill();
-    bdctx.strokeStyle='#fff';bdctx.lineWidth=2.2;
-    bdctx.beginPath();bdctx.moveTo(x+w-6,y+h+6);bdctx.lineTo(x+w+6,y+h-6);bdctx.stroke();
-    bdctx.beginPath();bdctx.moveTo(x+w+6,y+h-6);bdctx.lineTo(x+w+1,y+h-6);
-    bdctx.moveTo(x+w+6,y+h-6);bdctx.lineTo(x+w+6,y+h-1);bdctx.stroke();
-    /* 오른쪽 위 = 지우기 */
-    bdctx.beginPath();bdctx.arc(x+w,y,15,0,Math.PI*2);
-    bdctx.fillStyle='#e05a4a';bdctx.fill();
-    bdctx.strokeStyle='#fff';
-    bdctx.beginPath();bdctx.moveTo(x+w-5,y-5);bdctx.lineTo(x+w+5,y+5);
-    bdctx.moveTo(x+w+5,y-5);bdctx.lineTo(x+w-5,y+5);bdctx.stroke();
-    bdctx.restore();
+    if(BD.sel===it.id)drawHandles(bdctx,x,y,w,h,'📄');
   }
 }
 function bdHit(sx,sy){                       /* 화면 위치에서 그림·손잡이를 찾습니다 */
-  const R=20, list=BD.imgs||[];
+  const list=BD.imgs||[];
   for(let i=list.length-1;i>=0;i--){
     const it=list[i], [x,y,w,h]=bdImgRect(it);
-    if(BD.sel===it.id){
-      if(Math.hypot(sx-(x+w),sy-(y+h))<R)return{it,mode:'size'};
-      if(Math.hypot(sx-(x+w),sy-y)<R)return{it,mode:'del'};
-    }
-    if(sx>=x&&sx<=x+w&&sy>=y&&sy<=y+h)return{it,mode:'move'};
+    const m=hitHandles(sx,sy,x,y,w,h,BD.sel===it.id);
+    if(m)return{it,mode:m};
   }
   return null;
 }
@@ -2548,6 +2628,7 @@ bdCv.addEventListener('pointerdown',e=>{
     const hit=bdHit(sx,sy);
     if(hit){
       if(hit.mode==='del'){bdDelImg(hit.it);return}
+      if(hit.mode==='send'){imgToPdf(hit.it);return}
       BD.sel=hit.it.id;
       BD.imgDrag={it:hit.it,mode:hit.mode,sx,sy,x0:hit.it.x,y0:hit.it.y,w0:hit.it.w};
       try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
@@ -2961,7 +3042,7 @@ function openEraserPop(anchor){
 }
 $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
 $('btnCut').onclick=e=>{setTool('cut',e.currentTarget);
-  if(!CUT.seen){CUT.seen=true;toast('가져올 그림 둘레를 한 바퀴 둘러 주세요 — 칠판으로 옮겨집니다')}};
+  if(!CUT.seen){CUT.seen=true;toast('오릴 그림 둘레를 한 바퀴 둘러 주세요')}};
 $('btnFinger').onclick=()=>setFinger(!S.fingerDraws,true);
 $('btnLaser').onclick=e=>setTool('laser',e.currentTarget);
 /* 전체화면 유지 — 한 번 켜 두면 다음에 열 때도, 중간에 풀려도 다시 들어갑니다.
@@ -2980,7 +3061,7 @@ $('btnClose').onclick=async()=>{
   if(!S.doc){toast('열려 있는 자료가 없습니다');return}
   const btn=$('btnClose2'),label=btn.textContent;
   await saveNow();
-  const hasInk=S.edited&&(S.pageHas.size>0||BD.strokes.length>0);   /* 이번에 손댔을 때만 저장합니다 */
+  const hasInk=S.edited&&(S.pageHas.size>0||BD.strokes.length>0||(BD.imgs||[]).length>0);   /* 이번에 손댔을 때만 저장합니다 */
   let saved=false;
   if(hasInk){
     btn.textContent='저장 중…';btn.disabled=true;
@@ -2989,7 +3070,7 @@ $('btnClose').onclick=async()=>{
     saved=await AutoDL.run(true);
   }
   S.doc=null;S.fileId=null;S.fileName='';S.folder='';
-  S.pages=0;S.page=1;S.strokes=[];S.cur=null;S.pageHas=new Set();
+  S.pages=0;S.page=1;S.strokes=[];S.imgs=[];S.sel=null;S.cur=null;S.pageHas=new Set();
   S.tx=0;S.ty=0;S.fitting=true;laser.list=[];
   try{
     for(const cv of [pdfCv,inkCv,fxCv]){
@@ -3595,6 +3676,12 @@ async function buildPdf(){
     cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
     await pg.render({canvasContext:cx,viewport:vp}).promise;
     const rec=await Store.getNote(noteKey(S.fileId,S.date,p));
+    for(const it of ((rec&&rec.imgs)||[])){          /* 오려 붙인 그림이 먼저, 필기가 그 위에 */
+      try{
+        const im=await new Promise((ok,no)=>{const q=new Image();q.onload=()=>ok(q);q.onerror=no;q.src=it.src});
+        cx.drawImage(im,it.x*vp.width,it.y*vp.width,it.w*vp.width,it.w*it.ar*vp.width);
+      }catch(e){}
+    }
     paintOn(cx,(rec&&rec.strokes)||[],vp.width,cv.height);
     const img=cv.toDataURL('image/jpeg',.95),land=cv.width>cv.height;
     const fmt=[land?842:595,land?595:842];
@@ -3777,7 +3864,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='21.0';
+const APP_VER='21.1';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
