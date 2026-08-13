@@ -2986,6 +2986,12 @@ async function renderFolders(){
 }
 $('btnExplore')&&($('btnExplore').onclick=async()=>{
   if(Backup.ok){browseSaved();return}                       /* 정한 폴더를 바로 엽니다 */
+  if(!Backup.supported()){                                  /* 아이패드 등 — 폴더 기능 자체가 없습니다 */
+    await askConfirm('이 기기(아이패드 등)의 브라우저는 폴더 저장을 지원하지 않습니다.\n'+
+      '저장한 PDF는 파일 앱 → 다운로드에서 볼 수 있습니다.\n'+
+      '폴더 저장은 윈도우 전자칠판·컴퓨터에서 쓸 수 있습니다.');
+    return;
+  }
   if(Backup.handle){const ok=await Backup.reauth();if(ok){browseSaved();return}}
   const yes=await askConfirm('아직 저장 폴더를 정하지 않아 다운로드 폴더에 저장되고 있습니다.\n(브라우저 규칙상 다운로드 폴더는 여기서 열어볼 수 없습니다)\n\n지금 저장 폴더를 정할까요?');
   if(yes){const ok=await Backup.connect();if(ok)browseSaved()}
@@ -3537,7 +3543,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='20.4';
+const APP_VER='20.6';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3778,15 +3784,30 @@ function renderDirBox(){
     return;
   }
   if(Backup.ok){
-    box.innerHTML='<span class="badge"><span class="lamp"></span>'+
-      `"${Backup.handle.name}" 폴더에 자동 저장 중</span>`+
-      '<p style="margin-top:8px">판서 PDF가 자동으로 저장됩니다.<br>'+
-      '<small style="color:var(--text-dim)">서재에서 자료를 폴더로 옮기면, 저장도 그 이름의 하위 폴더로 함께 들어갑니다.</small></p>'+
+    box.innerHTML=
+      `<span class="badge" style="background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700;font-size:15px">`+
+      `<span class="lamp" style="background:#1a1a12"></span>"${Backup.handle.name}" 폴더에 자동 저장 중</span>`+
+      '<p style="margin-top:8px"><small style="color:var(--text-dim)">폴더를 고를 때 선택한 그 위치입니다 — '+
+      '보안 규칙상 브라우저가 전체 경로(C:\\… )는 알려주지 않습니다. 🗂 탐색 버튼으로 안을 바로 볼 수 있습니다.</small></p>'+
+      '<div id="dirTree" class="mono" style="margin-top:8px;line-height:1.9;font-size:14px"></div>'+
       '<div class="row" style="margin-top:10px">'+
       '<button id="btnMkFolder">＋ 새 분류 폴더 만들기</button>'+
       '<button id="btnDirOff" class="ghost">폴더 연결 끊기</button></div>';
     $('btnMkFolder').onclick=()=>{$('modal').classList.remove('open');$('btnNewFolder').click()};
     $('btnDirOff').onclick=async()=>{await Backup.disconnect();renderDirBox();renderWhere();toast('폴더 연결을 끊었습니다')};
+    /* 하위 폴더를 나무 모양으로 보여줍니다 */
+    (async()=>{
+      try{
+        const dirs=[];
+        for await (const [nm,h] of Backup.handle.entries())if(h.kind==='directory')dirs.push(nm);
+        dirs.sort((a,b)=>a.localeCompare(b,'ko'));
+        const tree=$('dirTree');if(!tree)return;
+        let html=`📁 <b style="color:var(--chalk)">${Backup.handle.name}</b>`;
+        if(dirs.length)html+=dirs.map(d=>`<br><span style="color:var(--text-dim)">&nbsp;&nbsp;├─</span> 📁 ${d}`).join('');
+        else html+='<br><span style="color:var(--text-dim)">&nbsp;&nbsp;└─ (아직 하위 폴더 없음 — 판서 PDF가 바로 이 안에 저장됩니다)</span>';
+        tree.innerHTML=html;
+      }catch(e){}
+    })();
     return;
   }
   const again=!!Backup.handle;
