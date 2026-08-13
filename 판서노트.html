@@ -75,6 +75,10 @@ try{
     max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .grp{display:flex;align-items:center;gap:6px;flex:0 0 auto;padding-right:10px;margin-right:2px;border-right:1px solid var(--line)}
   .grp:last-child{border-right:0}
+  /* 확대·칠판 묶음은 항상 오른쪽 끝에 붙입니다 (펜은 왼쪽에 그대로) */
+  #rightGrp{margin-left:auto;border-right:0}
+  #btnFinger{min-width:74px;justify-content:center}
+  #btnFinger.move{border-color:var(--chalk-dim);color:var(--chalk)}
 
   button{font:inherit;color:var(--text);background:var(--ink-3);border:1px solid var(--line);
     border-radius:var(--radius);min-height:50px;padding:0 15px;cursor:pointer;
@@ -457,6 +461,7 @@ try{
     </button>
     <span class="tsep2"></span>
     <button class="tool" data-label="이동" id="btnHand" title="끌어서 화면 옮기기">✋</button>
+    <button id="btnFinger" title="손가락이 필기할지 화면을 옮길지 정합니다">손 ✍</button>
 
   </div>
 
@@ -464,9 +469,10 @@ try{
     <button class="icon" id="btnThin" title="가늘게">−</button>
     <span class="mono" id="sizeNow">4</span>
     <button class="icon" id="btnThick" title="굵게">＋</button>
+    <button class="icon" id="btnUndo" title="되돌리기">↩︎</button>
   </div>
 
-  <div class="grp">
+  <div class="grp" id="rightGrp">
     <button class="icon" id="btnZoomOut" title="축소">−</button>
     <span class="mono" id="zoomInfo" style="min-width:56px;text-align:center;color:var(--text-dim)">100%</span>
     <button class="icon" id="btnZoomIn" title="확대">＋</button>
@@ -475,11 +481,6 @@ try{
     <button class="icon" id="btnRotate" title="화면 돌리기">⟳</button>
 
     <button id="btnSplit" title="오른쪽에 칠판을 엽니다">▥ 칠판</button>
-  </div>
-
-  <div class="grp">
-    <button class="icon" id="btnUndo" title="되돌리기">↩︎</button>
-
   </div>
 
   <span class="saved" id="toolNow" hidden>펜</span>
@@ -1601,19 +1602,36 @@ function pos(e){
 function penDown(){for(const p of ptrs.values())if(p.type==='pen')return true;return false}
 /* 손바닥은 접촉 면적이 넓습니다. 도구가 무엇이든 손바닥으로 밀면 화면이 움직입니다 */
 /* 손바닥처럼 넓게 닿으면 이동·쪽넘김, 손끝·펜은 필기 */
+function touchCount(){let k=0;for(const p of ptrs.values())if(p.type==='touch')k++;return k}
 function isPalm(e){
   if(e.pointerType!=='touch')return false;
-  return ((e.width||0)>=28||(e.height||0)>=28);
+  if(touchCount()>=1)return true;              /* 이미 손이 닿아 있으면 손바닥입니다 */
+  return ((e.width||0)>=22||(e.height||0)>=22);
 }
 /* 펜·마우스 = 필기 / 손가락 = 이동·넘김 */
 function isWriter(type){ return type==='pen'||type==='mouse' }
 function canDraw(type,e){
   if(S.tool==='hand')return false;             /* ✋ 를 고르면 무엇으로든 이동 */
+  if(type==='touch'&&!S.fingerDraws)return false;   /* 손은 이동 전용 */
   if(e&&isPalm(e))return false;                /* 손바닥으로 밀면 이동 */
   return true;                                 /* 펜·손끝·마우스는 필기 */
 }
+const FINGER_KEY='pn.fingerDraws';
+function loadFinger(){try{const v=localStorage.getItem(FINGER_KEY);if(v!==null)S.fingerDraws=(v==='1')}catch(e){}}
+function saveFinger(){try{localStorage.setItem(FINGER_KEY,S.fingerDraws?'1':'0')}catch(e){}}
+function setFinger(v,say){
+  S.fingerDraws=!!v; saveFinger(); updateTouchBtn();
+  if(say)toast(S.fingerDraws?'손가락으로도 필기합니다':'손은 이동·쪽넘김만 합니다 — 필기는 펜으로');
+}
 function updateTouchBtn(){
   const b=$('btnHand');if(b)b.title='끌어서 화면 옮기기 · 쪽 넘기기';
+  const f=$('btnFinger');
+  if(f){
+    f.textContent=S.fingerDraws?'손 ✍':'손 ✋';
+    f.classList.toggle('move',!S.fingerDraws);
+    f.title=S.fingerDraws?'지금은 손가락도 필기합니다 — 누르면 이동 전용이 됩니다'
+                         :'지금은 손이 화면만 옮깁니다 — 누르면 손으로도 씁니다';
+  }
 }
 /* 손가락으로 그릴 수 있게 켜고 끕니다 (EJ Pen 같은 칠판 프로그램이 켜져 있을 때 필요) */
 document.addEventListener('DOMContentLoaded',()=>{},{once:true});
@@ -1622,7 +1640,7 @@ function cancelStroke(){if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=
 /* 펜 ─ 획 그리기 */
 function startStroke(e){
   const [x,y]=pos(e);
-  S.drawing=true;S.last=[x,y];
+  S.drawing=true;S.last=[x,y];S.strokeBy=e.pointerType;
   if(S.tool==='laser'){laserPoint(x,y,true);return}
   S.penErase=(e.pointerType==='pen'&&e.buttons===32);   /* 펜 뒤쪽 지우개 버튼 */
   if(S.penErase||S.tool==='eraser'){erase(x,y);return}
@@ -1646,8 +1664,22 @@ function moveStroke(e){
 function endStroke(){
   if(!S.drawing)return;
   S.drawing=false;S.penErase=false;
-  if(S.cur){S.strokes.push(S.cur);S.cur=null;S.edited=true}
+  if(S.cur){
+    S.strokes.push(S.cur);
+    if(S.strokeBy==='touch')S.lastTouch={s:S.cur,at:performance.now()};
+    S.cur=null;S.edited=true;
+  }
+  S.strokeBy='';
   scheduleSave();
+}
+/* 손바닥은 여러 점이 시차를 두고 닿습니다. 뒤늦게 두 번째 점이 오면
+   방금 손으로 그어진 선을 없던 일로 되돌립니다 */
+function undoTouchSmudge(){
+  const L=S.lastTouch;
+  if(!L||performance.now()-L.at>500)return;
+  const i=S.strokes.indexOf(L.s);
+  if(i>=0){S.strokes.splice(i,1);redraw()}
+  S.lastTouch=null;
 }
 /* 좁은 화면에서는 좌우 가장자리를 톡 치면 쪽이 넘어갑니다 */
 function edgeTap(e){
@@ -1804,7 +1836,7 @@ const SW={id:null,x:0,y:0,t:0,type:''};
 inkCv.addEventListener('pointerdown',e=>{
   if(!S.doc)return;
   if(e.pointerType!=='touch')return;          /* 손가락만 넘김 대상 */
-  if(S.tool!=='hand'&&!isPalm(e))return;      /* 손바닥이나 ✋ 이동일 때 넘깁니다 */
+  if(S.tool!=='hand'&&S.fingerDraws&&!isPalm(e))return;   /* 손이 필기 중일 때만 막습니다 */
   if(penDown())return;
   if(ptrs.size>1){SW.id=null;return}
   SW.id=e.pointerId;SW.x=e.clientX;SW.y=e.clientY;SW.t=performance.now();SW.type=e.pointerType;
@@ -1877,8 +1909,9 @@ inkCv.addEventListener('pointerdown',e=>{
   e.preventDefault();
   ghostShow(e);
   if(e.pointerType==='pen'&&!S.penSeen){          /* 펜을 처음 본 순간 자동 전환 */
-    S.penSeen=true;updateTouchBtn();
-    toast('펜을 인식했습니다');
+    S.penSeen=true;
+    if(S.fingerDraws){setFinger(false);toast('펜을 인식했습니다 — 이제 손은 화면만 옮깁니다')}
+    else{updateTouchBtn();toast('펜을 인식했습니다');}
   }
   if(e.pointerType==='touch'&&penDown())return;   /* 펜을 쥔 손바닥은 무시 */
   S.downAt={t:performance.now(),x:e.clientX,y:e.clientY};
@@ -1890,7 +1923,7 @@ inkCv.addEventListener('pointerdown',e=>{
   }
   if(isPalm(e)){
     if(!S.palmSeen){S.palmSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 밀면 화면이 움직입니다')}
-    cancelStroke();startPan(e);return;
+    cancelStroke();undoTouchSmudge();startPan(e);return;
   }
   if(canDraw(e.pointerType,e))startStroke(e);else startPan(e);
 });
@@ -2344,17 +2377,7 @@ function openEraserPop(anchor){
   placePop(anchor);
 }
 $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
-
-(()=>{                                   /* 길게 누르면 손가락 필기 전환 */
-  let tm=null;const b=$('btnHand');
-  const start=()=>{tm=setTimeout(()=>{
-    S.fingerDraws=!S.fingerDraws;updateTouchBtn();
-    toast(S.fingerDraws?'손가락으로도 필기합니다':'손가락은 넘김·이동 전용입니다');
-  },700)};
-  const stop=()=>{clearTimeout(tm)};
-  b.addEventListener('pointerdown',start);
-  ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,stop));
-})();
+$('btnFinger').onclick=()=>setFinger(!S.fingerDraws,true);
 $('btnLaser').onclick=e=>setTool('laser',e.currentTarget);
 /* 전체화면 유지 — 한 번 켜 두면 다음에 열 때도, 중간에 풀려도 다시 들어갑니다.
    브라우저 규칙상 화면을 한 번 눌러야(사용자 동작) 다시 전체화면이 됩니다. */
@@ -2816,7 +2839,7 @@ if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
       const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'});
       if(r.ok){
         const latest=(await r.json()).version;
-        if(latest&&parseFloat(latest)>parseFloat(APP_VER)){
+        if(latest&&verNewer(latest,APP_VER)){
           const once=sessionStorage.getItem('pn.selfHeal');
           if(!once){
             sessionStorage.setItem('pn.selfHeal','1');
@@ -3099,7 +3122,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='15.9';
+const APP_VER='16.0';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3114,6 +3137,15 @@ try{
 }catch(e){}
 const UPDATE_URL='https://raw.githubusercontent.com/jinheewhite/note/main/index.html';
 const VERSION_URL='https://raw.githubusercontent.com/jinheewhite/note/main/version.json';
+/* 15.9 다음이 15.10 이어도 바르게 비교합니다 (소수점으로 읽으면 15.1 이 됩니다) */
+function verNewer(a,b){
+  const A=String(a).split('.').map(Number), B=String(b).split('.').map(Number);
+  for(let i=0;i<Math.max(A.length,B.length);i++){
+    const x=A[i]||0, y=B[i]||0;
+    if(x!==y)return x>y;
+  }
+  return false;
+}
 function renderUpdBox(){
   $('updBox').innerHTML=
     `<span class="badge"><span class="lamp"></span>지금 버전 ${APP_VER}</span>`+
@@ -3133,7 +3165,7 @@ async function autoCheckUpdate(){
     const r=await fetch(VERSION_URL,{cache:'no-store'});
     if(!r.ok)return;
     const latest=(await r.json()).version;
-    if(!latest||parseFloat(latest)<=parseFloat(APP_VER))return;
+    if(!latest||!verNewer(latest,APP_VER))return;
     $('updMsg').textContent=`새 버전 ${latest} 이 나왔습니다 (지금 ${APP_VER})`;
     $('updBar').hidden=false;
     $('updNow').onclick=()=>{$('updBar').hidden=true;hardUpdate()};
@@ -3174,7 +3206,7 @@ async function checkUpdate(){
       if(!m)throw new Error();
       latest=m[1];
     }
-    if(parseFloat(latest)<=parseFloat(APP_VER)){toast(`이미 최신입니다 (${APP_VER})`);return}
+    if(!verNewer(latest,APP_VER)){toast(`이미 최신입니다 (${APP_VER})`);return}
     if(location.protocol.startsWith('http')){
       if(!confirm(`새 버전 ${latest} 이 있습니다.\n지금 업데이트할까요? (필기는 그대로 유지됩니다)`))return;
       await hardUpdate();
@@ -3366,6 +3398,7 @@ $('jsonInput').onchange=async e=>{
 (async()=>{
   const step=async(fn)=>{try{await fn()}catch(e){console.warn('시작 단계 건너뜀',e)}};
   $('verLabel').textContent='판서노트 '+APP_VER;
+  loadFinger();updateTouchBtn();
   await step(()=>Store.init());
   await step(async()=>{ if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist() });
   await step(()=>Backup.load());
