@@ -408,8 +408,8 @@ try{
   </div>
   <span class="saved" id="saved" hidden>—</span>
   <span id="boardCtl" hidden style="display:flex;align-items:center;gap:6px">
-    <button id="btnBoardBg" class="mini" title="칠판 바탕을 바꿉니다">칠판 바탕</button>
     <button id="btnBoardSwap" class="mini" title="칠판과 PDF 자리를 바꿉니다">⇄ 자리 바꾸기</button>
+    <button id="btnBoardBg" class="mini" title="칠판 바탕을 바꿉니다">칠판 바탕</button>
     <button id="btnBoardClear" class="mini">칠판 비우기</button>
   </span>
   <button id="btnFull" title="전체화면 (F11)">⛶ 전체화면</button>
@@ -2976,7 +2976,9 @@ $('fileInput').onchange=async e=>{
 };
 window.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT')return;
+  if(diagOn&&S.doc)toast('눌린 키: '+e.key);              /* Ctrl+D 켜고 리모컨을 눌러보세요 */
   if(e.key===' '){e.preventDefault();goto(e.shiftKey?S.page-1:S.page+1);return}  /* 리모컨 스페이스 */
+  if(e.key==='F5'){e.preventDefault();goto(S.page+1);return}   /* 프레젠터 시작 버튼 = 다음 쪽 */
   if(e.key==='ArrowRight'||e.key==='PageDown')goto(S.page+1);
   if(e.key==='ArrowLeft'||e.key==='PageUp')goto(S.page-1);
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();$('btnUndo').click()}
@@ -3223,7 +3225,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='17.6';
+const APP_VER='17.7';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
