@@ -396,7 +396,8 @@ try{
     <span class="dot"></span>
     <span><b>판서노트</b><small id="fileName">파일 없음</small></span>
   </div>
-  <button id="btnClear" title="이 쪽의 필기를 모두 지웁니다">쪽 비우기</button>
+  <button id="btnClear" title="지금 보는 쪽의 필기만 지웁니다">쪽 비우기</button>
+  <button id="btnClearAll" title="이 자료의 모든 쪽 필기를 지웁니다 (오늘 것)">전체 쪽 비우기</button>
   <button id="btnPdf" class="primary">PDF로 저장</button>
   <button id="btnOpen" hidden>PDF 열기</button>
   <button id="btnPng" hidden>쪽 그림</button>
@@ -1399,6 +1400,25 @@ const pdfCv=$('pdfCv'),inkCv=$('inkCv'),fxCv=$('fxCv'),
       pctx=pdfCv.getContext('2d'),ictx=inkCv.getContext('2d'),fctx=fxCv.getContext('2d');
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400)}
+/* 버튼을 길게(0.6초) 누르고 있으면 그 버튼의 설명이 뜹니다.
+   설명이 뜬 채로 손을 떼면 버튼은 눌리지 않습니다 — 궁금할 땐 길게, 쓸 땐 짧게 */
+let helpT=null,helpBtn=null,helpShown=false;
+document.addEventListener('pointerdown',e=>{
+  const b=e.target.closest&&e.target.closest('button[title]');
+  clearTimeout(helpT);helpShown=false;helpBtn=b||null;
+  if(!b)return;
+  const hx=e.clientX,hy=e.clientY;
+  helpT=setTimeout(()=>{helpShown=true;toast('ⓘ '+b.title)},600);
+  const mv=ev=>{if(Math.hypot(ev.clientX-hx,ev.clientY-hy)>12){clearTimeout(helpT);document.removeEventListener('pointermove',mv,true)}};
+  document.addEventListener('pointermove',mv,true);
+  setTimeout(()=>document.removeEventListener('pointermove',mv,true),1500);
+},true);
+['pointerup','pointercancel'].forEach(ev=>document.addEventListener(ev,()=>clearTimeout(helpT),true));
+document.addEventListener('click',e=>{
+  if(helpShown&&helpBtn&&e.target.closest&&e.target.closest('button[title]')===helpBtn){
+    e.preventDefault();e.stopPropagation();helpShown=false;   /* 설명만 보고 눌리진 않게 */
+  }
+},true);
 /* 브라우저 기본 confirm()은 전체화면을 강제로 풀어버립니다 — 화면 안에서 직접 묻습니다 */
 function askConfirm(msg){
   return new Promise(res=>{
@@ -2591,6 +2611,16 @@ $('btnClear').onclick=async()=>{
   if(!S.strokes.length)return;
   if(await askConfirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`)){S.strokes=[];S.edited=true;redraw();saveNow()}
 };
+$('btnClearAll').onclick=async()=>{
+  if(!S.doc)return;
+  const pages=[...S.pageHas];
+  if(!pages.length&&!S.strokes.length){toast('오늘 필기가 없습니다');return}
+  if(!await askConfirm(`이 자료의 오늘 필기를 전부 지웁니다 (${Math.max(pages.length,1)}개 쪽).\n지난 날짜의 필기는 남습니다. 계속할까요?`))return;
+  for(const pg of pages)await Store.delNote(noteKey(S.fileId,S.date,pg));
+  S.strokes=[];S.cur=null;S.edited=true;
+  await refreshMarks();buildRail();redraw();
+  toast('오늘 필기를 전부 지웠습니다');
+};
 function zoom(f,cx,cy){ quickZoom(f,cx,cy) }
 /* 확대·축소 버튼은 뺐습니다 — 두 손가락 확대·축소는 그대로 됩니다 */
 for(const id of ['topbar','dock']){
@@ -3227,7 +3257,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='17.8';
+const APP_VER='17.9';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
