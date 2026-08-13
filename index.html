@@ -1678,7 +1678,7 @@ function cancelStroke(){if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=
 /* 펜 ─ 획 그리기 */
 function startStroke(e){
   const [x,y]=pos(e);
-  S.drawing=true;S.last=[x,y];S.strokeBy=e.pointerType;
+  S.drawing=true;S.last=[x,y];S.strokeBy=e.pointerType;S.strokeAt=performance.now();
   if(S.tool==='laser'){laserPoint(x,y,true);return}
   S.penErase=(e.pointerType==='pen'&&e.buttons===32);   /* 펜 뒤쪽 지우개 버튼 */
   if(S.penErase||S.tool==='eraser'){erase(x,y);return}
@@ -1702,10 +1702,30 @@ function moveStroke(e){
   if(!S.cur)return;
   S.cur.pts.push(p);drawLast();
 }
+/* 손가락으로 빠르고 길게, 거의 직선으로 그으면 필기가 아니라 쪽 넘김으로 봅니다.
+   그어진 선은 지우고 넘깁니다. 짧거나 느리거나 구불구불하면 그대로 필기입니다 */
+function strokeSwipeFlip(){
+  const st=S.cur;
+  if(!st||st.pts.length<4)return 0;
+  if(performance.now()-(S.strokeAt||0)>900)return 0;         /* 빨라야 합니다 */
+  const xs=st.pts.map(p=>p[0]), ys=st.pts.map(p=>p[1]);
+  const dx=xs[xs.length-1]-xs[0], dy=ys[ys.length-1]-ys[0];
+  const xr=Math.max(...xs)-Math.min(...xs), yr=Math.max(...ys)-Math.min(...ys);
+  let dir=0;
+  if(Math.abs(dx)>=0.45&&yr<=0.08)dir=dx<0?1:-1;             /* 가로로 길고 곧게 */
+  else if(Math.abs(dy)>=0.45&&xr<=0.06)dir=dy<0?1:-1;        /* 세로로 길고 곧게 */
+  if(!dir)return 0;
+  if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return 0;
+  return dir;
+}
 function endStroke(){
   if(!S.drawing)return;
   S.drawing=false;S.penErase=false;
   if(S.cur){
+    if(S.strokeBy==='touch'){
+      const dir=strokeSwipeFlip();
+      if(dir){S.cur=null;S.strokeBy='';flip(dir);return}     /* 선은 버리고 넘깁니다 */
+    }
     S.strokes.push(S.cur);
     if(S.strokeBy==='touch')S.lastTouch={s:S.cur,at:performance.now()};
     S.cur=null;S.edited=true;
@@ -2956,6 +2976,7 @@ $('fileInput').onchange=async e=>{
 };
 window.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT')return;
+  if(e.key===' '){e.preventDefault();goto(e.shiftKey?S.page-1:S.page+1);return}  /* 리모컨 스페이스 */
   if(e.key==='ArrowRight'||e.key==='PageDown')goto(S.page+1);
   if(e.key==='ArrowLeft'||e.key==='PageUp')goto(S.page-1);
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();$('btnUndo').click()}
@@ -3202,7 +3223,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='17.5';
+const APP_VER='17.6';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
