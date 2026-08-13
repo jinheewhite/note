@@ -123,11 +123,12 @@ try{
   main{flex:1;display:flex;min-height:0;padding-bottom:var(--bar)}
   body.bar-top main,html.bar-top main{padding-bottom:0;padding-top:var(--bar)}
   aside{width:78px;flex:0 0 auto;background:var(--ink-2);border-right:1px solid var(--line);overflow-y:auto;padding:10px 0 40px}
-  /* 쪽 번호를 아래에 가로로 놓습니다 */
+  /* 가로 자료는 쪽 번호가 위쪽에 가로로 놓입니다 — 좌우로 넘긴다는 뜻입니다 */
   html.rail-h main{flex-direction:column}
-  html.rail-h aside{width:auto;height:54px;order:9;display:flex;align-items:center;gap:6px;
-    overflow-x:auto;overflow-y:hidden;border-right:0;border-top:1px solid var(--line);padding:0 10px}
-  html.rail-h aside .p{margin:0;min-width:46px;height:38px;flex:0 0 auto}
+  html.rail-h aside{width:auto;height:52px;order:-1;display:flex;align-items:center;gap:6px;
+    overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--line);
+    padding:0 12px;justify-content:center}
+  html.rail-h aside .p{margin:0;min-width:46px;height:36px;flex:0 0 auto}
   aside .p{margin:5px 11px;height:46px;border-radius:8px;border:1px solid transparent;
     display:flex;align-items:center;justify-content:center;gap:6px;color:var(--text-dim);cursor:pointer;font-size:14px}
   aside .p:hover{background:var(--ink-3);color:var(--text)}
@@ -470,7 +471,7 @@ try{
     <button class="icon" id="btnUpDown" title="한 화면씩 아래로 (끝나면 위로)">⇕</button>
     <button class="icon" id="btnFit" title="화면에 맞추기">⤢</button>
     <button class="icon" id="btnRotate" title="화면 돌리기">⟳</button>
-    <button class="icon" id="btnRail" title="쪽 번호를 옆/아래로">⋮⋮</button>
+
     <button id="btnSplit" title="오른쪽에 칠판을 엽니다">▥ 칠판</button>
   </div>
 
@@ -1487,6 +1488,8 @@ async function doRender(my){
   diag('다시그림');
   await loadStrokes();
   redraw();
+  /* 가로 자료면 쪽 번호를 위쪽 가로로, 세로 자료면 왼쪽 세로로 */
+  document.documentElement.classList.toggle('rail-h', S.rendered.w > S.rendered.h);
   $('pageInfo').textContent=`${S.page} / ${S.pages}`;
   $('dockPage').textContent=`${S.page} / ${S.pages}`;
   $('zoomInfo').textContent=Math.round(S.scale*(S.vz||1)/S.fitScale*100)+'%';
@@ -1792,8 +1795,7 @@ function swipeFlip(e){
   const p=S.pan;if(!p)return false;
   const dx=e.clientX-p.x, dy=e.clientY-p.y, dt=performance.now()-p.t;
   if(dt>1400)return false;
-  /* 위아래·좌우 어느 쪽으로 그어도 넘어갑니다 — 더 크게 움직인 쪽을 씁니다 */
-  const a=Math.abs(dx)>=Math.abs(dy)?dx:dy;
+  const a=Math.abs(dx)>=Math.abs(dy)?dx:dy;   /* 크게 움직인 쪽으로 넘깁니다 */
   if(Math.abs(a)<36)return false;
   const dir=a<0?1:-1;
   if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return false;
@@ -2497,13 +2499,6 @@ $('stage').addEventListener('wheel',e=>{
   }
 },{passive:false});
 $('btnFit').onclick=()=>{S.vz=1;S.fitting=true;S.tx=0;S.ty=0;renderPage()};
-$('btnRail').onclick=()=>{
-  const on=!document.documentElement.classList.contains('rail-h');
-  document.documentElement.classList.toggle('rail-h',on);
-  try{localStorage.setItem('pn.railH',on?'1':'0')}catch(e){}
-  setTimeout(()=>{if(S.doc)renderPage();if(S.split)bdResize()},140);
-  toast(on?'쪽 번호를 아래에 놓았습니다':'쪽 번호를 옆에 놓았습니다');
-};
 $('btnUpDown').onclick=()=>{             /* 한 화면씩 아래로, 끝나면 맨 위로 */
   if(!S.doc)return;
   const {my}=limits(), step=$('stage').clientHeight*0.8;
@@ -3111,7 +3106,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='15.6';
+const APP_VER='15.7';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3386,7 +3381,7 @@ $('jsonInput').onchange=async e=>{
       S.split=localStorage.getItem('pn.split')==='1';
       S.fingerDraws=localStorage.getItem('pn.finger')==='1'}catch(e){}
   try{if(localStorage.getItem('pn.faux')==='1')fauxFull(true)}catch(e){}
-  try{document.documentElement.classList.toggle('rail-h',localStorage.getItem('pn.railH')==='1')}catch(e){}
+
   updFullBtn();
   $('btnSplit').classList.toggle('on',S.split);
   $('board').hidden=!S.split;
