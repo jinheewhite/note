@@ -690,12 +690,14 @@ try{
       <div><b>🙌 양손 대각선</b><span>벌리면 확대 · 오므리면 축소</span></div>
       <div><b>📄 쪽의 끝</b><span>멈춤 — 한 번 더 밀면 다음 쪽</span></div>
       <div><b>🧽 칠판에서 손바닥</b><span>문지르면 지워집니다</span></div>
+      <div><b>✌️ 칠판에서 두 손가락</b><span>칠판을 위아래로 옮깁니다</span></div>
     </div>
     <h3 style="margin:18px 0 12px;font-size:16px;color:var(--text-dim)">이런 것도 됩니다</h3>
     <div class="guideRows">
       <div><b>▥ 칠판</b><span>PDF와 따로 움직이는 칠판이 열립니다</span></div>
       <div><b>▥ 한 번 더</b><span>칠판만 전체 화면으로 씁니다</span></div>
       <div><b>＋ NEW</b><span>칠판 쪽을 계속 추가할 수 있습니다</span></div>
+      <div><b>🖐 손 도구</b><span>칠판을 잡고 끌어서 옮깁니다</span></div>
     </div>
     <div class="row" style="justify-content:flex-end;margin-top:16px">
       <button id="guideOk" class="primary">알겠습니다</button>
@@ -1779,7 +1781,23 @@ document.addEventListener('visibilitychange',async()=>{
    ══════════════════════════════════════════════════════════ */
 const bdCv=$('bdCv'),bdctx=bdCv.getContext('2d');
 const BD={strokes:[],cur:null,drawing:false,last:null,w:1,h:1,timer:null,
-          page:1,pages:1,vz:1,tx:0,ty:0,pinch:null};
+          page:1,pages:1,vz:1,ox:0,oy:0,pinch:null,drag:null};
+/* 칠판은 "가로폭 = 1" 인 자기만의 좌표를 씁니다. 세로도 같은 자로 재기 때문에
+   반반으로 보든 칠판만 보든 글씨의 모양과 간격이 변하지 않습니다.
+   BD.oy 는 위아래로 얼마나 내려서 보고 있는지, BD.ox 는 좌우, BD.vz 는 확대배율입니다. */
+const bdSc=()=>BD.w*(BD.vz||1);              /* 칠판 좌표 → 화면 픽셀 */
+const bdSX=wx=>(wx-(BD.ox||0))*bdSc();
+const bdSY=wy=>(wy-(BD.oy||0))*bdSc();
+const bdWX=sx=>sx/bdSc()+(BD.ox||0);         /* 화면 픽셀 → 칠판 좌표 */
+const bdWY=sy=>sy/bdSc()+(BD.oy||0);
+/* u 표시가 없는 획은 예전 방식(세로를 화면 높이로 나눠 저장)이라 그대로 읽어 줍니다 */
+const bdPt=(st,q)=>[bdSX(q[0]), bdSY(st.u?q[1]:q[1]*(BD.h/BD.w))];
+function bdBottom(){                         /* 마지막 글씨까지 — 그 아래로 한 화면 더 내려갑니다 */
+  let m=0;
+  const f=st=>{const a=st.u?1:(BD.h/BD.w);for(const q of st.pts)if(q[1]*a>m)m=q[1]*a};
+  BD.strokes.forEach(f); if(BD.cur)f(BD.cur);
+  return Math.max(0,m);
+}
 const boardKey=(pg)=>{const p=pg||BD.page||1;return `${S.fileId||'-'}|${S.date}|BOARD${p>1?p:''}`};
 function bdPageInfo(){
   const el=$('bdPageInfo');if(el)el.textContent=`${BD.page||1}/${BD.pages||1}`;
@@ -1796,28 +1814,30 @@ async function bdGoto(pg){
   BD.pages=Math.max(BD.pages||1,BD.page);
   const rec=await Store.getNote(boardKey());
   BD.strokes=rec&&rec.strokes?JSON.parse(JSON.stringify(rec.strokes)):[];
-  BD.cur=null;bdRedraw();bdPageInfo();
+  BD.cur=null;BD.ox=0;BD.oy=0;BD.vz=1;      /* 새 쪽은 맨 위부터 */
+  bdRedraw();bdPageInfo();
 }
 
 function bdResize(){
-  BD.vz=1;BD.tx=0;BD.ty=0;BD.pinch=null;bdView();   /* 크기가 바뀌면 확대는 처음으로 */
+  BD.pinch=null;BD.drag=null;
+  bdCv.style.transform='';                  /* 칠판은 이제 그림 자체를 옮깁니다 */
   const r=bdCv.getBoundingClientRect();
   if(!r.width||!r.height)return;
   const dpr=Math.max(2.5,Math.min(window.devicePixelRatio||1,4));
   bdCv.width=Math.round(r.width*dpr);bdCv.height=Math.round(r.height*dpr);
   bdctx.setTransform(dpr,0,0,dpr,0,0);
   BD.w=r.width;BD.h=r.height;
-  bdRedraw();
+  bdClamp();bdRedraw();
 }
 function bdPaint(st){
   const pts=st.pts;if(!pts.length)return;
   bdctx.save();bdctx.lineCap='round';bdctx.lineJoin='round';bdctx.strokeStyle=st.color;
   if(st.mode==='hl'){bdctx.globalAlpha=.32;bdctx.lineCap='butt'}
-  bdctx.lineWidth=st.w*BD.w;
-  const P=p=>[p[0]*BD.w,p[1]*BD.h];
+  bdctx.lineWidth=st.w*bdSc();
+  const P=q=>bdPt(st,q);
   if(pts.length===1){
     const [x,y]=P(pts[0]);
-    bdctx.beginPath();bdctx.arc(x,y,(st.w*BD.w)/2,0,Math.PI*2);bdctx.fillStyle=st.color;bdctx.fill();
+    bdctx.beginPath();bdctx.arc(x,y,(st.w*bdSc())/2,0,Math.PI*2);bdctx.fillStyle=st.color;bdctx.fill();
   }else smoothPath(bdctx,pts.map(P));
   bdctx.restore();
 }
@@ -1835,12 +1855,15 @@ function bdRedraw(){
   bdctx.fillStyle=th.bg;bdctx.fillRect(0,0,BD.w,BD.h);
   if(th.line){
     bdctx.save();bdctx.strokeStyle=th.line;bdctx.lineWidth=1;
-    for(let y=36;y<BD.h;y+=36){bdctx.beginPath();bdctx.moveTo(0,y+.5);bdctx.lineTo(BD.w,y+.5);bdctx.stroke()}
-    if(th.grid)for(let x=36;x<BD.w;x+=36){bdctx.beginPath();bdctx.moveTo(x+.5,0);bdctx.lineTo(x+.5,BD.h);bdctx.stroke()}
+    const gap=36*(BD.vz||1);
+    const y0=-(((BD.oy||0)*bdSc())%gap+gap)%gap, x0=-(((BD.ox||0)*bdSc())%gap+gap)%gap;
+    for(let y=y0;y<BD.h;y+=gap){bdctx.beginPath();bdctx.moveTo(0,y+.5);bdctx.lineTo(BD.w,y+.5);bdctx.stroke()}
+    if(th.grid)for(let x=x0;x<BD.w;x+=gap){bdctx.beginPath();bdctx.moveTo(x+.5,0);bdctx.lineTo(x+.5,BD.h);bdctx.stroke()}
     bdctx.restore();
   }
   BD.strokes.forEach(bdPaint);
   if(BD.cur)bdPaint(BD.cur);
+  bdScrollBar();
 }
 async function bdLoad(){
   BD.page=1;
@@ -1868,15 +1891,21 @@ async function bdSave(){
 }
 /* 칠판 위의 터치들 — 손바닥은 좁게 여러 점, 양손 확대는 멀리 두 점 */
 const bdPtrs=new Map();
-function bdView(){
-  bdCv.style.transformOrigin='0 0';
-  bdCv.style.transform=(BD.vz>1.001)?`translate(${BD.tx}px,${BD.ty}px) scale(${BD.vz})`:'';
+/* 위아래로 얼마나 내려와 있는지 오른쪽에 가늘게 표시합니다 */
+function bdScrollBar(){
+  const bot=bdBottom(), wH=BD.h/bdSc();
+  if(bot<=0.002)return;
+  const total=bot+wH, len=Math.max(28,BD.h*(wH/total));
+  const y=((BD.oy||0)/total)*BD.h;
+  bdctx.save();
+  bdctx.fillStyle='rgba(0,0,0,.16)';
+  bdctx.fillRect(BD.w-7,Math.max(0,Math.min(BD.h-len,y)),3.5,len);
+  bdctx.restore();
 }
 function bdClamp(){
-  const host=$('board').getBoundingClientRect();
-  const w=host.width,h=host.height;
-  BD.tx=Math.min(0,Math.max(w-w*BD.vz,BD.tx));
-  BD.ty=Math.min(0,Math.max(h-h*BD.vz,BD.ty));
+  const k=bdSc(), wW=BD.w/k;
+  BD.ox=Math.max(0,Math.min(Math.max(0,1-wW),BD.ox||0));   /* 좌우로는 칠판 밖으로 안 나갑니다 */
+  BD.oy=Math.max(0,Math.min(bdBottom(),BD.oy||0));         /* 마지막 글씨 아래로 한 화면까지 */
 }
 function bdFarTouch(e){                                    /* 이미 닿은 손과 멀면 = 다른 손 */
   for(const q of bdPtrs.values()){
@@ -1894,25 +1923,33 @@ function bdStartPinch(e){
   const a=[...bdPtrs.values()][0];
   BD.pinch={d:Math.max(1,Math.hypot(e.clientX-a.x,e.clientY-a.y)),
             mx:(e.clientX+a.x)/2,my:(e.clientY+a.y)/2,vz0:BD.vz||1,id2:e.pointerId};
+  BD.drag=null;
   if(BD.cur){BD.cur=null;bdRedraw()}                       /* 그리던 건 취소 */
 }
 function bdMovePinch(){
   const a=[...bdPtrs.values()];if(a.length<2||!BD.pinch)return;
   const d=Math.max(1,Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y));
   const mx=(a[0].x+a[1].x)/2,my=(a[0].y+a[1].y)/2;
-  const host=$('board').getBoundingClientRect();
-  const px=mx-host.left,py=my-host.top;
-  const prev=BD.vz;
+  const r=bdCv.getBoundingClientRect();
+  /* 직전에 두 손 가운데가 짚고 있던 칠판 지점이, 지금 가운데로 따라오게 합니다
+     — 이렇게 하면 벌리기(확대)와 밀기(이동)가 한 번에 자연스럽게 됩니다 */
+  const wx=bdWX(BD.pinch.mx-r.left), wy=bdWY(BD.pinch.my-r.top);
   BD.vz=Math.max(1,Math.min(4,BD.pinch.vz0*(d/BD.pinch.d)));
-  const k=BD.vz/prev;
-  BD.tx=px-(px-BD.tx)*k+(mx-BD.pinch.mx);                  /* 잡은 자리를 기준으로 */
-  BD.ty=py-(py-BD.ty)*k+(my-BD.pinch.my);
+  const k=bdSc();
+  BD.ox=wx-(mx-r.left)/k;
+  BD.oy=wy-(my-r.top)/k;
   BD.pinch.mx=mx;BD.pinch.my=my;
-  bdClamp();bdView();
+  bdClamp();bdRedraw();
 }
 bdCv.addEventListener('pointerdown',e=>{
   if($('pop').classList.contains('open')){e.preventDefault();closePop();return}
-  if(S.tool==='hand'||S.tool==='laser')return;
+  if(S.tool==='laser')return;
+  if(S.tool==='hand'){                                     /* 손 도구 — 칠판을 잡고 옮깁니다 */
+    BD.drag={x:e.clientX,y:e.clientY,ox:BD.ox||0,oy:BD.oy||0};
+    BD.drawing=false;BD.palm=false;
+    try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
+    return;
+  }
 
   /* 이미 닿은 손과 멀리 떨어져 또 닿으면 = 양손 확대 */
   if(e.pointerType==='touch'&&bdPtrs.size>=1&&bdFarTouch(e)){
@@ -1920,7 +1957,7 @@ bdCv.addEventListener('pointerdown',e=>{
     try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
     BD.drawing=false;BD.palm=false;                        /* 그리기·지우기 완전 중단 */
     bdStartPinch(e);
-    if(!BD.zoomSeen){BD.zoomSeen=true;toast('양손을 벌리면 칠판이 확대됩니다 — 오므리면 축소')}
+    if(!BD.zoomSeen){BD.zoomSeen=true;toast('두 손가락으로 밀면 칠판이 위아래로 움직입니다 — 벌리면 확대')}
     return;
   }
   const r=bdCv.getBoundingClientRect();
@@ -1943,8 +1980,8 @@ bdCv.addEventListener('pointerdown',e=>{
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
   BD.drawing=true;BD.palm=false;BD.last=[x,y];
   if(S.tool==='eraser'){bdErase(x,y);return}
-  BD.cur={mode:S.tool,color:curColor(),
-          w:(S.tool==='hl'?curSize()*2.2:curSize())/BD.w,pts:[[x/BD.w,y/BD.h]]};
+  BD.cur={u:1,mode:S.tool,color:curColor(),
+          w:(S.tool==='hl'?curSize()*2.2:curSize())/bdSc(),pts:[[bdWX(x),bdWY(y)]]};
   BD.curAt=performance.now();
   bdRedraw();
 });
@@ -1953,6 +1990,12 @@ bdCv.addEventListener('pointermove',e=>{
   const bp=bdPtrs.get(e.pointerId);
   if(bp){bp.x=e.clientX;bp.y=e.clientY}
   if(BD.pinch)return bdMovePinch();
+  if(BD.drag){
+    const k=bdSc();
+    BD.ox=BD.drag.ox-(e.clientX-BD.drag.x)/k;
+    BD.oy=BD.drag.oy-(e.clientY-BD.drag.y)/k;
+    bdClamp();bdRedraw();return;
+  }
   if(!BD.drawing)return;
   const r=bdCv.getBoundingClientRect();
   let x=(e.clientX-r.left)*(BD.w/r.width),y=(e.clientY-r.top)*(BD.h/r.height);
@@ -1962,10 +2005,10 @@ bdCv.addEventListener('pointermove',e=>{
   BD.last=[x,y];
   if(BD.palm||S.tool==='eraser'){bdErase(x,y);return}
   if(!BD.cur)return;
-  BD.cur.pts.push([x/BD.w,y/BD.h]);
+  BD.cur.pts.push([bdWX(x),bdWY(y)]);
   /* 쓰는 동안엔 마지막 조각만 그립니다 — 전체 다시 그리기는 뗄 때 한 번 */
   bdctx.save();bdctx.lineCap='round';bdctx.lineJoin='round';
-  bdctx.strokeStyle=BD.cur.color;bdctx.lineWidth=BD.cur.w*BD.w;
+  bdctx.strokeStyle=BD.cur.color;bdctx.lineWidth=BD.cur.w*bdSc();
   if(BD.cur.mode==='hl')bdctx.globalAlpha=.42;
   bdctx.beginPath();bdctx.moveTo(px,py);bdctx.lineTo(x,y);bdctx.stroke();
   bdctx.restore();
@@ -1973,6 +2016,7 @@ bdCv.addEventListener('pointermove',e=>{
 function bdEnd(e){
   ghostHide();
   if(e)bdPtrs.delete(e.pointerId);
+  if(BD.drag){BD.drag=null;return}
   if(BD.pinch){ if(bdPtrs.size<2){BD.pinch=null;BD.drawing=false;BD.palm=false} return }
   if(!BD.drawing)return;
   BD.drawing=false;BD.palm=false;
@@ -1988,7 +2032,7 @@ bdCv.addEventListener('pointercancel',bdEnd);
 bdCv.addEventListener('lostpointercapture',bdEnd);
 function bdErase(x,y){
   const rad=Math.max(16,curSize()*2.2),before=BD.strokes.length;
-  BD.strokes=BD.strokes.filter(st=>!st.pts.some(p=>Math.hypot(p[0]*BD.w-x,p[1]*BD.h-y)<rad));
+  BD.strokes=BD.strokes.filter(st=>!st.pts.some(q=>{const s=bdPt(st,q);return Math.hypot(s[0]-x,s[1]-y)<rad}));
   if(BD.strokes.length!==before){S.edited=true;bdRedraw()}
 }
 $('btnBdPrev').onclick=()=>{ if((BD.page||1)>1)bdGoto(BD.page-1) };
@@ -3108,7 +3152,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='20.7';
+const APP_VER='20.8';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
