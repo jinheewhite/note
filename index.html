@@ -1711,7 +1711,7 @@ function endStroke(){
    방금 손으로 그어진 선을 없던 일로 되돌립니다 */
 function undoTouchSmudge(){
   const L=S.lastTouch;
-  if(!L||performance.now()-L.at>500)return;
+  if(!L||performance.now()-L.at>1200)return;
   const i=S.strokes.indexOf(L.s);
   if(i>=0){S.strokes.splice(i,1);redraw()}
   S.lastTouch=null;
@@ -1864,6 +1864,7 @@ function swipeFlip(e){
   if(Math.abs(a)<36)return false;
   const dir=a<0?1:-1;
   if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return false;
+  if(p.type==='touch')undoTouchSmudge();      /* 넘기려다 그어진 선을 없던 일로 */
   flip(dir);return true;
 }
 /* 손가락 하나로 좌우로 그으면 어디서든 쪽이 넘어갑니다 (도구와 무관) */
@@ -1887,7 +1888,7 @@ inkCv.addEventListener('pointerup',e=>{
   if(Math.abs(a)<36)return;
   const dir=a<0?1:-1;
   if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return;
-  cancelStroke();
+  cancelStroke();undoTouchSmudge();          /* 넘기려다 그어진 선을 없던 일로 */
   flip(dir);
 },true);
 function movePan(e){
@@ -2076,17 +2077,37 @@ async function bdSave(){
   else await Store.delNote(key);
   markSaved();
 }
+/* 칠판 위의 터치 손가락 수 — 손바닥은 여러 점으로 닿습니다 */
+const bdPtrs=new Set();
+function bdIsPalm(e){
+  if(e.pointerType!=='touch')return false;                 /* 펜·마우스는 손바닥이 아닙니다 */
+  if(bdPtrs.size>=1)return true;                           /* 이미 닿아 있는데 또 닿으면 손바닥 */
+  return ((e.width||0)>=22||(e.height||0)>=22);            /* 넓게 닿아도 손바닥 */
+}
 bdCv.addEventListener('pointerdown',e=>{
   if($('pop').classList.contains('open')){e.preventDefault();closePop();return}
   if(S.tool==='hand'||S.tool==='laser')return;
 
+  const r=bdCv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+  if(bdIsPalm(e)){                                         /* 손바닥으로 문지르면 지웁니다 */
+    if(BD.cur&&performance.now()-(BD.curAt||0)<1200){BD.cur=null;bdRedraw()}  /* 손바닥이 그리던 선은 취소 */
+    else if(BD.lastTouch&&performance.now()-BD.lastTouch.at<1200){            /* 방금 손이 그은 선도 취소 */
+      const i=BD.strokes.indexOf(BD.lastTouch.s);
+      if(i>=0){BD.strokes.splice(i,1);bdRedraw()}
+      BD.lastTouch=null;
+    }
+    BD.drawing=true;BD.palm=true;BD.last=[x,y];
+    if(!BD.palmSeen){BD.palmSeen=true;toast('칠판: 손바닥으로 문지르면 지워집니다')}
+    bdErase(x,y);return;
+  }
+  if(e.pointerType==='touch')bdPtrs.add(e.pointerId);
   ghostShow(e);
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
-  const r=bdCv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
-  BD.drawing=true;BD.last=[x,y];
+  BD.drawing=true;BD.palm=false;BD.last=[x,y];
   if(S.tool==='eraser'){bdErase(x,y);return}
   BD.cur={mode:S.tool,color:curColor(),
           w:(S.tool==='hl'?curSize()*2.2:curSize())/BD.w,pts:[[x/BD.w,y/BD.h]]};
+  BD.curAt=performance.now();
   bdRedraw();
 });
 bdCv.addEventListener('pointermove',e=>{
@@ -2095,15 +2116,20 @@ bdCv.addEventListener('pointermove',e=>{
   const r=bdCv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
   if(Math.hypot(x-BD.last[0],y-BD.last[1])<0.8)return;
   BD.last=[x,y];
-  if(S.tool==='eraser'){bdErase(x,y);return}
+  if(BD.palm||S.tool==='eraser'){bdErase(x,y);return}
   if(!BD.cur)return;
   BD.cur.pts.push([x/BD.w,y/BD.h]);bdRedraw();
 });
-function bdEnd(){
+function bdEnd(e){
   ghostHide();
+  if(e)bdPtrs.delete(e.pointerId);
   if(!BD.drawing)return;
-  BD.drawing=false;
-  if(BD.cur){BD.strokes.push(BD.cur);BD.cur=null;S.edited=true;bdRedraw()}
+  BD.drawing=false;BD.palm=false;
+  if(BD.cur){
+    BD.strokes.push(BD.cur);
+    if(e&&e.pointerType==='touch')BD.lastTouch={s:BD.cur,at:performance.now()};
+    BD.cur=null;S.edited=true;bdRedraw();
+  }
   bdSaveSoon();
 }
 bdCv.addEventListener('pointerup',bdEnd);
@@ -2115,6 +2141,7 @@ function bdErase(x,y){
   if(BD.strokes.length!==before){S.edited=true;bdRedraw()}
 }
 $('btnBoardBg').onclick=e=>{
+  const anchor=e.currentTarget;              /* 나중에 쓰려면 지금 잡아둬야 합니다 */
   const pop=$('pop');pop.innerHTML='';pop.classList.add('wide');
   const cur=bdBgKey();
   for(const [k,th] of Object.entries(BOARD_BG)){
@@ -2131,7 +2158,7 @@ $('btnBoardBg').onclick=e=>{
     pop.appendChild(b);
   }
   pop.classList.add('open');showMask(true);
-  requestAnimationFrame(()=>placePop(e.currentTarget));
+  requestAnimationFrame(()=>placePop(anchor));
 };
 $('btnBoardSwap').onclick=async()=>{
   const left=!document.body.classList.contains('board-left');
@@ -3122,7 +3149,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='16.8';
+const APP_VER='16.9';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
