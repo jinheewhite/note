@@ -93,13 +93,12 @@ try{
     max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .grp{display:flex;align-items:center;gap:3px;flex:0 0 auto;padding-right:6px;margin-right:1px;border-right:1px solid var(--line)}
   .grp:last-child{border-right:0}
-  /* 왼쪽 끝: 굵기 → 색·도구 (잘 보여야 하는 것들).
-     한가운데: 손/이동 (전자칠판에서 잘 안 보이는 자리라 덜 중요한 것만).
-     오른쪽 끝: 돋보기·화면맞춤·돌리기·칠판 */
+  /* 왼쪽 끝부터: 굵기 → 색·도구 → 손/이동/❔ (지우개 바로 옆).
+     가운데는 빈 공간(EJ Pen 자리). 오른쪽 끝: 돋보기·화면맞춤·돌리기·칠판 */
   .size-wrap{order:1}
   #tools{order:2}
-  #grpHand{order:5;margin-left:auto;margin-right:auto;border-right:0}
-  #rightGrp{order:9;border-right:0}
+  #grpHand{order:3}
+  #rightGrp{order:9;margin-left:auto;border-right:0}
   #btnFinger{min-width:74px;justify-content:center}
   #btnFinger.move{border-color:var(--chalk-dim);color:var(--chalk)}
 
@@ -358,13 +357,15 @@ try{
   .cfmMask{display:none;position:fixed;inset:0;z-index:9999;background:rgba(10,14,18,.55);
     align-items:center;justify-content:center}
   .cfmMask.open{display:flex}
+  #topbar .brand{order:-9}
+  body.board-left #boardCtl,html.board-left #boardCtl{order:-5}
   .cfmBox{background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
     width:min(420px,86vw);padding:22px 22px 16px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
   .cfmBox p{margin:0 0 18px;white-space:pre-wrap;line-height:1.55;font-size:15.5px}
   .guideRows{display:flex;flex-direction:column;gap:11px}
   .guideRows div{display:flex;gap:12px;align-items:baseline}
-  .guideRows b{flex:0 0 190px;font-size:15px}
-  .guideRows span{color:var(--text-dim);font-size:14px;line-height:1.5}
+  .guideRows b{flex:0 0 175px;font-size:14.5px;white-space:nowrap}
+  .guideRows span{color:var(--text-dim);font-size:13.5px;line-height:1.45;white-space:nowrap}
   .edgeTag{position:fixed;left:50%;transform:translateX(-50%);z-index:45;
     background:rgba(30,43,56,.92);border:1px solid var(--line);border-radius:999px;
     color:var(--text);font-size:14px;padding:7px 16px;pointer-events:none;
@@ -454,7 +455,6 @@ try{
   </div>
   <span class="saved" id="saved" hidden>—</span>
   <span id="boardCtl" hidden style="display:flex;align-items:center;gap:6px">
-    <b style="color:var(--chalk);font-size:13.5px;padding:0 2px">칠판</b>
     <button id="btnBoardSwap" class="mini" title="칠판과 PDF 자리를 바꿉니다">⇄ 자리 바꾸기</button>
     <button id="btnBdPrev" class="mini icon" title="칠판 이전 쪽">◀</button>
     <span class="mono" id="bdPageInfo" title="칠판 쪽">1/1</span>
@@ -681,12 +681,18 @@ try{
   <div class="cfmBox" style="width:min(560px,92vw)">
     <h3 style="margin:0 0 14px;font-size:19px">🖐 손동작 안내</h3>
     <div class="guideRows">
-      <div><b>✍️ 펜</b><span>필기합니다 — 펜을 쓰면 손은 자동으로 이동 담당이 됩니다</span></div>
-      <div><b>☝️ 한 손가락, 길게 쭉—</b><span>쪽이 넘어갑니다 (빠르게 화면 3할 이상)</span></div>
-      <div><b>✌️ 두 손가락으로 밀기</b><span>화면이 움직입니다 — 넘어가지 않습니다</span></div>
-      <div><b>🙌 양손을 대각선으로</b><span>벌리면 확대 · 오므리면 축소</span></div>
-      <div><b>📄 쪽의 끝에서</b><span>멈춥니다 — 한 번 더 밀면 다음 쪽</span></div>
+      <div><b>✍️ 펜</b><span>필기 (펜을 쓰면 손은 자동으로 이동)</span></div>
+      <div><b>☝️ 한 손가락 길게 쭉—</b><span>쪽 넘김</span></div>
+      <div><b>✌️ 두 손가락 밀기</b><span>화면 이동 — 안 넘어갑니다</span></div>
+      <div><b>🙌 양손 대각선</b><span>벌리면 확대 · 오므리면 축소</span></div>
+      <div><b>📄 쪽의 끝</b><span>멈춤 — 한 번 더 밀면 다음 쪽</span></div>
       <div><b>🧽 칠판에서 손바닥</b><span>문지르면 지워집니다</span></div>
+    </div>
+    <h3 style="margin:18px 0 12px;font-size:16px;color:var(--text-dim)">이런 것도 됩니다</h3>
+    <div class="guideRows">
+      <div><b>▥ 칠판</b><span>PDF와 따로 움직이는 칠판이 열립니다</span></div>
+      <div><b>▥ 한 번 더</b><span>칠판만 전체 화면으로 씁니다</span></div>
+      <div><b>＋ NEW</b><span>칠판 쪽을 계속 추가할 수 있습니다</span></div>
     </div>
     <div class="row" style="justify-content:flex-end;margin-top:16px">
       <button id="guideOk" class="primary">알겠습니다</button>
@@ -3516,7 +3522,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='19.7';
+const APP_VER='19.9';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
