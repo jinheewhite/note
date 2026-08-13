@@ -93,12 +93,13 @@ try{
     max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .grp{display:flex;align-items:center;gap:3px;flex:0 0 auto;padding-right:6px;margin-right:1px;border-right:1px solid var(--line)}
   .grp:last-child{border-right:0}
-  /* 왼쪽: 손/이동 → 굵기 → 색·도구.  가운데는 빈 공간(EJ Pen 자리).
+  /* 왼쪽 끝: 굵기 → 색·도구 (잘 보여야 하는 것들).
+     한가운데: 손/이동 (전자칠판에서 잘 안 보이는 자리라 덜 중요한 것만).
      오른쪽 끝: 돋보기·화면맞춤·돌리기·칠판 */
-  #grpHand{order:1}
-  .size-wrap{order:2}
-  #tools{order:3}
-  #rightGrp{order:9;margin-left:auto;border-right:0}
+  .size-wrap{order:1}
+  #tools{order:2}
+  #grpHand{order:5;margin-left:auto;margin-right:auto;border-right:0}
+  #rightGrp{order:9;border-right:0}
   #btnFinger{min-width:74px;justify-content:center}
   #btnFinger.move{border-color:var(--chalk-dim);color:var(--chalk)}
 
@@ -183,10 +184,14 @@ try{
   .row2{display:flex;flex:1;min-height:0;min-width:0}
   #board{flex:0 0 44%;max-width:none;display:flex;flex-direction:column;background:#f7f8fa;
     min-width:0;order:2}
-  #splitBar{flex:0 0 14px;order:1;cursor:col-resize;background:var(--ink-2);
+  #splitBar{flex:0 0 20px;order:1;cursor:ew-resize;background:var(--ink-2);
     border-left:1px solid var(--line);border-right:1px solid var(--line);
-    display:flex;align-items:center;justify-content:center;touch-action:none}
-  #splitBar::before{content:'⋮';color:var(--text-dim);font-size:18px}
+    display:flex;align-items:center;justify-content:center;touch-action:none;
+    transition:background .15s}
+  #splitBar::before{content:'◀▶';color:var(--text-dim);font-size:11px;letter-spacing:-1px;
+    writing-mode:vertical-rl;text-orientation:upright;transition:color .15s}
+  #splitBar:hover,#splitBar.dragging{background:var(--chalk)}
+  #splitBar:hover::before,#splitBar.dragging::before{color:#1a1a12}
   body.board-left #splitBar,html.board-left #splitBar{order:1}
   body.board-full #splitBar,html.board-full #splitBar{display:none}
   #stage{flex:1 1 0;min-width:0}
@@ -356,6 +361,10 @@ try{
   .cfmBox{background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
     width:min(420px,86vw);padding:22px 22px 16px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
   .cfmBox p{margin:0 0 18px;white-space:pre-wrap;line-height:1.55;font-size:15.5px}
+  .guideRows{display:flex;flex-direction:column;gap:11px}
+  .guideRows div{display:flex;gap:12px;align-items:baseline}
+  .guideRows b{flex:0 0 190px;font-size:15px}
+  .guideRows span{color:var(--text-dim);font-size:14px;line-height:1.5}
   .edgeTag{position:fixed;left:50%;transform:translateX(-50%);z-index:45;
     background:rgba(30,43,56,.92);border:1px solid var(--line);border-radius:999px;
     color:var(--text);font-size:14px;padding:7px 16px;pointer-events:none;
@@ -445,10 +454,11 @@ try{
   </div>
   <span class="saved" id="saved" hidden>—</span>
   <span id="boardCtl" hidden style="display:flex;align-items:center;gap:6px">
+    <b style="color:var(--chalk);font-size:13.5px;padding:0 2px">칠판</b>
+    <button id="btnBoardSwap" class="mini" title="칠판과 PDF 자리를 바꿉니다">⇄ 자리 바꾸기</button>
     <button id="btnBdPrev" class="mini icon" title="칠판 이전 쪽">◀</button>
     <span class="mono" id="bdPageInfo" title="칠판 쪽">1/1</span>
-    <button id="btnBdNext" class="mini icon" title="칠판 다음 쪽 — 끝이면 새 쪽을 만듭니다">▶</button>
-    <button id="btnBoardSwap" class="mini" title="칠판과 PDF 자리를 바꿉니다">⇄ 자리 바꾸기</button>
+    <button id="btnBdNext" class="mini" title="칠판 다음 쪽">▶</button>
     <button id="btnBoardBg" class="mini" title="칠판 바탕을 바꿉니다">칠판 바탕</button>
     <button id="btnBoardClear" class="mini" title="지금 보는 칠판 쪽을 지웁니다">칠판 비우기</button>
   </span>
@@ -463,6 +473,7 @@ try{
   <div class="grp" id="grpHand">
     <button id="btnFinger" title="손가락이 필기할지 화면을 옮길지 정합니다">손 ✍</button>
     <button class="tool" data-label="이동" id="btnHand" title="끌어서 화면 옮기기">✋</button>
+    <button class="icon" id="btnGuide" title="손동작 안내">❔</button>
   </div>
   <div class="grp" id="tools">
     <span class="swatches" id="swatches"></span>
@@ -666,6 +677,22 @@ try{
 <input type="file" id="jsonInput" accept=".json,application/json" class="offscreen">
 <div id="toast"></div>
 <div id="edgeTag" class="edgeTag"></div>
+<div id="guideMask" class="cfmMask">
+  <div class="cfmBox" style="width:min(560px,92vw)">
+    <h3 style="margin:0 0 14px;font-size:19px">🖐 손동작 안내</h3>
+    <div class="guideRows">
+      <div><b>✍️ 펜</b><span>필기합니다 — 펜을 쓰면 손은 자동으로 이동 담당이 됩니다</span></div>
+      <div><b>☝️ 한 손가락, 길게 쭉—</b><span>쪽이 넘어갑니다 (빠르게 화면 3할 이상)</span></div>
+      <div><b>✌️ 두 손가락으로 밀기</b><span>화면이 움직입니다 — 넘어가지 않습니다</span></div>
+      <div><b>🙌 양손을 대각선으로</b><span>벌리면 확대 · 오므리면 축소</span></div>
+      <div><b>📄 쪽의 끝에서</b><span>멈춥니다 — 한 번 더 밀면 다음 쪽</span></div>
+      <div><b>🧽 칠판에서 손바닥</b><span>문지르면 지워집니다</span></div>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:16px">
+      <button id="guideOk" class="primary">알겠습니다</button>
+    </div>
+  </div>
+</div>
 <div id="cfmMask" class="cfmMask">
   <div class="cfmBox">
     <p id="cfmMsg"></p>
@@ -1433,6 +1460,12 @@ const pdfCv=$('pdfCv'),inkCv=$('inkCv'),fxCv=$('fxCv'),
       pctx=pdfCv.getContext('2d'),ictx=inkCv.getContext('2d'),fctx=fxCv.getContext('2d');
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400)}
+function showGuide(){$('guideMask').classList.add('open')}
+$('guideOk')&&($('guideOk').onclick=()=>{
+  $('guideMask').classList.remove('open');
+  try{localStorage.setItem('pn.guideSeen','1')}catch(e){}
+});
+$('btnGuide')&&($('btnGuide').onclick=showGuide);
 /* 버튼을 길게(0.6초) 누르고 있으면 그 버튼의 설명이 뜹니다.
    설명이 뜬 채로 손을 떼면 버튼은 눌리지 않습니다 — 궁금할 땐 길게, 쓸 땐 짧게 */
 let helpT=null,helpBtn=null,helpShown=false;
@@ -1495,6 +1528,7 @@ async function loadPdf(bytes,name,id){
   S.fileId=id||(name+'|'+bytes.byteLength);
   $('fileName').textContent=name;
   const w=$('welcome');w.hidden=true;w.style.display='none';
+  try{if(!localStorage.getItem('pn.guideSeen'))setTimeout(showGuide,700)}catch(e){}
   const prev=await Store.getFile(S.fileId);
   S.folder=(prev&&prev.folder!==undefined)?prev.folder:(S.lib||'');
   try{S.rot=+(localStorage.getItem('pn.rot.'+S.fileId)||0)||0}catch(e){S.rot=0}
@@ -2162,7 +2196,15 @@ const bdCv=$('bdCv'),bdctx=bdCv.getContext('2d');
 const BD={strokes:[],cur:null,drawing:false,last:null,w:1,h:1,timer:null,
           page:1,pages:1,vz:1,tx:0,ty:0,pinch:null};
 const boardKey=(pg)=>{const p=pg||BD.page||1;return `${S.fileId||'-'}|${S.date}|BOARD${p>1?p:''}`};
-function bdPageInfo(){const el=$('bdPageInfo');if(el)el.textContent=`${BD.page||1}/${BD.pages||1}`}
+function bdPageInfo(){
+  const el=$('bdPageInfo');if(el)el.textContent=`${BD.page||1}/${BD.pages||1}`;
+  const nx=$('btnBdNext');
+  if(nx){
+    const atLast=(BD.page||1)>=(BD.pages||1);
+    nx.textContent=atLast?'＋ NEW':'▶';
+    nx.title=atLast?'칠판 페이지 추가':'칠판 다음 쪽';
+  }
+}
 async function bdGoto(pg){
   await bdSave();                                    /* 지금 쪽 저장 */
   BD.page=Math.max(1,pg);
@@ -2841,6 +2883,7 @@ function syncBoardCtl(){
   sb.addEventListener('pointerdown',e=>{
     e.preventDefault();
     try{sb.setPointerCapture(e.pointerId)}catch(err){}
+    sb.classList.add('dragging');
     drag={id:e.pointerId};
   });
   sb.addEventListener('pointermove',e=>{
@@ -2854,6 +2897,7 @@ function syncBoardCtl(){
   });
   const end=e=>{
     if(!drag||drag.id!==e.pointerId)return;
+    sb.classList.remove('dragging');
     const pct=drag.pct;drag=null;
     if(pct==null)return;
     try{localStorage.setItem('pn.boardW',String(Math.round(pct)))}catch(err){}
@@ -3463,7 +3507,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='19.3';
+const APP_VER='19.6';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
