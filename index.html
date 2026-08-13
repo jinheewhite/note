@@ -1948,9 +1948,18 @@ function swipeFlip(e){
   const p=S.pan;if(!p)return false;
   const dx=e.clientX-p.x, dy=e.clientY-p.y, dt=performance.now()-p.t;
   if(dt>1400)return false;
-  const a=Math.abs(dx)>=Math.abs(dy)?dx:dy;   /* 크게 움직인 쪽으로 넘깁니다 */
+  const horiz=Math.abs(dx)>=Math.abs(dy);
+  const a=horiz?dx:dy;
   if(Math.abs(a)<36)return false;
   const dir=a<0?1:-1;
+  /* 확대돼서 그 방향으로 아직 볼 곳이 남아 있으면 — 이 밀기는 '보기'입니다.
+     끝에 닿은 상태에서 시작한 손짓만 넘김으로 봅니다 */
+  const {mx,my}=limits();
+  if(horiz){
+    if(mx>0&&!((dir>0&&p.atR)||(dir<0&&p.atL)))return false;
+  }else{
+    if(my>0&&!((dir>0&&p.atBot)||(dir<0&&p.atTop)))return false;
+  }
   if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return false;
   if(p.type==='touch')undoTouchSmudge();      /* 넘기려다 그어진 선을 없던 일로 */
   flip(dir);return true;
@@ -3438,7 +3447,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='18.9';
+const APP_VER='19.0';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
