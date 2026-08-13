@@ -70,7 +70,6 @@ try{
   header::-webkit-scrollbar{height:0}
   /* 좁은 화면(태블릿) — EJ Pen 자리를 비우지 않고 전부 보여줍니다 */
   @media (max-width:1180px){
-    header{padding-right:12px}
     header button{min-height:44px;font-size:14px;padding:0 10px}
     #topbar{gap:4px}
     #topbar button{font-size:13px;padding:5px 8px}
@@ -390,7 +389,9 @@ try{
   }
   /* 전자칠판·태블릿처럼 폭이 부족하면 도구 막대를 두 줄로 */
   @media (max-width:1500px){
-    header{flex-wrap:wrap;height:auto;overflow:visible;padding:6px 10px;row-gap:6px}
+    header{flex-wrap:wrap;height:auto;min-height:var(--bar);max-height:none;
+      overflow:visible;padding:6px 10px 6px;padding-right:10px;row-gap:6px}
+    #rightGrp{margin-left:0}
     .status{width:100%;order:9;margin-left:0;padding-left:0;justify-content:flex-end}
     .grp{border-right:0}
     .status{margin-left:auto}
@@ -506,8 +507,7 @@ try{
 
   <div class="grp" id="rightGrp">
     <span class="mono" id="zoomInfo" hidden>100%</span>
-    <button class="icon" id="btnZoomOut" title="축소">−</button>
-    <button class="icon" id="btnZoomIn" title="확대">＋</button>
+
     <button class="icon" id="btnFit" title="화면에 맞추기">⤢</button>
     <button class="icon" id="btnRotate" title="화면 돌리기">⟳</button>
 
@@ -2772,8 +2772,8 @@ $('stage').addEventListener('wheel',e=>{
   }
 },{passive:false});
 $('btnFit').onclick=()=>{S.vz=1;S.fitting=true;S.tx=0;S.ty=0;renderPage()};
-$('btnZoomIn').onclick=()=>{ if(S.doc)quickZoom(1.25) };
-$('btnZoomOut').onclick=()=>{ if(S.doc)quickZoom(1/1.25) };
+/* 확대 버튼은 뺐습니다 — 두 손을 대각선으로 벌리면 확대, 오므리면 축소,
+   ⤢ 를 누르면 원래 크기(화면 맞춤)로 돌아옵니다 */
 $('btnPrev2').onclick=()=>flip(-1);
 $('btnNext2').onclick=()=>flip(1);
 $('btnRotate').onclick=async()=>{
@@ -3418,7 +3418,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='18.3';
+const APP_VER='18.5';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
