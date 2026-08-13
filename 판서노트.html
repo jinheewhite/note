@@ -59,10 +59,13 @@ try{
   #topbar .quit{background:#5a2330;border-color:#7d3244;color:#ffd9df;font-weight:700}
   #topbar .quit:hover{background:#7d3244}
   body.bar-top #topbar,html.bar-top #topbar{order:-9;border-bottom:1px solid var(--line);border-top:0}
-  header{height:var(--bar);min-height:var(--bar);max-height:var(--bar);flex:0 0 auto;
+  header{position:fixed;left:0;right:0;bottom:0;z-index:40;
+    height:var(--bar);min-height:var(--bar);max-height:var(--bar);
     background:var(--ink-2);border-top:1px solid var(--line);
     display:flex;align-items:center;justify-content:center;gap:8px;padding:0 12px;
     overflow-x:auto;overflow-y:hidden}
+  body.bar-top header,html.bar-top header{bottom:auto;top:56px;
+    border-top:0;border-bottom:1px solid var(--line)}
   header::-webkit-scrollbar{height:0}
   .brand{display:flex;align-items:center;gap:9px;padding-right:12px;margin-right:4px;border-right:1px solid var(--line);flex:0 0 auto}
   .brand b{font-size:17px;letter-spacing:-.3px}
@@ -116,7 +119,8 @@ try{
     font-variant-numeric:tabular-nums;padding:0;width:135px}
   .datechip input::-webkit-calendar-picker-indicator{filter:invert(.7)}
 
-  main{flex:1;display:flex;min-height:0}
+  main{flex:1;display:flex;min-height:0;padding-bottom:var(--bar)}
+  body.bar-top main,html.bar-top main{padding-bottom:0;padding-top:var(--bar)}
   aside{width:78px;flex:0 0 auto;background:var(--ink-2);border-right:1px solid var(--line);overflow-y:auto;padding:10px 0 40px}
   aside .p{margin:5px 11px;height:46px;border-radius:8px;border:1px solid transparent;
     display:flex;align-items:center;justify-content:center;gap:6px;color:var(--text-dim);cursor:pointer;font-size:14px}
@@ -387,6 +391,7 @@ try{
 <header>
 
   <div class="grp" id="tools">
+    <span class="swatches" id="swatches"></span>
     <button class="icon tool" data-label="펜" id="btnPen" title="펜">
       <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
   <g transform="translate(3.6 21.6) rotate(-45)">
@@ -397,7 +402,6 @@ try{
   </g>
       </svg>
     </button>
-    <span class="swatches" id="swatches"></span>
     <button class="icon tool" data-label="형광펜" id="btnHl" title="형광펜">
       <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
   <g transform="translate(3.2 21.8) rotate(-45)">
@@ -405,24 +409,6 @@ try{
     <rect x="4.4" y="-2.6" width="2.4" height="5.2" fill="#6f7d8c"/>
     <rect x="6.6" y="-3.6" width="10.4" height="7.2" rx="2" fill="#b7c2ce"/>
     <rect x="6.6" y="-3.6" width="10.4" height="2.4" rx="1.2" fill="#d7dee6"/>
-  </g>
-      </svg>
-    </button>
-    <span class="tsep2"></span>
-    <button class="icon tool" data-label="지우개" id="btnEraser" title="지우개">
-      <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
-  <!-- 나무 손잡이 -->
-  <rect x="2.6" y="5.6" width="20.8" height="7.4" rx="1.6" fill="#c9a06a"/>
-  <rect x="2.6" y="5.6" width="20.8" height="2.4" rx="1.2" fill="#dcb681"/>
-  <rect x="8.6" y="4.2" width="8.8" height="2.6" rx="1.3" fill="#a87f4d"/>
-  <!-- 펠트 -->
-  <rect x="2" y="12.6" width="22" height="7.8" rx="1.4" fill="#4a5a6b"/>
-  <rect x="2" y="12.6" width="22" height="2.2" fill="#5f7183"/>
-  <rect x="2" y="18.4" width="22" height="2" rx="1" fill="#3a4753"/>
-  <!-- 분필가루 -->
-  <g fill="#ffffff" opacity=".6">
-    <circle cx="5.2" cy="22.6" r="1"/><circle cx="9.4" cy="23.4" r=".8"/>
-    <circle cx="14" cy="22.4" r=".7"/><circle cx="18.6" cy="23.2" r=".9"/>
   </g>
       </svg>
     </button>
@@ -441,6 +427,24 @@ try{
   <circle cx="20.4" cy="5.2" r="2.7" fill="currentColor"/>
       </svg>
     </button>
+    <button class="icon tool" data-label="지우개" id="btnEraser" title="지우개">
+      <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
+  <!-- 나무 손잡이 -->
+  <rect x="2.6" y="5.6" width="20.8" height="7.4" rx="1.6" fill="#c9a06a"/>
+  <rect x="2.6" y="5.6" width="20.8" height="2.4" rx="1.2" fill="#dcb681"/>
+  <rect x="8.6" y="4.2" width="8.8" height="2.6" rx="1.3" fill="#a87f4d"/>
+  <!-- 펠트 -->
+  <rect x="2" y="12.6" width="22" height="7.8" rx="1.4" fill="#4a5a6b"/>
+  <rect x="2" y="12.6" width="22" height="2.2" fill="#5f7183"/>
+  <rect x="2" y="18.4" width="22" height="2" rx="1" fill="#3a4753"/>
+  <!-- 분필가루 -->
+  <g fill="#ffffff" opacity=".6">
+    <circle cx="5.2" cy="22.6" r="1"/><circle cx="9.4" cy="23.4" r=".8"/>
+    <circle cx="14" cy="22.4" r=".7"/><circle cx="18.6" cy="23.2" r=".9"/>
+  </g>
+      </svg>
+    </button>
+    <span class="tsep2"></span>
     <button class="tool" data-label="이동" id="btnHand" title="끌어서 화면 옮기기">✋</button>
   </div>
 
@@ -454,6 +458,7 @@ try{
     <button class="icon" id="btnZoomOut" title="축소">−</button>
     <span class="mono" id="zoomInfo" style="min-width:56px;text-align:center;color:var(--text-dim)">100%</span>
     <button class="icon" id="btnZoomIn" title="확대">＋</button>
+    <button class="icon" id="btnUpDown" title="한 화면씩 아래로 (끝나면 위로)">⇕</button>
     <button class="icon" id="btnFit" title="화면에 맞추기">⤢</button>
     <button class="icon" id="btnRotate" title="화면 돌리기">⟳</button>
     <button id="btnSplit" title="오른쪽에 칠판을 엽니다">▥ 칠판</button>
@@ -1709,12 +1714,21 @@ function clampView(over){
   S.ty=Math.max(-my-o,Math.min(my-0+o,S.ty));
 }
 /* 끌고 있는 도중에도 끝을 넘기면 곧바로 다음 쪽으로 이어집니다 (상하·좌우 모두) */
+/* 세로 자료는 위아래로, 가로 자료는 좌우로 넘깁니다 */
+function isWide(){ return S.rendered.w > S.rendered.h }
 function flipDir(){
-  const {mx,my}=limits();
-  if(S.ty<-my-flipDist())return 1;
-  if(S.ty> my+flipDist())return -1;
-  if(S.tx<-mx-flipDist())return 1;
-  if(S.tx> mx+flipDist())return -1;
+  const {mx,my}=limits(), d=flipDist();
+  if(isWide()){
+    if(S.tx<-mx-d)return 1;
+    if(S.tx> mx+d)return -1;
+    if(S.ty<-my-d)return 1;
+    if(S.ty> my+d)return -1;
+  }else{
+    if(S.ty<-my-d)return 1;
+    if(S.ty> my+d)return -1;
+    if(S.tx<-mx-d)return 1;
+    if(S.tx> mx+d)return -1;
+  }
   return 0;
 }
 async function autoFlip(e){
@@ -1744,7 +1758,11 @@ async function flip(dir){
   S.fitting=true;
   S.tx=0;S.ty=0;
   await renderPage();
-  S.tx=0;S.ty=0;                       /* 새 쪽은 가운데에서 시작합니다 */
+  {                                    /* 넘긴 방향의 시작점부터 보입니다 */
+    const {mx,my}=limits();
+    if(isWide()){S.tx = dir>0 ? mx : -mx; S.ty=0}
+    else{S.ty = dir>0 ? my : -my; S.tx=0}
+  }
   clampView();applyView();
   diag('쪽넘김 끝');
   const sh=$('sheet');
@@ -1764,8 +1782,10 @@ function swipeFlip(e){
   const p=S.pan;if(!p)return false;
   const dx=e.clientX-p.x, dy=e.clientY-p.y, dt=performance.now()-p.t;
   if(dt>1400)return false;
-  if(Math.abs(dx)<30||Math.abs(dx)<Math.abs(dy)*0.9)return false;
-  const dir=dx<0?1:-1;
+  const useX=isWide();
+  const a=useX?dx:dy, b=useX?dy:dx;
+  if(Math.abs(a)<36||Math.abs(a)<Math.abs(b)*1.1)return false;
+  const dir=a<0?1:-1;
   if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return false;
   flip(dir);return true;
 }
@@ -1786,11 +1806,12 @@ inkCv.addEventListener('pointerup',e=>{
   if(SW.type!=='touch')return;                     /* 펜·마우스는 넘김으로 보지 않습니다 */
   const dx=e.clientX-SW.x, dy=e.clientY-SW.y, dt=performance.now()-SW.t;
   if(dt>1400)return;
-  if(Math.abs(dx)<30||Math.abs(dx)<Math.abs(dy)*0.9)return;
-  const dir=dx<0?1:-1;
+  const useX=isWide();                              /* 가로 자료는 좌우, 세로 자료는 위아래 */
+  const a=useX?dx:dy, b=useX?dy:dx;
+  if(Math.abs(a)<36||Math.abs(a)<Math.abs(b)*1.1)return;
+  const dir=a<0?1:-1;
   if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return;
   cancelStroke();
-  if(S.strokes.length&&S.cur===null){}              /* 이미 그은 획은 남깁니다 */
   flip(dir);
 },true);
 function movePan(e){
@@ -1815,12 +1836,11 @@ function startPinch(){
 }
 function movePinch(){
   const [a,b]=two();if(!a||!b||!S.pinch)return;
-  S.pinch.k=Math.max(.25,Math.min(5,Math.hypot(a.x-b.x,a.y-b.y)/S.pinch.d));
-  const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;                 /* 벌리면 확대, 밀면 이동 */
+  S.pinch.k=1;                                          /* 두 손가락은 확대하지 않고 옮기기만 */
+  const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
   S.tx+=mx-S.pinch.mx;S.ty+=my-S.pinch.my;
   S.pinch.mx=mx;S.pinch.my=my;
-  clampView();applyView(S.pinch.k);
-  $('zoomInfo').textContent=Math.round(S.scale*(S.vz||1)*S.pinch.k/S.fitScale*100)+'%';
+  clampView();applyView();
 }
 async function endPinch(){
   if(!S.pinch)return;
@@ -1865,18 +1885,7 @@ inkCv.addEventListener('pointermove',e=>{
   if(S.drawing)moveStroke(e);
 });
 /* 두 번 톡톡 치면 확대 — 두 손가락이 안 되는 칠판을 위한 대안입니다 */
-function doubleTapZoom(e){
-  const now=performance.now(),d=S.tap;
-  if(d&&now-d.t<400&&Math.hypot(e.clientX-d.x,e.clientY-d.y)<40){
-    S.tap=null;
-    const cur=S.scale*(S.vz||1);
-    if(cur/S.fitScale>1.6){S.vz=1;S.fitting=true;S.tx=0;S.ty=0;renderPage()}
-    else zoom(2,e.clientX,e.clientY);
-    return true;
-  }
-  S.tap={t:now,x:e.clientX,y:e.clientY};
-  return false;
-}
+function doubleTapZoom(e){ return false }   /* 두 번 톡톡 확대는 쓰지 않습니다 */
 function release(e){
   ghostHide();
   const dn=S.downAt;S.downAt=null;
@@ -2464,6 +2473,15 @@ $('stage').addEventListener('wheel',e=>{
   }
 },{passive:false});
 $('btnFit').onclick=()=>{S.vz=1;S.fitting=true;S.tx=0;S.ty=0;renderPage()};
+$('btnUpDown').onclick=()=>{             /* 한 화면씩 아래로, 끝나면 맨 위로 */
+  if(!S.doc)return;
+  const {my}=limits(), step=$('stage').clientHeight*0.8;
+  if(my<=0){toast('페이지 전체가 보입니다');return}
+  S.fitting=false;
+  if(S.ty<=-my+2)S.ty=my;
+  else S.ty=Math.max(-my,S.ty-step);
+  clampView();applyView();
+};
 $('btnPrev2').onclick=()=>flip(-1);
 $('btnNext2').onclick=()=>flip(1);
 $('btnRotate').onclick=async()=>{
@@ -3062,7 +3080,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='15.0';
+const APP_VER='15.3';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
