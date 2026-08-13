@@ -3,7 +3,7 @@
 
    앱 파일은 항상 서버에서 먼저 받아옵니다(network-first).
    인터넷이 끊겼을 때만 저장해 둔 파일을 씁니다. */
-const CACHE = 'panseo-note-15.3';
+const CACHE = 'panseo-note-15.4';
 
 self.addEventListener('install', e => { self.skipWaiting(); });
 

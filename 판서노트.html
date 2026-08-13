@@ -212,6 +212,8 @@ try{
   .swatches button i{width:18px;height:18px;border-radius:50%;display:block}
   .swatches button.on{border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.3)}
   .tsep2{width:1px;height:30px;background:var(--line);margin:0 6px;flex:0 0 auto}
+  #btnFinger{min-height:44px;padding:0 12px;font-size:13.5px;flex:0 0 auto}
+  #btnFinger.on{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700}
   #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
     contain:layout style size;pointer-events:auto;isolation:isolate;
     background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
@@ -446,6 +448,7 @@ try{
     </button>
     <span class="tsep2"></span>
     <button class="tool" data-label="이동" id="btnHand" title="끌어서 화면 옮기기">✋</button>
+    <button id="btnFinger" title="손가락으로도 필기할지 정합니다">✍ 손필기</button>
   </div>
 
   <div class="grp size-wrap">
@@ -1595,10 +1598,17 @@ function canDraw(type){
   return S.fingerDraws&&S.tool!=='hand';      /* 손가락은 기본이 이동 */
 }
 function updateTouchBtn(){
+  const f=$('btnFinger');
+  if(f){
+    f.classList.toggle('on',S.fingerDraws);
+    f.textContent=S.fingerDraws?'✍ 손필기 켬':'✍ 손필기 끔';
+    f.title=S.fingerDraws?'손가락으로도 필기합니다':'손가락은 넘김·이동만 합니다';
+  }
   const b=$('btnHand');if(!b)return;
-  b.setAttribute('data-label',S.fingerDraws?'손필기 켬':'이동');
-  b.title=S.fingerDraws?'손가락으로도 필기합니다 — 길게 눌러 끄기':'끌어서 화면 옮기기 — 길게 누르면 손필기 켜기';
+  b.title='끌어서 화면 옮기기';
 }
+/* 손가락으로 그릴 수 있게 켜고 끕니다 (EJ Pen 같은 칠판 프로그램이 켜져 있을 때 필요) */
+document.addEventListener('DOMContentLoaded',()=>{},{once:true});
 function cancelStroke(){if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=null;S.penErase=false}
 
 /* 펜 ─ 획 그리기 */
@@ -1794,7 +1804,7 @@ const SW={id:null,x:0,y:0,t:0,type:''};
 inkCv.addEventListener('pointerdown',e=>{
   if(!S.doc)return;
   if(e.pointerType!=='touch')return;          /* 손가락만 넘김 대상 */
-  if(S.fingerDraws)return;
+  if(S.fingerDraws&&S.tool!=='hand')return;   /* 손필기 중에는 이동 도구일 때만 넘김 */
   if(penDown())return;
   if(ptrs.size>1){SW.id=null;return}
   SW.id=e.pointerId;SW.x=e.clientX;SW.y=e.clientY;SW.t=performance.now();SW.type=e.pointerType;
@@ -1859,8 +1869,8 @@ inkCv.addEventListener('pointerdown',e=>{
   e.preventDefault();
   ghostShow(e);
   if(e.pointerType==='pen'&&!S.penSeen){          /* 펜을 처음 본 순간 자동 전환 */
-    S.penSeen=true;S.fingerDraws=false;updateTouchBtn();
-    toast('펜은 필기 · 손가락은 넘김·확대');
+    S.penSeen=true;updateTouchBtn();
+    toast('펜을 인식했습니다');
   }
   if(e.pointerType==='touch'&&penDown())return;   /* 펜을 쥔 손바닥은 무시 */
   S.downAt={t:performance.now(),x:e.clientX,y:e.clientY};
@@ -2326,6 +2336,12 @@ function openEraserPop(anchor){
   placePop(anchor);
 }
 $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
+$('btnFinger').onclick=()=>{
+  S.fingerDraws=!S.fingerDraws;
+  try{localStorage.setItem('pn.finger',S.fingerDraws?'1':'0')}catch(e){}
+  updateTouchBtn();
+  toast(S.fingerDraws?'손가락으로도 필기합니다':'손가락은 넘김·이동만 합니다');
+};
 (()=>{                                   /* 길게 누르면 손가락 필기 전환 */
   let tm=null;const b=$('btnHand');
   const start=()=>{tm=setTimeout(()=>{
@@ -3080,7 +3096,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='15.3';
+const APP_VER='15.4';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3352,7 +3368,8 @@ $('jsonInput').onchange=async e=>{
   await step(()=>Backup.load());
   $('modeBadge').innerHTML=Store.mode==='idb'?'':modeBadge();
   try{S.sort=localStorage.getItem('pn.sort')||'recent';S.view=localStorage.getItem('pn.view')||'grid';
-      S.split=localStorage.getItem('pn.split')==='1'}catch(e){}
+      S.split=localStorage.getItem('pn.split')==='1';
+      S.fingerDraws=localStorage.getItem('pn.finger')==='1'}catch(e){}
   try{if(localStorage.getItem('pn.faux')==='1')fauxFull(true)}catch(e){}
   updFullBtn();
   $('btnSplit').classList.toggle('on',S.split);
