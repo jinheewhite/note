@@ -62,15 +62,27 @@ try{
   header{position:fixed;left:0;right:0;bottom:0;z-index:40;
     height:var(--bar);min-height:var(--bar);max-height:var(--bar);
     background:var(--ink-2);border-top:1px solid var(--line);
-    display:flex;align-items:center;justify-content:flex-start;gap:8px;
-    padding:0 12px;      /* 넓은 화면은 가운데가 비어 있어 EJ Pen 자리가 됩니다 */
+    display:flex;align-items:center;justify-content:flex-start;gap:4px;
+    padding:0 8px;       /* 넓은 화면은 가운데가 비어 있어 EJ Pen 자리가 됩니다 */
     overflow-x:auto;overflow-y:hidden}
   body.bar-top header,html.bar-top header{bottom:auto;top:56px;
     border-top:0;border-bottom:1px solid var(--line)}
   header::-webkit-scrollbar{height:0}
   /* 좁은 화면(태블릿) — EJ Pen 자리를 비우지 않고 전부 보여줍니다 */
   @media (max-width:1180px){
-    header button{min-height:44px;font-size:14px;padding:0 10px}
+    header{gap:5px;padding:4px 8px}
+    header button{min-height:42px;font-size:13.5px;padding:0 8px}
+    header button.icon{width:40px}
+    .grp{gap:4px;padding-right:5px;margin-right:0}
+    .swatches{gap:4px;padding:0 2px}
+    .swatches button{width:24px;height:24px;min-height:24px}
+    .swatches button i{width:12px;height:12px}
+    #tools .tool svg{width:26px;height:26px}
+    #btnFinger{padding:0 8px;font-size:12.5px;min-height:40px}
+    .size-wrap .mono{min-width:30px}
+    #btnMagIn,#btnMagOut{padding:0 7px;font-size:14px}
+    #btnRotate{padding:0 8px}
+    #btnSplit{padding:0 9px}
     #topbar{gap:4px}
     #topbar button{font-size:13px;padding:5px 8px}
   }
@@ -79,7 +91,7 @@ try{
   .brand .dot{width:11px;height:11px;border-radius:2px;background:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.18)}
   .brand small{display:block;color:var(--text-dim);font-size:11.5px;margin-top:1px;
     max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .grp{display:flex;align-items:center;gap:6px;flex:0 0 auto;padding-right:10px;margin-right:2px;border-right:1px solid var(--line)}
+  .grp{display:flex;align-items:center;gap:3px;flex:0 0 auto;padding-right:6px;margin-right:1px;border-right:1px solid var(--line)}
   .grp:last-child{border-right:0}
   /* 왼쪽: 손/이동 → 굵기 → 색·도구.  가운데는 빈 공간(EJ Pen 자리).
      오른쪽 끝: 돋보기·화면맞춤·돌리기·칠판 */
@@ -121,7 +133,7 @@ try{
   #tools .tool.on{opacity:1;background:var(--chalk);border-color:var(--chalk);color:#1a1a12;
     box-shadow:0 0 0 3px rgba(245,213,71,.3)}
   #btnHand.tool{font-size:20px}
-  .size-wrap{display:flex;align-items:center;gap:6px;padding:0 4px}
+  .size-wrap{display:flex;align-items:center;gap:3px;padding:0 2px}
   .size-wrap .mono{min-width:34px;text-align:center;font-size:16px}
   .size-wrap button{font-size:22px;font-weight:700}
 
@@ -157,7 +169,7 @@ try{
     background:rgba(30,43,56,.96);border:1px solid var(--line);border-radius:14px;
     padding:6px;display:flex;align-items:center;gap:5px;box-shadow:0 8px 26px rgba(0,0,0,.45)}
   #dock button{min-height:52px;font-size:15px}
-  #dock .mono{min-width:66px;text-align:center;font-size:14px;color:var(--text-dim)}
+  #dock .mono{min-width:48px;text-align:center;font-size:14px;color:var(--text-dim)}
   #dock .sep{width:1px;height:28px;background:var(--line);margin:0 4px}
   .pageBtn{display:none}
   #dock .mono.pageBtn{min-width:54px;text-align:center;font-size:13px;color:var(--text-dim)}
@@ -238,7 +250,7 @@ try{
   #folderPick{position:fixed;inset:0;background:rgba(8,13,18,.72);display:none;
     align-items:center;justify-content:center;z-index:45;padding:24px}
   #folderPick.open{display:flex}
-  .swatches{display:inline-flex;align-items:center;gap:5px;padding:0 4px;flex:0 0 auto;
+  .swatches{display:inline-flex;align-items:center;gap:3px;padding:0 2px;flex:0 0 auto;
     width:246px;justify-content:center}
   .swatches button{width:28px;height:28px;min-height:28px;padding:0;border-radius:50%;
     justify-content:center;border-width:2px;border-color:var(--line);background:var(--ink-3)}
@@ -3451,7 +3463,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='19.2';
+const APP_VER='19.3';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
