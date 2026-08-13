@@ -594,7 +594,7 @@ try{
   </div>
 
   <div class="libfoot">
-    <span id="saveWhere" class="where"></span>
+    <span id="saveWhere" class="where" hidden></span>
     <span id="verLabel">판서노트</span>
     <span class="copy">© 2026 강진희</span>
   </div>
@@ -1330,7 +1330,7 @@ const Backup={
       await Store.putFile({id:DIR_KEY,name:h.name,opened:Date.now(),handle:h});
       const made=await this.syncFolders();
       await this.write(true);
-      toast(`${h.name} > jinnote 폴더를 만들었습니다${made?` (하위 폴더 ${made}개 포함)`:''}`);
+      toast(`${h.name} 폴더에 저장합니다${made?` (하위 폴더 ${made}개 만들었습니다)`:''}`);
       return true;
     }catch(e){
       const m=String(e&&e.message||'');
@@ -1354,12 +1354,9 @@ const Backup={
     clearTimeout(this.timer);
     this.timer=setTimeout(()=>this.write(),8000);   /* 필기가 멈추면 8초 뒤 폴더에 기록 */
   },
-  /* 고른 폴더 안에 jinnote 를 만들고, 그 아래에 앱의 폴더들을 그대로 만듭니다 */
+  /* 고른 폴더 바로 아래에 저장합니다 (서재의 폴더는 하위 폴더로 그대로) */
   safe(s){ return String(s).replace(/[\\/:*?"<>|]/g,'_').trim()||'기타' },
-  async root(){
-    try{ return await this.handle.getDirectoryHandle('jinnote',{create:true}) }
-    catch(e){ return this.handle }
-  },
+  async root(){ return this.handle },
   async dir(){
     const r=await this.root();
     if(!S.folder)return r;
@@ -1467,6 +1464,17 @@ const pdfCv=$('pdfCv'),inkCv=$('inkCv'),fxCv=$('fxCv'),
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400)}
 function showGuide(){$('guideMask').classList.add('open')}
+/* 처음 쓰거나 새 버전이 되면, 저장 폴더를 한 번만 정하자고 안내합니다 */
+async function askSaveDir(){
+  if(!Backup.supported())return;
+  if(Backup.ok)return;                                   /* 이미 연결돼 있으면 조용히 */
+  try{ if(localStorage.getItem('pn.dirAsked')===APP_VER)return }catch(e){}
+  try{ localStorage.setItem('pn.dirAsked',APP_VER) }catch(e){}
+  const yes=await askConfirm('판서 PDF가 자동으로 저장될 폴더를 한 번만 정해 주세요.\n(정하지 않으면 다운로드 폴더에 저장됩니다)');
+  if(!yes)return;
+  const ok=Backup.handle&&!Backup.ok ? await Backup.reauth() : await Backup.connect();
+  if(ok)toast('이제 이 폴더에 자동으로 저장됩니다');
+}
 $('guideOk')&&($('guideOk').onclick=()=>{
   $('guideMask').classList.remove('open');
   try{localStorage.setItem('pn.guideSeen','1')}catch(e){}
@@ -1535,6 +1543,7 @@ async function loadPdf(bytes,name,id){
   $('fileName').textContent=name;
   const w=$('welcome');w.hidden=true;w.style.display='none';
   try{if(!localStorage.getItem('pn.guideSeen'))setTimeout(showGuide,700)}catch(e){}
+  setTimeout(askSaveDir,1500);
   const prev=await Store.getFile(S.fileId);
   S.folder=(prev&&prev.folder!==undefined)?prev.folder:(S.lib||'');
   try{S.rot=+(localStorage.getItem('pn.rot.'+S.fileId)||0)||0}catch(e){S.rot=0}
@@ -3045,7 +3054,7 @@ $('btnNewFolder').onclick=async()=>{
   list.push(name);await setFolders(list);
   await Backup.addFolder(name);
   S.lib=name;await renderFolders();await renderRecent();
-  toast(Backup.ok?`"${name}" 폴더를 만들었습니다 (jinnote 안에도 생성)`:`"${name}" 폴더를 만들었습니다`);
+  toast(`"${name}" 폴더를 만들었습니다`);
 };
 async function pickFolder(file){
   const list=await getFolders(),box=$('folderPick');
@@ -3299,7 +3308,7 @@ function download(href,name){const a=document.createElement('a');a.href=href;a.d
 $('btnPng').onclick=async()=>{
   if(!S.doc)return;
   await saveNow();
-  download(flatten().toDataURL('image/png'),`판서노트_${baseName()}_${S.date}_${S.page}쪽.png`);
+  download(flatten().toDataURL('image/png'),`${baseName()}_${S.date}_${S.page}쪽.png`);
   S.edited=false;AutoDL.dirty=false;AutoDL.lastKey=AutoDL.key();   /* 저장 끝 — 닫을 때 다시 저장하지 않습니다 */
   toast('이 쪽을 그림으로 저장했습니다 — 닫을 때 전체 저장은 건너뜁니다');
 };
@@ -3361,11 +3370,11 @@ $('btnPdf').onclick=async()=>{
   try{
     if(Backup.ok){                       /* 연결한 폴더에 바로 저장 — 창이 뜨지 않습니다 */
       await Backup.writePdf();
-      toast(`${Backup.handle.name} > jinnote${S.folder?' > '+S.folder:''} 에 저장했습니다`);
+      toast(`${Backup.handle.name}${S.folder?' > '+S.folder:''} 에 저장했습니다`);
     }else{
       const doc=await buildPdf();
       if(!doc)toast('저장할 판서가 없습니다');
-      else{doc.save(`판서노트_${baseName()}_${S.date}.pdf`);toast('다운로드 폴더에 저장했습니다');}
+      else{doc.save(`${baseName()}_${S.date}.pdf`);toast('다운로드 폴더에 저장했습니다');}
     }
     S.edited=false;AutoDL.dirty=false;AutoDL.lastKey=AutoDL.key();  /* 저장 끝 — 닫을 때 다시 저장하지 않습니다 */
   }catch(e){toast('PDF를 만들지 못했습니다: '+e.message)}
@@ -3387,6 +3396,7 @@ const AutoDL={
   async run(force){
     if(!S.doc||S.busy||Backup.ok||!this.on())return;
     if(!S.edited)return;                            /* 이번에 손대지 않았으면 저장하지 않습니다 */
+    try{ if(localStorage.getItem('pn.savedDay')===this.key())return }catch(e){}  /* 오늘 이미 저장했으면 건너뜁니다 */
     if(!this.dirty&&this.lastKey===this.key())return;  /* 바뀐 게 없으면 다시 받지 않습니다 */
     if(!force){
       if(!this.dirty)return;
@@ -3396,8 +3406,9 @@ const AutoDL={
     try{
       const doc=await buildPdf();
       if(!doc)return;
-      doc.save(`판서노트_${baseName()}_${S.date}.pdf`);
+      doc.save(`${baseName()}_${S.date}.pdf`);
       this.dirty=false;this.at=Date.now();this.lastKey=this.key();
+      try{localStorage.setItem('pn.savedDay',this.key())}catch(e){}   /* 하루 한 번만 */
       toast('판서를 다운로드 폴더에 저장했습니다');
       return true;
     }catch(e){toast('자동 저장에 실패했습니다: '+e.message)}
@@ -3498,15 +3509,15 @@ $('modal').onclick=e=>{if(e.target.id==='modal')$('modal').classList.remove('ope
 
 /* 판서가 어디에 저장되는지 서재에서 늘 보이게 합니다 */
 function renderWhere(){
-  const box=$('saveWhere');if(!box)return;
+  const box=$('saveWhere');if(!box||box.hidden)return;
   let txt;
   if(Backup.ok)
-    txt=`파일 저장 위치 · <b>${Backup.handle.name} &rsaquo; jinnote</b>`+
+    txt=`파일 저장 위치 · <b>${Backup.handle.name}</b>`+
         '<small>필기가 멈추면 판서 PDF가 자동으로 들어갑니다 · 서재의 폴더가 그대로 만들어집니다</small>';
   else if(AutoDL.on())
     txt='파일 저장 위치 · <b>다운로드 폴더</b>'+
         '<small>저장할 때마다 창이 뜬다면 크롬 설정 → 다운로드에서 "저장 위치 확인"을 꺼 주세요 · '+
-        '폴더를 한 번 고르면 창 없이 jinnote 폴더로 바로 저장됩니다</small>';
+        '폴더를 한 번 고르면 창 없이 그 폴더로 바로 저장됩니다</small>';
   else
     txt='<b>파일로 저장되지 않습니다</b><small>필기는 앱 안에만 남습니다 · 저장 위치를 지정해 주세요</small>';
   const label=Backup.supported()?'📁 저장 폴더 고르기':'저장 위치 안내';
@@ -3522,7 +3533,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='19.9';
+const APP_VER='20.0';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3656,7 +3667,7 @@ async function browseSaved(dirHandle,path){
   box.onclick=e=>{if(e.target===box)box.classList.remove('open')};
 
   const dir=dirHandle||await Backup.root();
-  const here=path||`${Backup.handle.name} \u203A jinnote`;
+  const here=path||Backup.handle.name;
   sheet.innerHTML=`<h2>저장 폴더</h2><p>${here}</p>`+
     '<p style="color:#e0a24c">여기서 지우면 실제 파일이 사라집니다. 다른 선생님 파일인지 확인해 주세요.</p>'+
     '<div id="fsList" style="margin-top:14px">읽는 중…</div>'+
