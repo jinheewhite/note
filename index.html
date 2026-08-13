@@ -159,11 +159,17 @@ try{
   canvas{-webkit-user-drag:none;user-select:none}
   #fxCv{position:absolute;inset:0;pointer-events:none}
   .row2{display:flex;flex:1;min-height:0;min-width:0}
-  #board{flex:0 0 44%;max-width:44%;display:flex;flex-direction:column;background:#f7f8fa;
-    border-left:2px solid var(--line);min-width:0;order:2}
+  #board{flex:0 0 44%;max-width:none;display:flex;flex-direction:column;background:#f7f8fa;
+    min-width:0;order:2}
+  #splitBar{flex:0 0 14px;order:1;cursor:col-resize;background:var(--ink-2);
+    border-left:1px solid var(--line);border-right:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;touch-action:none}
+  #splitBar::before{content:'⋮';color:var(--text-dim);font-size:18px}
+  body.board-left #splitBar,html.board-left #splitBar{order:1}
+  body.board-full #splitBar,html.board-full #splitBar{display:none}
   #stage{flex:1 1 0;min-width:0}
   /* 칠판을 왼쪽으로 */
-  body.board-left #board,html.board-left #board{order:0;border-left:0;border-right:2px solid var(--line)}
+  body.board-left #board,html.board-left #board{order:0}
   body.board-left #stage,html.board-left #stage{order:1}
   /* 칠판이 왼쪽이면 쪽 번호는 맨 바깥(오른쪽)으로 */
   body.board-left aside,html.board-left aside{order:2;border-right:0;border-left:1px solid var(--line)}
@@ -398,9 +404,9 @@ try{
   </div>
   <button id="btnClear" title="지금 보는 쪽의 필기만 지웁니다">쪽 비우기</button>
   <button id="btnClearAll" title="이 자료의 모든 쪽 필기를 지웁니다 (오늘 것)">전체 쪽 비우기</button>
-  <button id="btnPdf" class="primary">PDF로 저장</button>
+  <button id="btnPng" title="지금 보는 쪽만 그림(PNG)으로 저장합니다 — 저장하면 닫을 때 전체 저장을 건너뜁니다">이 쪽 저장</button>
+  <button id="btnPdf" class="primary" title="판서한 쪽 전체를 PDF 한 개로 저장합니다">PDF로 저장</button>
   <button id="btnOpen" hidden>PDF 열기</button>
-  <button id="btnPng" hidden>쪽 그림</button>
   <span class="tstat">
     <span class="saved">쪽 <b id="pageInfo">– / –</b></span>
   </span>
@@ -409,9 +415,12 @@ try{
   </div>
   <span class="saved" id="saved" hidden>—</span>
   <span id="boardCtl" hidden style="display:flex;align-items:center;gap:6px">
+    <button id="btnBdPrev" class="mini icon" title="칠판 이전 쪽">◀</button>
+    <span class="mono" id="bdPageInfo" title="칠판 쪽">1/1</span>
+    <button id="btnBdNext" class="mini icon" title="칠판 다음 쪽 — 끝이면 새 쪽을 만듭니다">▶</button>
     <button id="btnBoardSwap" class="mini" title="칠판과 PDF 자리를 바꿉니다">⇄ 자리 바꾸기</button>
     <button id="btnBoardBg" class="mini" title="칠판 바탕을 바꿉니다">칠판 바탕</button>
-    <button id="btnBoardClear" class="mini">칠판 비우기</button>
+    <button id="btnBoardClear" class="mini" title="지금 보는 칠판 쪽을 지웁니다">칠판 비우기</button>
   </span>
   <button id="btnFull" title="전체화면 (F11)">⛶ 전체화면</button>
   <button class="icon" id="btnMore" title="설정 · 저장 · 백업">⚙︎</button>
@@ -510,6 +519,7 @@ try{
 <main>
   <aside id="rail"></aside>
   <div class="row2">
+  <div id="splitBar" hidden title="끌어서 칠판 폭을 조절합니다"></div>
   <div id="board" hidden>
     <canvas id="bdCv"></canvas>
   </div>
@@ -1693,7 +1703,7 @@ function updateTouchBtn(){
 }
 /* 손가락으로 그릴 수 있게 켜고 끕니다 (EJ Pen 같은 칠판 프로그램이 켜져 있을 때 필요) */
 document.addEventListener('DOMContentLoaded',()=>{},{once:true});
-function cancelStroke(){if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=null;S.penErase=false}
+function cancelStroke(){if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=null;S.penErase=false;S.pinch=null}
 
 /* 펜 ─ 획 그리기 */
 function startStroke(e){
@@ -1702,9 +1712,8 @@ function startStroke(e){
   if(S.tool==='laser'){laserPoint(x,y,true);return}
   S.penErase=(e.pointerType==='pen'&&e.buttons===32);   /* 펜 뒤쪽 지우개 버튼 */
   if(S.penErase||S.tool==='eraser'){erase(x,y);return}
-  const pr=(e.pointerType==='pen'&&e.pressure>0&&e.pressure<1)?Math.round(e.pressure*100)/100:null;
-  const p=toN(x,y);if(pr!=null)p.push(pr);
-  S.cur={mode:S.tool,color:curColor(),w:(S.tool==='hl'?curSize()*2.2:curSize())/S.pdfW,pts:[p]};
+  /* 필압에 따라 굵기를 바꾸면 마디마다 각져 보입니다 — 칠판처럼 고른 굵기로 씁니다 */
+  S.cur={mode:S.tool,color:curColor(),w:(S.tool==='hl'?curSize()*2.2:curSize())/S.pdfW,pts:[toN(x,y)]};
   paintStroke(S.cur);
 }
 const STEADY=0.42;                       /* 손떨림 보정 세기 (0=없음, 커질수록 차분) */
@@ -1717,10 +1726,8 @@ function moveStroke(e){
   S.last=[x,y];
   if(S.tool==='laser'){laserPoint(x,y,false);return}
   if(S.penErase||S.tool==='eraser'){erase(x,y);return}
-  const pr=(e.pointerType==='pen'&&e.pressure>0&&e.pressure<1)?Math.round(e.pressure*100)/100:null;
-  const p=toN(x,y);if(pr!=null)p.push(pr);
   if(!S.cur)return;
-  S.cur.pts.push(p);drawLast();
+  S.cur.pts.push(toN(x,y));drawLast();
 }
 /* 손가락으로 빠르고 길게, 거의 직선으로 그으면 필기가 아니라 쪽 넘김으로 봅니다.
    그어진 선은 지우고 넘깁니다. 짧거나 느리거나 구불구불하면 그대로 필기입니다 */
@@ -1953,8 +1960,33 @@ function movePan(e){
   autoFlip(e);
 }
 
-/* 두 손가락 기능은 뺐습니다 — 손가락 여러 개도 그냥 화면 밀기로 다룹니다.
-   확대·축소는 화면을 두 번 톡톡 치는 것으로만 합니다 */
+/* 두 손가락(또는 양손) — 벌리고 오므리면 확대·축소, 함께 밀면 이동 */
+function two(){const a=[...ptrs.values()].filter(p=>p.type==='touch');return [a[0],a[1]]}
+function touches(){return [...ptrs.values()].filter(p=>p.type==='touch').length}
+function startPinch(){
+  const [a,b]=two();if(!a||!b)return;
+  S.pinch={d:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),
+           mx:(a.x+b.x)/2,my:(a.y+b.y)/2,vz0:S.vz||1};
+  S.fitting=false;
+}
+function movePinch(){
+  const [a,b]=two();if(!a||!b||!S.pinch)return;
+  const d=Math.max(1,Math.hypot(a.x-b.x,a.y-b.y));
+  const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+  let vz=S.pinch.vz0*(d/S.pinch.d);           /* 벌린 만큼 확대 */
+  const total=S.scale*vz;
+  if(total>=0.5&&total<=6)S.vz=vz;
+  S.tx+=mx-S.pinch.mx;S.ty+=my-S.pinch.my;    /* 두 손 가운데를 따라 이동 */
+  S.pinch.mx=mx;S.pinch.my=my;
+  clampView();applyView();
+  $('zoomInfo').textContent=Math.round(S.scale*(S.vz||1)/S.fitScale*100)+'%';
+}
+function endPinch(){
+  if(!S.pinch)return;
+  S.pinch=null;
+  clampView();applyView();
+  sharpenSoon(220);                           /* 잠시 뒤 선명하게 */
+}
 
 inkCv.addEventListener('dragstart',e=>e.preventDefault());
 inkCv.addEventListener('contextmenu',e=>e.preventDefault());
@@ -1972,7 +2004,7 @@ inkCv.addEventListener('pointerdown',e=>{
   S.downAt={t:performance.now(),x:e.clientX,y:e.clientY};
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType,t:performance.now()});
   try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
-  if(!isWriter(e.pointerType)&&ptrs.size>=2){cancelStroke();startPan(e);return}
+  if(!isWriter(e.pointerType)&&touches()>=2){cancelStroke();undoTouchSmudge();S.pan=null;startPinch();return}
   if(isPalm(e)){
     if(!S.palmSeen){S.palmSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 밀면 화면이 움직입니다')}
     cancelStroke();undoTouchSmudge();startPan(e);return;
@@ -1983,6 +2015,7 @@ inkCv.addEventListener('pointermove',e=>{
   ghostMove(e);
   const p=ptrs.get(e.pointerId);if(!p)return;
   p.x=e.clientX;p.y=e.clientY;p.t=performance.now();
+  if(S.pinch)return movePinch();
   if(S.pan)return movePan(e);
   if(S.drawing)moveStroke(e);
 });
@@ -1999,6 +2032,7 @@ function release(e){
   }
   if(!ptrs.has(e.pointerId))return;
   ptrs.delete(e.pointerId);
+  if(S.pinch){if(touches()<2)endPinch();return}
   if(S.pan){
     if(!ptrs.size){
       const moved=Math.hypot(e.clientX-S.pan.x,e.clientY-S.pan.y);
@@ -2068,10 +2102,21 @@ document.addEventListener('visibilitychange',async()=>{
    4-b. 오른쪽 칠판 — PDF와 따로 놉니다
    ══════════════════════════════════════════════════════════ */
 const bdCv=$('bdCv'),bdctx=bdCv.getContext('2d');
-const BD={strokes:[],cur:null,drawing:false,last:null,w:1,h:1,timer:null};
-const boardKey=()=>`${S.fileId||'-'}|${S.date}|BOARD`;
+const BD={strokes:[],cur:null,drawing:false,last:null,w:1,h:1,timer:null,
+          page:1,pages:1,vz:1,tx:0,ty:0,pinch:null};
+const boardKey=(pg)=>{const p=pg||BD.page||1;return `${S.fileId||'-'}|${S.date}|BOARD${p>1?p:''}`};
+function bdPageInfo(){const el=$('bdPageInfo');if(el)el.textContent=`${BD.page||1}/${BD.pages||1}`}
+async function bdGoto(pg){
+  await bdSave();                                    /* 지금 쪽 저장 */
+  BD.page=Math.max(1,pg);
+  BD.pages=Math.max(BD.pages||1,BD.page);
+  const rec=await Store.getNote(boardKey());
+  BD.strokes=rec&&rec.strokes?JSON.parse(JSON.stringify(rec.strokes)):[];
+  BD.cur=null;bdRedraw();bdPageInfo();
+}
 
 function bdResize(){
+  BD.vz=1;BD.tx=0;BD.ty=0;BD.pinch=null;bdView();   /* 크기가 바뀌면 확대는 처음으로 */
   const r=bdCv.getBoundingClientRect();
   if(!r.width||!r.height)return;
   const dpr=Math.max(2.5,Math.min(window.devicePixelRatio||1,4));
@@ -2114,6 +2159,16 @@ function bdRedraw(){
   if(BD.cur)bdPaint(BD.cur);
 }
 async function bdLoad(){
+  BD.page=1;
+  /* 이 자료·오늘 날짜의 칠판 쪽 수를 셉니다 */
+  let mx=1;
+  (await Store.allNotes()).forEach(nn=>{
+    if(nn&&nn.file===S.fileId&&nn.date===S.date&&typeof nn.page==='string'&&nn.page.startsWith('BOARD')){
+      const v=parseInt(nn.page.slice(5))||1;
+      if(v>mx)mx=v;
+    }
+  });
+  BD.pages=mx;bdPageInfo();
   const rec=await Store.getNote(boardKey());
   BD.strokes=rec&&rec.strokes?JSON.parse(JSON.stringify(rec.strokes)):[];
   bdRedraw();
@@ -2122,22 +2177,69 @@ function bdSaveSoon(){clearTimeout(BD.timer);BD.timer=setTimeout(bdSave,600)}
 async function bdSave(){
   if(!S.fileId)return;
   const key=boardKey();
-  if(BD.strokes.length)await Store.putNote({key,file:S.fileId,date:S.date,page:'BOARD',strokes:BD.strokes,at:Date.now()});
+  const tag='BOARD'+((BD.page||1)>1?BD.page:'');
+  if(BD.strokes.length)await Store.putNote({key,file:S.fileId,date:S.date,page:tag,strokes:BD.strokes,at:Date.now()});
   else await Store.delNote(key);
   markSaved();
 }
-/* 칠판 위의 터치 손가락 수 — 손바닥은 여러 점으로 닿습니다 */
-const bdPtrs=new Set();
+/* 칠판 위의 터치들 — 손바닥은 좁게 여러 점, 양손 확대는 멀리 두 점 */
+const bdPtrs=new Map();
+function bdView(){
+  bdCv.style.transformOrigin='0 0';
+  bdCv.style.transform=(BD.vz>1.001)?`translate(${BD.tx}px,${BD.ty}px) scale(${BD.vz})`:'';
+}
+function bdClamp(){
+  const host=$('board').getBoundingClientRect();
+  const w=host.width,h=host.height;
+  BD.tx=Math.min(0,Math.max(w-w*BD.vz,BD.tx));
+  BD.ty=Math.min(0,Math.max(h-h*BD.vz,BD.ty));
+}
+function bdFarTouch(e){                                    /* 이미 닿은 손과 멀면 = 다른 손 */
+  for(const q of bdPtrs.values()){
+    if(Math.hypot(e.clientX-q.x,e.clientY-q.y)>170)return true;
+  }
+  return false;
+}
 function bdIsPalm(e){
   if(e.pointerType!=='touch')return false;                 /* 펜·마우스는 손바닥이 아닙니다 */
-  if(bdPtrs.size>=1)return true;                           /* 이미 닿아 있는데 또 닿으면 손바닥 */
-  return ((e.width||0)>=22||(e.height||0)>=22);            /* 넓게 닿아도 손바닥 */
+  if(bdPtrs.size>=1&&!bdFarTouch(e))return true;           /* 좁게 겹쳐 닿으면 손바닥 */
+  if(bdPtrs.size===0)return ((e.width||0)>=22||(e.height||0)>=22);
+  return false;
+}
+function bdStartPinch(e){
+  const a=[...bdPtrs.values()][0];
+  BD.pinch={d:Math.max(1,Math.hypot(e.clientX-a.x,e.clientY-a.y)),
+            mx:(e.clientX+a.x)/2,my:(e.clientY+a.y)/2,vz0:BD.vz||1,id2:e.pointerId};
+  if(BD.cur){BD.cur=null;bdRedraw()}                       /* 그리던 건 취소 */
+}
+function bdMovePinch(){
+  const a=[...bdPtrs.values()];if(a.length<2||!BD.pinch)return;
+  const d=Math.max(1,Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y));
+  const mx=(a[0].x+a[1].x)/2,my=(a[0].y+a[1].y)/2;
+  const host=$('board').getBoundingClientRect();
+  const px=mx-host.left,py=my-host.top;
+  const prev=BD.vz;
+  BD.vz=Math.max(1,Math.min(4,BD.pinch.vz0*(d/BD.pinch.d)));
+  const k=BD.vz/prev;
+  BD.tx=px-(px-BD.tx)*k+(mx-BD.pinch.mx);                  /* 잡은 자리를 기준으로 */
+  BD.ty=py-(py-BD.ty)*k+(my-BD.pinch.my);
+  BD.pinch.mx=mx;BD.pinch.my=my;
+  bdClamp();bdView();
 }
 bdCv.addEventListener('pointerdown',e=>{
   if($('pop').classList.contains('open')){e.preventDefault();closePop();return}
   if(S.tool==='hand'||S.tool==='laser')return;
 
-  const r=bdCv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+  /* 이미 닿은 손과 멀리 떨어져 또 닿으면 = 양손 확대 */
+  if(e.pointerType==='touch'&&bdPtrs.size>=1&&bdFarTouch(e)){
+    bdPtrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
+    bdStartPinch(e);
+    if(!BD.zoomSeen){BD.zoomSeen=true;toast('양손을 벌리면 칠판이 확대됩니다 — 오므리면 축소')}
+    return;
+  }
+  const r=bdCv.getBoundingClientRect();
+  const x=(e.clientX-r.left)*(BD.w/r.width), y=(e.clientY-r.top)*(BD.h/r.height);
   if(bdIsPalm(e)){                                         /* 손바닥으로 문지르면 지웁니다 */
     if(BD.cur&&performance.now()-(BD.curAt||0)<1200){BD.cur=null;bdRedraw()}  /* 손바닥이 그리던 선은 취소 */
     else if(BD.lastTouch&&performance.now()-BD.lastTouch.at<1200){            /* 방금 손이 그은 선도 취소 */
@@ -2149,7 +2251,7 @@ bdCv.addEventListener('pointerdown',e=>{
     if(!BD.palmSeen){BD.palmSeen=true;toast('칠판: 손바닥으로 문지르면 지워집니다')}
     bdErase(x,y);return;
   }
-  if(e.pointerType==='touch')bdPtrs.add(e.pointerId);
+  if(e.pointerType==='touch')bdPtrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   ghostShow(e);
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
   BD.drawing=true;BD.palm=false;BD.last=[x,y];
@@ -2161,9 +2263,12 @@ bdCv.addEventListener('pointerdown',e=>{
 });
 bdCv.addEventListener('pointermove',e=>{
   ghostMove(e);
+  const bp=bdPtrs.get(e.pointerId);
+  if(bp){bp.x=e.clientX;bp.y=e.clientY}
+  if(BD.pinch)return bdMovePinch();
   if(!BD.drawing)return;
   const r=bdCv.getBoundingClientRect();
-  let x=e.clientX-r.left,y=e.clientY-r.top;
+  let x=(e.clientX-r.left)*(BD.w/r.width),y=(e.clientY-r.top)*(BD.h/r.height);
   if(BD.cur){x=BD.last[0]+(x-BD.last[0])*(1-STEADY);y=BD.last[1]+(y-BD.last[1])*(1-STEADY)}
   if(Math.hypot(x-BD.last[0],y-BD.last[1])<0.8)return;
   const px=BD.last[0],py=BD.last[1];
@@ -2181,6 +2286,7 @@ bdCv.addEventListener('pointermove',e=>{
 function bdEnd(e){
   ghostHide();
   if(e)bdPtrs.delete(e.pointerId);
+  if(BD.pinch){ if(bdPtrs.size<2)BD.pinch=null; return }
   if(!BD.drawing)return;
   BD.drawing=false;BD.palm=false;
   if(BD.cur){
@@ -2198,6 +2304,15 @@ function bdErase(x,y){
   BD.strokes=BD.strokes.filter(st=>!st.pts.some(p=>Math.hypot(p[0]*BD.w-x,p[1]*BD.h-y)<rad));
   if(BD.strokes.length!==before){S.edited=true;bdRedraw()}
 }
+$('btnBdPrev').onclick=()=>{ if((BD.page||1)>1)bdGoto(BD.page-1) };
+$('btnBdNext').onclick=async()=>{
+  const nx=(BD.page||1)+1;
+  if(nx>BD.pages){
+    if(!BD.strokes.length){toast('지금 쪽이 비어 있습니다 — 먼저 쓰고 새 쪽을 만드세요');return}
+    BD.pages=nx;toast(`칠판 ${nx}쪽을 새로 만들었습니다`);
+  }
+  bdGoto(nx);
+};
 $('btnBoardBg').onclick=e=>{
   const anchor=e.currentTarget;              /* 나중에 쓰려면 지금 잡아둬야 합니다 */
   const pop=$('pop');pop.innerHTML='';pop.classList.add('wide');
@@ -2504,7 +2619,7 @@ const FULL_KEY='pn.keepFull';
 function wantFull(){try{return localStorage.getItem(FULL_KEY)==='1'}catch(e){return false}}
 function setWantFull(v){try{localStorage.setItem(FULL_KEY,v?'1':'0')}catch(e){}}
 function goFull(){
-  return document.documentElement.requestFullscreen()
+  return document.documentElement.requestFullscreen({navigationUI:'hide'})
     .catch(()=>toast('F11 키를 눌러 전체화면으로 바꿔 주세요'));
 }
 /* 자료만 닫고 서재로 — 앱은 그대로 열려 있습니다 */
@@ -2659,7 +2774,40 @@ $('btnRotate').onclick=async()=>{
   await renderPage();
   toast('화면을 90도 돌렸습니다');
 };
-function syncBoardCtl(){const bc=$('boardCtl');if(bc){bc.hidden=!S.split;bc.style.display=S.split?'flex':'none'}}
+function syncBoardCtl(){
+  const bc=$('boardCtl');if(bc){bc.hidden=!S.split;bc.style.display=S.split?'flex':'none'}
+  const sb=$('splitBar');if(sb){const on=S.split&&S.splitMode!==2;sb.hidden=!on;sb.style.display=on?'flex':'none'}
+}
+/* 경계선을 끌어 칠판 폭을 조절합니다 (화면의 20%~75%) */
+(()=>{
+  const sb=$('splitBar');if(!sb)return;
+  try{const w=localStorage.getItem('pn.boardW');if(w)$('board').style.flexBasis=w+'%'}catch(e){}
+  let drag=null;
+  sb.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    try{sb.setPointerCapture(e.pointerId)}catch(err){}
+    drag={id:e.pointerId};
+  });
+  sb.addEventListener('pointermove',e=>{
+    if(!drag||drag.id!==e.pointerId)return;
+    const row=$('board').parentElement.getBoundingClientRect();
+    const left=document.body.classList.contains('board-left');
+    let pct=left?((e.clientX-row.left)/row.width*100):((row.right-e.clientX)/row.width*100);
+    pct=Math.max(20,Math.min(75,pct));
+    $('board').style.flexBasis=pct+'%';
+    drag.pct=pct;
+  });
+  const end=e=>{
+    if(!drag||drag.id!==e.pointerId)return;
+    const pct=drag.pct;drag=null;
+    if(pct==null)return;
+    try{localStorage.setItem('pn.boardW',String(Math.round(pct)))}catch(err){}
+    bdResize();
+    if(S.doc){S.fitting=true;renderPage()}
+  };
+  sb.addEventListener('pointerup',end);
+  sb.addEventListener('pointercancel',end);
+})();
 /* ▥ 버튼 한 개로 순환합니다: 끔 → 칠판 반반 → 칠판 단독 → 끔 */
 async function applySplitMode(mode,quiet){
   S.splitMode=mode;
@@ -3034,10 +3182,12 @@ function flatten(){
 const baseName=()=>S.fileName.replace(/\.pdf$/i,'');
 function download(href,name){const a=document.createElement('a');a.href=href;a.download=name;document.body.appendChild(a);a.click();a.remove()}
 
-$('btnPng').onclick=()=>{
+$('btnPng').onclick=async()=>{
   if(!S.doc)return;
+  await saveNow();
   download(flatten().toDataURL('image/png'),`판서노트_${baseName()}_${S.date}_${S.page}쪽.png`);
-  toast('이 쪽을 그림으로 저장했습니다');
+  S.edited=false;AutoDL.dirty=false;AutoDL.lastKey=AutoDL.key();   /* 저장 끝 — 닫을 때 다시 저장하지 않습니다 */
+  toast('이 쪽을 그림으로 저장했습니다 — 닫을 때 전체 저장은 건너뜁니다');
 };
 /* 화면 뒤에서 조용히 PDF를 만듭니다 — 수업 중에도 화면이 흔들리지 않습니다 */
 function paintOn(cx,strokes,w,h){
@@ -3103,6 +3253,7 @@ $('btnPdf').onclick=async()=>{
       if(!doc)toast('저장할 판서가 없습니다');
       else{doc.save(`판서노트_${baseName()}_${S.date}.pdf`);toast('다운로드 폴더에 저장했습니다');}
     }
+    S.edited=false;AutoDL.dirty=false;AutoDL.lastKey=AutoDL.key();  /* 저장 끝 — 닫을 때 다시 저장하지 않습니다 */
   }catch(e){toast('PDF를 만들지 못했습니다: '+e.message)}
   S.busy=false;btn.textContent=label;btn.disabled=false;
 };
@@ -3257,7 +3408,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='17.9';
+const APP_VER='18.1';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
