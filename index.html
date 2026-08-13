@@ -63,7 +63,7 @@ try{
     height:var(--bar);min-height:var(--bar);max-height:var(--bar);
     background:var(--ink-2);border-top:1px solid var(--line);
     display:flex;align-items:center;justify-content:flex-start;gap:8px;
-    padding:0 12px;padding-right:230px;      /* 오른쪽은 EJ Pen 자리로 비워 둡니다 */
+    padding:0 12px;      /* 넓은 화면은 가운데가 비어 있어 EJ Pen 자리가 됩니다 */
     overflow-x:auto;overflow-y:hidden}
   body.bar-top header,html.bar-top header{bottom:auto;top:56px;
     border-top:0;border-bottom:1px solid var(--line)}
@@ -236,12 +236,13 @@ try{
   #folderPick.open{display:flex}
   .swatches{display:inline-flex;align-items:center;gap:5px;padding:0 4px;flex:0 0 auto;
     width:246px;justify-content:center}
-  .swatches button{width:36px;height:36px;min-height:36px;padding:0;border-radius:50%;
+  .swatches button{width:28px;height:28px;min-height:28px;padding:0;border-radius:50%;
     justify-content:center;border-width:2px;border-color:var(--line);background:var(--ink-3)}
-  .swatches button i{width:18px;height:18px;border-radius:50%;display:block}
+  .swatches button i{width:14px;height:14px;border-radius:50%;display:block}
   .swatches button.on{border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.3)}
   .tsep2{width:1px;height:30px;background:var(--line);margin:0 6px;flex:0 0 auto}
   #btnFinger{min-height:44px;padding:0 12px;font-size:13.5px;flex:0 0 auto}
+  #btnMagIn,#btnMagOut{width:auto;padding:0 10px;font-size:16px}
   #btnFinger.on{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700}
   #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
     contain:layout style;pointer-events:auto;isolation:isolate;
@@ -441,7 +442,7 @@ try{
   <div class="grp" id="tools">
     <span class="swatches" id="swatches"></span>
     <button class="icon tool" data-label="펜" id="btnPen" title="펜">
-      <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
+      <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(3.6 21.6) rotate(-45)">
     <path d="M0 0 L2.6 -2.6 L2.6 2.6 Z" fill="currentColor"/>
     <rect x="2.4" y="-2.6" width="3.2" height="5.2" fill="#5d6b7a"/>
@@ -451,7 +452,7 @@ try{
       </svg>
     </button>
     <button class="icon tool" data-label="형광펜" id="btnHl" title="형광펜">
-      <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
+      <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(3.2 21.8) rotate(-45)">
     <rect x="0" y="-3.4" width="4.6" height="6.8" rx="1" fill="currentColor"/>
     <rect x="4.4" y="-2.6" width="2.4" height="5.2" fill="#6f7d8c"/>
@@ -461,7 +462,7 @@ try{
       </svg>
     </button>
     <button class="icon tool" data-label="레이저" id="btnLaser" title="레이저 — 쓰면 몇 초 뒤 저절로 사라집니다">
-      <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
+      <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(3.4 21.4) rotate(-42)">
     <rect x="0" y="-2.4" width="10.6" height="4.8" rx="2.4" fill="#9aa6b4"/>
     <circle cx="3.2" cy="0" r="1.25" fill="#ff5b52"/>
@@ -476,20 +477,12 @@ try{
       </svg>
     </button>
     <button class="icon tool" data-label="지우개" id="btnEraser" title="지우개">
-      <svg viewBox="0 0 26 26" width="25" height="25" aria-hidden="true">
-  <!-- 나무 손잡이 -->
-  <rect x="2.6" y="5.6" width="20.8" height="7.4" rx="1.6" fill="#c9a06a"/>
-  <rect x="2.6" y="5.6" width="20.8" height="2.4" rx="1.2" fill="#dcb681"/>
-  <rect x="8.6" y="4.2" width="8.8" height="2.6" rx="1.3" fill="#a87f4d"/>
-  <!-- 펠트 -->
-  <rect x="2" y="12.6" width="22" height="7.8" rx="1.4" fill="#4a5a6b"/>
-  <rect x="2" y="12.6" width="22" height="2.2" fill="#5f7183"/>
-  <rect x="2" y="18.4" width="22" height="2" rx="1" fill="#3a4753"/>
-  <!-- 분필가루 -->
-  <g fill="#ffffff" opacity=".6">
-    <circle cx="5.2" cy="22.6" r="1"/><circle cx="9.4" cy="23.4" r=".8"/>
-    <circle cx="14" cy="22.4" r=".7"/><circle cx="18.6" cy="23.2" r=".9"/>
+      <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
+  <g transform="translate(13 14) rotate(-35)">
+    <rect x="-9" y="-5" width="18" height="10" rx="2.6" fill="#f2f4f7" stroke="#8b97a5" stroke-width="1.1"/>
+    <rect x="-9" y="-5" width="7.5" height="10" rx="2.6" fill="#5aa0e8"/>
   </g>
+  <path d="M4 22.5 h18" stroke="#8b97a5" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="3 3"/>
       </svg>
     </button>
     <span class="tsep2"></span>
@@ -502,14 +495,15 @@ try{
     <button class="icon" id="btnThin" title="가늘게">−</button>
     <span class="mono" id="sizeNow">4</span>
     <button class="icon" id="btnThick" title="굵게">＋</button>
-    <button class="icon" id="btnUndo" title="되돌리기">↩︎</button>
+    <button class="icon" id="btnUndo" hidden title="되돌리기">↩︎</button>
   </div>
 
   <div class="grp" id="rightGrp">
     <span class="mono" id="zoomInfo" hidden>100%</span>
-
-    <button class="icon" id="btnFit" title="화면에 맞추기">⤢</button>
-    <button class="icon" id="btnRotate" title="화면 돌리기">⟳</button>
+    <button class="icon" id="btnMagIn" title="누를 때마다 확대됩니다">🔍＋</button>
+    <button class="icon" id="btnMagOut" title="누를 때마다 축소됩니다">🔍−</button>
+    <button class="icon" id="btnFit" title="화면에 맞추기 (원래 크기)">⤢</button>
+    <button id="btnRotate" title="누를 때마다 페이지가 90도씩 돌아갑니다">⟳ 돌리기</button>
 
     <button id="btnSplit" title="오른쪽에 칠판을 엽니다">▥ 칠판</button>
   </div>
@@ -2435,19 +2429,10 @@ const CUR_ART={
     <rect x="6.6" y="-3.6" width="10.4" height="7.2" rx="2" fill="#b7c2ce"/>
     <rect x="6.6" y="-3.6" width="10.4" height="2.4" rx="1.2" fill="#d7dee6"/>
   </g>`,  hx:2, hy:30, col:()=>S.colors.hl},
-  eraser:{body:`<!-- 나무 손잡이 -->
-  <rect x="2.6" y="5.6" width="20.8" height="7.4" rx="1.6" fill="#c9a06a"/>
-  <rect x="2.6" y="5.6" width="20.8" height="2.4" rx="1.2" fill="#dcb681"/>
-  <rect x="8.6" y="4.2" width="8.8" height="2.6" rx="1.3" fill="#a87f4d"/>
-  <!-- 펠트 -->
-  <rect x="2" y="12.6" width="22" height="7.8" rx="1.4" fill="#4a5a6b"/>
-  <rect x="2" y="12.6" width="22" height="2.2" fill="#5f7183"/>
-  <rect x="2" y="18.4" width="22" height="2" rx="1" fill="#3a4753"/>
-  <!-- 분필가루 -->
-  <g fill="#ffffff" opacity=".6">
-    <circle cx="5.2" cy="22.6" r="1"/><circle cx="9.4" cy="23.4" r=".8"/>
-    <circle cx="14" cy="22.4" r=".7"/><circle cx="18.6" cy="23.2" r=".9"/>
-  </g>`,  hx:16,hy:20, col:()=>null},
+  eraser:{body:`<g transform="translate(13 14) rotate(-35)">
+    <rect x="-9" y="-5" width="18" height="10" rx="2.6" fill="#f2f4f7" stroke="#8b97a5" stroke-width="1.1"/>
+    <rect x="-9" y="-5" width="7.5" height="10" rx="2.6" fill="#5aa0e8"/>
+  </g>`,  hx:13,hy:19, col:()=>null},
   laser: {body:`<g transform="translate(3.4 21.4) rotate(-42)">
     <rect x="0" y="-2.4" width="10.6" height="4.8" rx="2.4" fill="#9aa6b4"/>
     <circle cx="3.2" cy="0" r="1.25" fill="#ff5b52"/>
@@ -2467,23 +2452,23 @@ function toolSVG(tool,size){
          a.body.replace(/currentColor/g,col)+'</svg>';
 }
 function applyCursor(){
-  const a=CUR_ART[S.tool];
   const targets=[inkCv,bdCv].filter(Boolean);
-  if(!a){
-    const c=S.tool==='hand'?'grab':'crosshair';
-    targets.forEach(el=>el.style.cursor=c);return;
+  if(S.tool==='eraser'){                       /* 지우개만 지우개 모양 커서 */
+    const svg=toolSVG('eraser',32);
+    const a=CUR_ART.eraser;
+    const url=svg?`url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${a.hx} ${a.hy}, crosshair`:'crosshair';
+    targets.forEach(el=>el.style.cursor=url);return;
   }
-  const svg=toolSVG(S.tool,32);
-  const url=`url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${a.hx} ${a.hy}, crosshair`;
-  targets.forEach(el=>el.style.cursor=url);
+  const c=S.tool==='hand'?'grab':'crosshair';  /* 나머지는 보통 커서 */
+  targets.forEach(el=>el.style.cursor=c);
 }
 /* 손·펜으로 쓸 때는 접촉점에 도구 그림을 띄웁니다 */
 const ghost=document.createElement('div');
 ghost.id='ghost';document.body.appendChild(ghost);
 function ghostShow(e){
   if(e.pointerType==='mouse')return;
-  const a=CUR_ART[S.tool];if(!a){ghost.style.display='none';return}
-  ghost.innerHTML=toolSVG(S.tool,44);
+  if(S.tool!=='eraser'){ghost.style.display='none';return}   /* 지우개만 그림을 띄웁니다 */
+  ghost.innerHTML=toolSVG('eraser',44);
   ghost.style.display='block';
   ghostMove(e);
 }
@@ -2772,8 +2757,8 @@ $('stage').addEventListener('wheel',e=>{
   }
 },{passive:false});
 $('btnFit').onclick=()=>{S.vz=1;S.fitting=true;S.tx=0;S.ty=0;renderPage()};
-/* 확대 버튼은 뺐습니다 — 두 손을 대각선으로 벌리면 확대, 오므리면 축소,
-   ⤢ 를 누르면 원래 크기(화면 맞춤)로 돌아옵니다 */
+$('btnMagIn').onclick=()=>{ if(S.doc)quickZoom(1.3) };     /* 누를 때마다 한 단계 확대 */
+$('btnMagOut').onclick=()=>{ if(S.doc)quickZoom(1/1.3) };   /* 누를 때마다 한 단계 축소 */
 $('btnPrev2').onclick=()=>flip(-1);
 $('btnNext2').onclick=()=>flip(1);
 $('btnRotate').onclick=async()=>{
@@ -3418,7 +3403,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='18.5';
+const APP_VER='18.6';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
