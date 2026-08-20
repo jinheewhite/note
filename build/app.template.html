@@ -3624,7 +3624,9 @@ function cardMenu(f){
       if(!yes)return;
       if(!await Backup.connect())return;
     }
-    if(S.fileId!==f.id){
+    /* 저장하려고 여는 것일 뿐이므로, 끝나면 서재로 되돌아옵니다 */
+    const wasOpen=(S.fileId===f.id);
+    if(!wasOpen){
       const rec=await Store.getFile(f.id);
       if(!rec||!rec.data){
         toast('원본 PDF 가 없어 저장할 수 없습니다 — 자료를 한 번 열어 주세요');return;
@@ -3634,6 +3636,9 @@ function cardMenu(f){
     const ok=await Backup.writePdf();
     toast(ok?(Backup.handle.name+(S.folder?' > '+S.folder:'')+' 에 저장했습니다')
             :'이 자료에는 저장할 판서가 없습니다');
+    /* 내가 열었으면 내가 닫습니다 — 서재에서 누른 것이니 서재로 돌아가야 합니다.
+       방금 연 터라 S.edited 가 거짓이어서 닫기가 다시 저장하지는 않습니다. */
+    if(!wasOpen)$('btnClose').click();
   };
   sheet.querySelector('#mMove').onclick=()=>{close();pickFolder(f)};
   sheet.querySelector('#mRen').onclick=async()=>{
@@ -4057,7 +4062,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='23.4';
+const APP_VER='23.5';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
