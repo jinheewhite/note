@@ -3412,7 +3412,10 @@ function setTool(t,btn){
   /* 이전 도구로 그리던 상태·터치 정보를 전부 정리 — 안 하면 도구가 바뀌지 않는 것처럼 보입니다 */
   S.drawing=false;S.cur=null;S.penErase=false;S.pan=null;
   if(typeof ptrs!=='undefined')ptrs.clear();
-  const sh=$('sheet');if(sh){sh.style.transform='';sh.style.transformOrigin=''}
+  /* 손가락으로 잠시 늘려 둔 것만 풀고, 보던 자리는 그대로 둡니다.
+     전에는 transform 을 통째로 지워, 도구를 고를 때마다 자료가 제자리로 튀었습니다. */
+  if(S.doc)applyView();
+  else{const sh=$('sheet');if(sh){sh.style.transform='';sh.style.transformOrigin=''}}
   S.tool=t;
   S.barAt=performance.now();               /* 도구를 고른 직후 화면 이동을 막습니다 */
   clearTimeout(sharpTimer);                /* 예약된 다시 그리기를 취소합니다 */
@@ -4494,7 +4497,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='23.3';
+const APP_VER='23.4';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
