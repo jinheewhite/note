@@ -31,7 +31,7 @@ try{
   :root{
     --ink:#141d26;--ink-2:#1e2b38;--ink-3:#2b3b4c;--slate:#33475b;
     --chalk:#f5d547;--line:#3d5165;--text:#e8eef4;--text-dim:#8fa3b5;
-    --radius:10px;--bar:76px;
+    --radius:10px;--bar:76px;--boardW:44%;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   [hidden]{display:none!important}
@@ -182,8 +182,8 @@ try{
   canvas{-webkit-user-drag:none;user-select:none}
   #fxCv{position:absolute;inset:0;pointer-events:none}
   .row2{display:flex;flex:1;min-height:0;min-width:0}
-  #board{flex:0 0 44%;max-width:none;display:flex;flex-direction:column;background:#f7f8fa;
-    min-width:0;order:2}
+  #board{flex:0 0 var(--boardW);width:var(--boardW);max-width:none;display:flex;flex-direction:column;
+    background:#f7f8fa;min-width:0;order:2}
   #splitBar{flex:0 0 20px;order:1;cursor:ew-resize;background:var(--ink-2);
     border-left:1px solid var(--line);border-right:1px solid var(--line);
     display:flex;align-items:center;justify-content:center;touch-action:none;
@@ -209,7 +209,20 @@ try{
   /* 칠판 단독 — PDF와 쪽 목록을 숨기고 칠판이 화면 전체를 씁니다 */
   body.board-full #stage,html.board-full #stage{display:none}
   body.board-full aside,html.board-full aside{display:none}
-  body.board-full #board,html.board-full #board{flex:1 1 100%;max-width:100%;border-left:0}
+  body.board-full #board,html.board-full #board{flex:1 1 100%;width:100%;max-width:100%;border-left:0}
+  /* 칠판 겹침 — 칠판이 PDF 공간을 나눠 가지지 않고 그 위에 살짝 얹힙니다.
+     PDF 쪽은 폭이 그대로라서, 칠판을 켜고 꺼도 크기가 변하지 않습니다. */
+  .row2{position:relative}
+  body.board-ov #board,html.board-ov #board{
+    position:absolute;top:0;right:0;bottom:0;width:var(--boardW);flex:none;z-index:30;
+    border-left:1px solid var(--line);box-shadow:-14px 0 34px rgba(0,0,0,.38)}
+  body.board-ov.board-left #board,html.board-ov.board-left #board{
+    right:auto;left:0;border-left:0;border-right:1px solid var(--line);
+    box-shadow:14px 0 34px rgba(0,0,0,.38)}
+  body.board-ov #splitBar,html.board-ov #splitBar{
+    position:absolute;top:0;bottom:0;right:var(--boardW);width:20px;flex:none;z-index:31}
+  body.board-ov.board-left #splitBar,html.board-ov.board-left #splitBar{
+    right:auto;left:var(--boardW)}
 
   #welcome{position:absolute;inset:56px 0 var(--bar) 0;background:var(--ink);display:flex;flex-direction:column;
     align-items:stretch;justify-content:flex-start;gap:0;padding:0;z-index:20;overflow:hidden}
@@ -275,6 +288,23 @@ try{
     color:#9be89b;font:12px/1.6 monospace;padding:10px 12px;border-radius:10px;
     max-width:46vw;max-height:60vh;overflow:auto;white-space:pre-wrap;pointer-events:none}
   #diag[hidden]{display:none!important}
+  /* ── 진단 정보 창 ── */
+  #pnBox{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:400;
+    width:min(760px,94vw);max-height:82vh;display:flex;flex-direction:column;
+    background:var(--ink-2);color:var(--text);border:2px solid var(--chalk);border-radius:16px;
+    padding:18px 20px;box-shadow:0 18px 60px rgba(0,0,0,.65)}
+  #pnBox[hidden]{display:none!important}
+  #pnBox h3{margin:0 0 4px;font-size:19px;color:var(--chalk)}
+  #pnBox .sub{margin:0 0 12px;font-size:14px;color:var(--text-dim);line-height:1.5}
+  #pnBox pre{flex:1;margin:0 0 14px;overflow:auto;white-space:pre-wrap;word-break:break-all;
+    font:12.5px/1.65 ui-monospace,Consolas,monospace;color:#c9e8c9;
+    background:rgba(0,0,0,.42);border:1px solid var(--line);border-radius:10px;padding:12px;
+    -webkit-user-select:text;user-select:text}
+  #pnBox .row{display:flex;gap:10px;flex-wrap:wrap}
+  #pnBox button{flex:1 1 140px;min-height:50px;padding:0 18px;border-radius:12px;
+    border:1px solid var(--line);background:var(--ink-3);color:var(--text);
+    font-size:15px;font-weight:700;cursor:pointer}
+  #pnBox button.go{background:var(--chalk);color:#1a1a12;border-color:var(--chalk)}
   #popMask{position:fixed;inset:0;z-index:59;display:none;background:transparent}
   #popMask.open{display:block}
   #pop button{width:52px;height:52px;min-height:52px;padding:0;border-radius:50%;
@@ -540,7 +570,7 @@ try{
     <span class="mono" id="zoomInfo" hidden>100%</span>
     <button class="icon" id="btnMagIn" title="누를 때마다 확대됩니다">🔍＋</button>
     <button class="icon" id="btnMagOut" title="누를 때마다 축소됩니다">🔍−</button>
-    <button class="icon" id="btnFit" title="화면에 맞추기 (원래 크기)">⤢</button>
+    <button class="icon" id="btnFit" title="폭 맞춤 ↔ 전체 맞춤">⤢</button>
     <button id="btnRotate" title="누를 때마다 페이지가 90도씩 돌아갑니다">⟳ 돌리기</button>
 
     <button id="btnSplit" title="오른쪽에 칠판을 엽니다">▥ 칠판</button>
@@ -612,6 +642,16 @@ try{
 </div>
 
 <div id="diag" hidden></div>
+<div id="pnBox" hidden>
+  <h3>진단 정보</h3>
+  <p class="sub">글자가 안 보이는 원인을 찾는 중입니다. 아래 내용을 <b>복사해서 그대로 보내 주세요.</b><br>
+    자료 내용은 들어 있지 않습니다 — 파일 이름과 글꼴 이름만 적힙니다.</p>
+  <pre id="pnText"></pre>
+  <div class="row">
+    <button id="pnCopy" class="go">복사하기</button>
+    <button id="pnClose">닫기</button>
+  </div>
+</div>
 <div id="popMask"></div>
 <button id="btnClose" hidden></button>
 <div id="pop"></div>
@@ -711,7 +751,10 @@ try{
 </div>
 
 <script id="pdfjsLib">/*__PDFJS__*/</script>
-<script id="pdfWorkerSrc">/*__PDFWORKER__*/</script>
+<!-- type 을 반드시 두어야 합니다. 없으면 브라우저가 이 worker 코드를 본문에서 그대로
+     실행해 버리고, 그러면 pdf.js 가 '본문에 이미 처리기가 있다'고 보아 진짜 worker 를
+     만들지 않습니다(= PDF 해석이 화면 그리는 일과 같은 줄에 서서 느려집니다). -->
+<script type="text/pdf-worker" id="pdfWorkerSrc">/*__PDFWORKER__*/</script>
 <script id="jsPdfLib">/*__JSPDF__*/</script>
 <script type="application/json" id="cmapData">{"__CMAPS__":1}</script>
 <script type="application/json" id="fontData">{"__FONTS__":1}</script>
@@ -725,11 +768,68 @@ try{
    globalThis.pdfjsWorker 를 정의해 두었으므로 pdf.js 가
    자동으로 메인 스레드 처리로 넘어갑니다.
    ══════════════════════════════════════════════════════════ */
+/* ── 진단 수집기 ──────────────────────────────────────────
+   글자가 안 나오는 원인은 대부분 worker(별도 스레드) 안에서
+   조용히 일어납니다. 화면에도 콘솔에도 안 보이므로, 여기서
+   따로 주워 모아 두었다가 '진단 정보' 창으로 보여 줍니다.
+   ──────────────────────────────────────────────────────── */
+const PN_DIAG={
+  problems:[],                        /* 이것이 있으면 창을 저절로 엽니다 */
+  notes:[],
+  add(kind,msg,isProblem){
+    const line=kind+' | '+String(msg).replace(/\s+/g,' ').slice(0,300);
+    const box=isProblem?this.problems:this.notes;
+    if(box.indexOf(line)>=0)return;                 /* 같은 내용은 한 번만 */
+    if(box.length<80)box.push(line);
+  },
+  clear(){this.problems=[];this.notes=[]},
+  /* pdf.js 는 경고를 console.log 로 흘립니다 — 그래서 log 까지 봅니다 */
+  sniff(where,args){
+    let t='';
+    try{t=Array.prototype.map.call(args,a=>(a&&a.message)?a.message:String(a)).join(' ')}catch(e){return}
+    if(!t)return;
+    const bad=/error|fail|unable|cannot|invalid|corrupt|없|실패/i.test(t);
+    if(/^(Warning|Info):/.test(t)||/font|glyph|cmap|type1|type3|cff|truetype|opentype|encoding|translate/i.test(t))
+      this.add(where,t,bad||/font|glyph|cmap/i.test(t)&&/warning/i.test(t));
+    else if(bad&&where!=='로그')this.add(where,t,true);
+  }
+};
+['log','warn','error'].forEach(fn=>{
+  const orig=console[fn];
+  console[fn]=function(){try{PN_DIAG.sniff(fn==='log'?'로그':(fn==='warn'?'경고':'오류'),arguments)}catch(e){}
+    return orig.apply(console,arguments)};
+});
+/* worker 안쪽 경고를 바깥으로 실어 나릅니다 (BroadcastChannel) */
 try{
-  const src=document.getElementById('pdfWorkerSrc').textContent;
-  pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([src],{type:'application/javascript'}));
-}catch(e){
+  const ch=new BroadcastChannel('pn-diag');
+  ch.onmessage=e=>{const d=e.data;if(d&&d.__pnDiag)PN_DIAG.add(d.kind,d.text,d.bad)};
+}catch(e){}
+const PN_WORKER_SHIM=
+  "(function(){try{var ch=new BroadcastChannel('pn-diag');"+
+  "var send=function(kind,args){try{var t=Array.prototype.map.call(args,function(a){"+
+  "return (a&&a.message)?a.message:String(a)}).join(' ');"+
+  "if(!t)return;"+
+  "if(!/^(Warning|Info):/.test(t)&&!/font|glyph|cmap|type1|type3|cff|truetype|opentype|encoding|translate/i.test(t)"+
+  "&&!/error|fail|unable|cannot|invalid|corrupt/i.test(t))return;"+
+  "ch.postMessage({__pnDiag:1,kind:kind,text:t.slice(0,300),"+
+  "bad:/error|fail|unable|cannot|invalid|corrupt/i.test(t)})}catch(e){}};"+
+  "['log','warn','error'].forEach(function(fn){var o=console[fn];"+
+  "console[fn]=function(){send(fn==='log'?'엔진':'엔진'+fn,arguments);return o.apply(console,arguments)}});"+
+  "}catch(e){}})();\n";
+
+const PN_WSRC=document.getElementById('pdfWorkerSrc').textContent;
+function pnUseMainThread(){          /* 예전 방식 — PDF 해석을 본문에서 직접 돌립니다 */
+  try{(0,eval)(PN_WSRC)}catch(e){}
   pdfjsLib.GlobalWorkerOptions.workerSrc='inline';
+}
+if(location.protocol==='file:'){
+  /* USB·오프라인본처럼 파일로 직접 열면 Blob worker 가 막힙니다 */
+  pnUseMainThread();
+}else{
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc=
+      URL.createObjectURL(new Blob([PN_WORKER_SHIM+PN_WSRC],{type:'application/javascript'}));
+  }catch(e){ pnUseMainThread() }
 }
 
 /* 한글 글자표(CMap)와 기본 글꼴도 파일 안에 함께 넣어 두었습니다.
@@ -738,18 +838,34 @@ const RES={cmap:{},font:{}};
 try{RES.cmap=JSON.parse(document.getElementById('cmapData').textContent)}catch(e){}
 try{RES.font=JSON.parse(document.getElementById('fontData').textContent)}catch(e){}
 function b64bytes(b64){const s=atob(b64),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a}
+/* 없는 글자표·글꼴을 만나도 절대로 예외를 던지지 않습니다.
+   예전에는 여기서 예외를 던졌는데, 그러면 pdf.js 가 그 글꼴 하나를 통째로 버리고
+   '빈 글꼴'로 바꿔 버립니다 — 그 글꼴로 찍힌 글자가 화면에서 몽땅 사라집니다.
+   (실제로 Adobe-Korea1-UCS2 하나가 없어서 교과서 본문이 통째로 안 보였습니다.)
+   글자표는 대부분 '글자 복사'용이라, 없으면 비워서 넘겨도 글자는 제대로 그려집니다. */
+const EMPTY_CMAP=new Uint8Array([0]);
 class InlineCMapReader{
   constructor(){this.isCompressed=true}
   async fetch({name}){
     const d=RES.cmap[name];
-    if(!d)throw new Error('내장되지 않은 글자표입니다: '+name);
+    if(!d){
+      PN_DIAG.add('없는 글자표',name+' — 비워서 넘깁니다(글자는 그대로 나옵니다)',true);
+      return {cMapData:EMPTY_CMAP,compressionType:1};
+    }
+    PN_DIAG.add('글자표',name,false);
     return {cMapData:b64bytes(d),compressionType:1};
   }
 }
 class InlineFontReader{
   async fetch({filename}){
     const d=RES.font[filename];
-    if(!d)throw new Error('내장되지 않은 글꼴입니다: '+filename);
+    if(!d){
+      PN_DIAG.add('없는 기본글꼴',filename+' — 닮은 글꼴로 대신합니다',true);
+      const alt=RES.font['LiberationSans-Regular.ttf'];
+      if(alt)return b64bytes(alt);
+      return new Uint8Array(0);
+    }
+    PN_DIAG.add('기본글꼴',filename,false);
     return b64bytes(d);
   }
 }
@@ -1015,7 +1131,11 @@ const S={
   drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false,
   fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,tx:0,ty:0,tap:null,flipAt:0,
   lib:'',folder:'',q:'',sort:'recent',view:'grid',split:false,pdfW:1,downAt:null,pickedOnce:false,rot:0,barAt:0,
-  hidAt:0,vz:1,edited:false
+  hidAt:0,vz:1,edited:false,
+  /* 'width' = 화면 폭에 꽉 채움(글자가 큼, 아래는 밀어서 봄)
+     'page'  = 쪽 전체가 한 화면에(작지만 통째로 보임)  — ⤢ 로 바꿉니다 */
+  fitMode:(()=>{try{return localStorage.getItem('pn.fitMode')==='page'?'page':'width'}catch(e){return 'width'}})(),
+  rsig:''
 };
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 const noteKey=(f,d,p)=>`${f}|${d}|${p}`;
@@ -1024,7 +1144,14 @@ const pdfCv=$('pdfCv'),inkCv=$('inkCv'),fxCv=$('fxCv'),
       pctx=pdfCv.getContext('2d'),ictx=inkCv.getContext('2d'),fctx=fxCv.getContext('2d');
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400)}
-function showGuide(){$('guideMask').classList.add('open')}
+/* auto=true 는 켤 때 저절로 뜬 안내입니다 — 잠깐 보여 주고 알아서 닫습니다.
+   ? 로 직접 부른 안내는 누를 때까지 그대로 둡니다. */
+function showGuide(auto){
+  const m=$('guideMask');
+  m.classList.add('open');
+  clearTimeout(m._t);
+  if(auto)m._t=setTimeout(()=>m.classList.remove('open'),2200);
+}
 /* 처음 쓰거나 새 버전이 되면, 저장 폴더를 한 번만 정하자고 안내합니다 */
 async function askSaveDir(){
   if(!Backup.supported())return;
@@ -1037,9 +1164,9 @@ async function askSaveDir(){
   if(ok)toast('이제 이 폴더에 자동으로 저장됩니다');
 }
 $('guideOk')&&($('guideOk').onclick=()=>{
-  $('guideMask').classList.remove('open');
+  const m=$('guideMask');clearTimeout(m._t);m.classList.remove('open');
 });
-$('btnGuide')&&($('btnGuide').onclick=showGuide);
+$('btnGuide')&&($('btnGuide').onclick=()=>showGuide(false));
 /* 버튼을 길게(0.6초) 누르고 있으면 그 버튼의 설명이 뜹니다.
    설명이 뜬 채로 손을 떼면 버튼은 눌리지 않습니다 — 궁금할 땐 길게, 쓸 땐 짧게 */
 let helpT=null,helpBtn=null,helpShown=false;
@@ -1094,10 +1221,41 @@ async function makeThumb(doc){
     return cv.toDataURL('image/jpeg',.72);
   }catch(e){return null}
 }
+/* 이 쪽이 실제로 쓴 글꼴을 하나씩 확인합니다.
+   pdf.js 는 글꼴 해석에 실패해도 조용히 '빈 글꼴'로 바꿔 치우기 때문에,
+   경고가 안 떠도 여기서는 [실패] 로 드러납니다. */
+async function pnFontScan(pg){
+  try{
+    const ol=await pg.getOperatorList();
+    const ids=new Set();
+    for(let i=0;i<ol.fnArray.length;i++)
+      if(ol.fnArray[i]===pdfjsLib.OPS.setFont)ids.add(ol.argsArray[i][0]);
+    if(!ids.size){PN_DIAG.add('글꼴','이 쪽에는 글자를 그리는 글꼴이 하나도 없습니다',true);return}
+    for(const id of ids){
+      let f=null;
+      try{if(pg.commonObjs.has(id))f=pg.commonObjs.get(id)}catch(e){}
+      if(!f){PN_DIAG.add('글꼴실패',id+' — 준비되지 않음',true);continue}
+      /* 해석에 실패한 글꼴은 이름조차 없이 g_d1_f7 같은 임시 이름만 남습니다 */
+      const bad=!!(f.missingFile||f.error||!f.name||/error/i.test(String(f.loadedName||'')));
+      let s=(f.name||f.loadedName||id);
+      if(f.fallbackName&&f.fallbackName!==f.name)s+=' → 대체:'+f.fallbackName;
+      if(f.missingFile)s+=' [글꼴파일없음]';
+      if(f.error)s+=' [오류:'+String(f.error).slice(0,140)+']';
+      if(f.isType3Font)s+=' [Type3]';
+      if(f.vertical)s+=' [세로쓰기]';
+      if(f.disableFontFace)s+=' [경로그리기]';
+      if(f.cssFontInfo)s+=' [시스템글꼴]';
+      PN_DIAG.add(bad?'글꼴실패':'글꼴',s,bad);
+    }
+  }catch(e){PN_DIAG.add('진단오류','글꼴 목록을 읽지 못했습니다: '+(e&&e.message),true)}
+}
+
 async function loadPdf(bytes,name,id){
+  PN_DIAG.clear();
+  S.rsig='';                           /* 새 자료이므로 그려 둔 기록을 지웁니다 */
   try{
     S.doc=await pdfjsLib.getDocument({data:bytes.slice(0),...PDF_OPTS}).promise;
-  }catch(e){toast('PDF를 열지 못했습니다: '+e.message);return}
+  }catch(e){PN_DIAG.add('열기실패',e&&e.message,true);toast('PDF를 열지 못했습니다: '+e.message);return}
   S.pages=S.doc.numPages;S.page=1;S.fileName=name;
   S.fileId=id||(name+'|'+bytes.byteLength);
   $('fileName').textContent=name;
@@ -1117,11 +1275,17 @@ async function loadPdf(bytes,name,id){
   S.edited=false;                      /* 이번에 손댄 적이 없습니다 */
   AutoDL.dirty=false;AutoDL.lastKey='';
   await renderPage();
+  viewTop();                           /* 열자마자 쪽의 맨 위부터 보이게 */
   if(S.split){bdResize();await bdLoad()}
   /* 화면 크기가 확정된 뒤 한 번 더 그려 첫 화면이 어긋나지 않게 합니다 */
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{ if(S.fitting)renderPage() }));
-  setTimeout(()=>{ if(S.doc&&S.fitting)renderPage() },260);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ if(S.fitting)renderPage().then(viewTop) }));
+  setTimeout(()=>{ if(S.doc&&S.fitting)renderPage().then(viewTop) },260);
   markSaved();
+  /* 진단 — 그리기가 끝난 뒤 이 쪽의 글꼴 상태를 확인합니다 */
+  setTimeout(async()=>{
+    try{ if(S.doc)await pnFontScan(await S.doc.getPage(S.page)) }catch(e){}
+    pnDiagMaybeOpen();
+  },900);
 }
 
 let renderTask=null, renderChain=Promise.resolve(), renderSeq=0;
@@ -1146,7 +1310,12 @@ async function doRender(my){
   const rot=((S.rot||0)%360+360)%360;
   /* 굿노트처럼 — 가로·세로 중 더 빡빡한 쪽에 맞춰 페이지 전체가 한 화면에 들어옵니다 */
   const v1=pg.getViewport({scale:1,rotation:rot}), st=$('stage');
-  S.fitScale=Math.max(.3,Math.min((st.clientWidth-56)/v1.width,(st.clientHeight-24)/v1.height));
+  /* 폭 맞춤 — 세로 자료를 가로 화면에 통째로 넣으면 좌우가 절반 넘게 비고 글자가 아주 작아집니다.
+     그래서 기본은 화면 폭에 맞추고, 아래쪽은 밀어 올려 봅니다.
+     가로 자료는 어차피 폭이 먼저 걸리므로 두 방식의 결과가 같습니다. */
+  const fitW=(st.clientWidth-56)/v1.width;
+  const fitP=Math.min(fitW,(st.clientHeight-24)/v1.height);
+  S.fitScale=Math.max(.3, S.fitMode==='page' ? fitP : fitW);
   if(S.fitting)S.scale=S.fitScale;
   const vp=pg.getViewport({scale:S.scale,rotation:rot});
   S.pdfW=vp.width;
@@ -1154,14 +1323,29 @@ async function doRender(my){
   /* 화질 — 원본 PDF 해상도(72dpi) 기준으로 최소 3배는 확보해 글자가 뭉개지지 않게 합니다.
      화면에 맞춰 축소된 상태에서도 원본보다 크게 그립니다. */
   const BUDGET=42e6;                                   /* 약 4200만 픽셀까지 허용 */
-  const MIN_SCALE=S.split?4:3;                         /* 칠판을 켜면 좁아지므로 더 크게 */
-  let dpr=Math.max(MIN_SCALE/Math.max(S.scale,0.01), window.devicePixelRatio||1, S.split?3.2:2.5);
+  /* 칠판은 이제 PDF 위에 떠 있을 뿐이라 PDF가 좁아지지 않습니다 —
+     칠판을 켰다고 더 크게 그릴 이유가 없어졌습니다. */
+  const MIN_SCALE=3;
+  let dpr=Math.max(MIN_SCALE/Math.max(S.scale,0.01), window.devicePixelRatio||1, 2.5);
   dpr=Math.min(dpr,6);
   const need=vp.width*vp.height;
   if(need*dpr*dpr>BUDGET)dpr=Math.max(2,Math.sqrt(BUDGET/need));
   S.dpr=dpr;
+  const cw=Math.round(vp.width*dpr), ch=Math.round(vp.height*dpr);
+  /* 자료를 열면 자리를 잡느라 첫 쪽을 세 번까지 다시 그립니다. 그릴 때마다 화면을
+     흰색으로 지웠다가 다시 그리므로, 무거운 자료에서는 그게 깜박임으로 보입니다.
+     조건이 하나도 안 바뀌었으면 다시 그리지 않습니다. */
+  const sig=[S.page,rot,cw,ch].join('|');
+  if(S.rsig===sig){S.tx=keepTx;S.ty=keepTy;return}
+  /* 같은 자료라면 쪽을 넘겨도 그림판 크기가 똑같습니다.
+     그런데 width 를 다시 넣으면 그때마다 큰 메모리를 새로 잡습니다(4K 화면에서는
+     한 장에 수십 MB). 그래서 크기가 그대로면 새로 잡지 않고 지우기만 합니다. */
   for(const cv of [pdfCv,inkCv,fxCv]){
-    cv.width=Math.round(vp.width*dpr);cv.height=Math.round(vp.height*dpr);
+    if(cv.width!==cw||cv.height!==ch){cv.width=cw;cv.height=ch}
+    else{
+      const g=cv.getContext('2d');
+      g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cw,ch);
+    }
     cv.style.width=vp.width+'px';cv.style.height=vp.height+'px';
   }
   $('sheet').style.width=vp.width+'px';$('sheet').style.height=vp.height+'px';
@@ -1177,6 +1361,7 @@ async function doRender(my){
   catch(e){ if(renderTask===task)renderTask=null; if(e&&e.name==='RenderingCancelledException')return; throw e }
   if(renderTask===task)renderTask=null;
   if(my!==renderSeq)return;
+  S.rsig=sig;                          /* 이 조건으로는 이미 그려 두었습니다 */
   ictx.setTransform(dpr,0,0,dpr,0,0);
   fctx.setTransform(dpr,0,0,dpr,0,0);
   for(const cx of [ictx,fctx]){cx.imageSmoothingEnabled=true;try{cx.imageSmoothingQuality='high'}catch(e){}}
@@ -1526,6 +1711,88 @@ window.addEventListener('keydown',e=>{
     diagLog=[];$('diag').textContent='진단 켜짐 — 펜을 눌러 보세요';
   }
 });
+
+/* ══════════════════════════════════════════════════════════
+   진단 정보 창 — 글자가 안 나오는 원인을 사람이 읽을 수 있게
+   ══════════════════════════════════════════════════════════ */
+function pnReport(){
+  const L=[];
+  let ua='';try{ua=navigator.userAgent}catch(e){}
+  L.push('판서노트 '+(typeof APP_VER!=='undefined'?APP_VER:'?')+
+         '  /  pdf.js '+((window.pdfjsLib&&pdfjsLib.version)||'?'));
+  L.push('자료: '+(S.fileName||'(없음)')+'   '+(S.page||'?')+' / '+(S.pages||'?')+'쪽');
+  L.push('화면: '+(window.innerWidth||0)+'x'+(window.innerHeight||0)+
+         '  dpr='+(window.devicePixelRatio||1)+
+         '  그림배율='+((S.dpr||0).toFixed?S.dpr.toFixed(2):S.dpr)+
+         '  회전='+(S.rot||0));
+  L.push('저장방식: '+(typeof Store!=='undefined'?Store.mode:'?'));
+  L.push('기기: '+ua);
+  L.push('────────────────────────────');
+  if(PN_DIAG.problems.length){
+    L.push('[문제 '+PN_DIAG.problems.length+'건]');
+    PN_DIAG.problems.forEach(x=>L.push('  ! '+x));
+  }else{
+    L.push('[문제] 걸러진 것 없음');
+  }
+  if(PN_DIAG.notes.length){
+    L.push('');
+    L.push('[참고 '+PN_DIAG.notes.length+'건]');
+    PN_DIAG.notes.forEach(x=>L.push('  · '+x));
+  }
+  return L.join('\n');
+}
+function pnDiagOpen(){
+  try{
+    const t=$('pnText');if(!t)return;
+    t.textContent=pnReport();
+    $('pnBox').hidden=false;
+  }catch(e){}
+}
+/* 쓰시는 분 화면에는 어떤 오류창도 뜨지 않습니다.
+   기록만 조용히 모아 두고, 필요할 때 쪽 번호를 빠르게 세 번 눌러 꺼내 봅니다. */
+function pnDiagMaybeOpen(){ /* 자동으로 열지 않습니다 */ }
+window.pnDiag=pnDiagOpen;                 /* 콘솔에서도 부를 수 있게 */
+
+/* 이 기기가 펜과 손가락을 구분해 주는지 기록합니다.
+   전자칠판은 펜도 'touch' 로 알려 주는 제품이 많고, 그러면 앱이 둘을 가릴 수 없습니다. */
+document.addEventListener('pointerdown',e=>{
+  try{
+    PN_DIAG.add('입력장치',
+      e.pointerType+'  누름세기='+(e.pressure!=null?e.pressure.toFixed(2):'?')+
+      '  굵기='+Math.round(e.width||0)+'x'+Math.round(e.height||0)+
+      '  버튼='+e.buttons+'  손가락필기='+(S.fingerDraws?'켬':'끔')+'  도구='+S.tool,
+      false);
+  }catch(err){}
+},true);
+
+function pnWire(){
+  const box=$('pnBox');if(!box)return;
+  $('pnClose').onclick=()=>{box.hidden=true};
+  $('pnCopy').onclick=async()=>{
+    const txt=$('pnText').textContent;
+    let ok=false;
+    try{await navigator.clipboard.writeText(txt);ok=true}catch(e){}
+    if(!ok)try{                            /* 오래된 기기용 예비 수단 */
+      const ta=document.createElement('textarea');
+      ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+      document.body.appendChild(ta);ta.focus();ta.select();
+      ok=document.execCommand('copy');document.body.removeChild(ta);
+    }catch(e){}
+    toast(ok?'복사했습니다 — 붙여넣기 해서 보내 주세요':'복사가 안 됩니다 — 글자를 직접 끌어서 복사해 주세요');
+  };
+  /* 문제가 안 잡혀도 열어 볼 수 있게: 쪽 번호를 빠르게 세 번 */
+  const pi=$('pageInfo');
+  if(pi){
+    let n=0,tm=0;
+    pi.addEventListener('click',()=>{
+      clearTimeout(tm);n++;
+      if(n>=3){n=0;pnDiagOpen();return}
+      tm=setTimeout(()=>{n=0},1200);
+    });
+  }
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',pnWire);
+else pnWire();
 function applyView(k){
   const z=(k||1)*(S.vz||1);
   const s=z!==1?` scale(${z})`:'';
@@ -1580,6 +1847,12 @@ function clampView(over){
   const {mx,my}=limits(), o=over?flipDist()+40:0;
   S.tx=Math.max(-mx-o,Math.min(mx+o,S.tx));
   S.ty=Math.max(-my-o,Math.min(my-0+o,S.ty));
+}
+/* 폭 맞춤이면 쪽이 화면보다 길어집니다 — 언제나 쪽의 '처음'부터 보이게 맞춥니다 */
+function viewTop(){
+  const {my}=limits();
+  S.tx=0;S.ty=my;
+  clampView();applyView();
 }
 /* 끌고 있는 도중에도 끝을 넘기면 곧바로 다음 쪽으로 이어집니다 (상하·좌우 모두) */
 /* 세로 자료는 위아래로, 가로 자료는 좌우로 넘깁니다 */
@@ -1696,26 +1969,40 @@ inkCv.addEventListener('pointerdown',e=>{
   SW.id=e.pointerId;SW.x=e.clientX;SW.y=e.clientY;SW.t=performance.now();SW.type=e.pointerType;
   SW.atTop=S.ty>=my-2;SW.atBot=S.ty<=-my+2;SW.atL=S.tx>=mx-2;SW.atR=S.tx<=-mx+2;
 },true);
-inkCv.addEventListener('pointerup',e=>{
-  if(SW.id!==e.pointerId)return;
-  SW.id=null;
-  if(!S.doc||ptrs.size>1)return;
-  if(SW.type!=='touch')return;                     /* 펜·마우스는 넘김으로 보지 않습니다 */
+/* 넘김 판정 — need 는 넘김으로 인정할 거리입니다.
+   끄는 도중(pointermove)에는 조금 더 크게 잡아, 짧게 톡 미는 것과 구분합니다. */
+function swTry(e,need){
+  if(SW.id!==e.pointerId)return false;
+  if(!S.doc||ptrs.size>1)return false;
+  if(SW.type!=='touch')return false;               /* 펜·마우스는 넘김으로 보지 않습니다 */
   const dx=e.clientX-SW.x, dy=e.clientY-SW.y, dt=performance.now()-SW.t;
-  if(dt>1400)return;
+  if(dt>1400)return false;
   const horiz=Math.abs(dx)>=Math.abs(dy);
   const a=horiz?dx:dy;
-  if(Math.abs(a)<36)return;
+  if(Math.abs(a)<need)return false;
   const dir=a<0?1:-1;
   /* 확대돼서 그 방향으로 아직 볼 곳이 남아 있으면 — 이 밀기는 '보기'입니다 */
   {
     const {mx,my}=limits();
-    if(horiz){ if(mx>0&&!((dir>0&&SW.atR)||(dir<0&&SW.atL)))return }
-    else{ if(my>0&&!((dir>0&&SW.atBot)||(dir<0&&SW.atTop)))return }
+    if(horiz){ if(mx>0&&!((dir>0&&SW.atR)||(dir<0&&SW.atL)))return false }
+    else{ if(my>0&&!((dir>0&&SW.atBot)||(dir<0&&SW.atTop)))return false }
   }
-  if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return;
+  if((dir>0&&S.page>=S.pages)||(dir<0&&S.page<=1))return false;
+  SW.id=null;                                      /* 두 번 넘어가지 않게 */
   cancelStroke();undoTouchSmudge();          /* 넘기려다 그어진 선을 없던 일로 */
   flip(dir);
+  return true;
+}
+/* 손을 떼야 넘어가면 굼떠 보입니다. 끄는 도중에 이미 충분히 밀었으면 바로 넘깁니다. */
+inkCv.addEventListener('pointermove',e=>{
+  if(SW.id!==e.pointerId)return;
+  swTry(e,64);
+},true);
+inkCv.addEventListener('pointerup',e=>{
+  if(SW.id!==e.pointerId)return;
+  const done=swTry(e,36);
+  SW.id=null;
+  return done;
 },true);
 function movePan(e){
   const p=S.pan;if(!p||p.id!==e.pointerId)return;
@@ -1733,21 +2020,41 @@ function movePan(e){
 /* 두 손가락(또는 양손) — 벌리고 오므리면 확대·축소, 함께 밀면 이동 */
 function two(){const a=[...ptrs.values()].filter(p=>p.type==='touch');return [a[0],a[1]]}
 function touches(){return [...ptrs.values()].filter(p=>p.type==='touch').length}
+/* 이동하다가 저절로 확대되는 일이 없어야 합니다.
+   두 손가락을 대면 '옮기려는 것'인지 '벌려서 키우려는 것'인지 한 번만 판정하고,
+   옮기기로 정해지면 그 손짓이 끝날 때까지 확대를 잠급니다.
+     · 두 손 사이가 ZOOM_SPREAD 만큼 벌어지거나 좁아지고,
+       그 변화가 손 가운데가 움직인 거리보다 뚜렷할 때만 확대입니다.
+     · 손 가운데가 먼저 PAN_MOVE 만큼 움직이면 그때부터는 이동 전용입니다. */
+const ZOOM_SPREAD=44, PAN_MOVE=14;
 function startPinch(){
   const [a,b]=two();if(!a||!b)return;
+  const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
   S.pinch={d:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),
-           mx:(a.x+b.x)/2,my:(a.y+b.y)/2,vz0:S.vz||1};
+           mx,my,sx:mx,sy:my,vz0:S.vz||1,mode:''};
   S.fitting=false;
 }
 function movePinch(){
   const [a,b]=two();if(!a||!b||!S.pinch)return;
+  const P=S.pinch;
   const d=Math.max(1,Math.hypot(a.x-b.x,a.y-b.y));
   const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
-  let vz=S.pinch.vz0*(d/S.pinch.d);           /* 벌린 만큼 확대 */
-  const total=S.scale*vz;
-  if(total>=0.5&&total<=6)S.vz=vz;
-  S.tx+=mx-S.pinch.mx;S.ty+=my-S.pinch.my;    /* 두 손 가운데를 따라 이동 */
-  S.pinch.mx=mx;S.pinch.my=my;
+  if(!P.mode){
+    const spread=Math.abs(d-P.d);                  /* 벌어지거나 좁아진 정도 */
+    const moved=Math.hypot(mx-P.sx,my-P.sy);       /* 두 손 가운데가 옮겨간 정도 */
+    if(moved>=PAN_MOVE&&moved*1.2>=spread)P.mode='pan';
+    else if(spread>=ZOOM_SPREAD&&spread>moved*1.2){
+      P.mode='zoom';
+      P.d=d;P.vz0=S.vz||1;                         /* 여기서부터 세어 툭 튀지 않게 */
+    }
+  }
+  if(P.mode==='zoom'){
+    const vz=P.vz0*(d/P.d);                        /* 벌린 만큼 확대 */
+    const total=S.scale*vz;
+    if(total>=0.5&&total<=6)S.vz=vz;
+  }
+  S.tx+=mx-P.mx;S.ty+=my-P.my;                     /* 이동은 두 손 가운데를 따라갑니다 */
+  P.mx=mx;P.my=my;
   clampView();applyView();
   $('zoomInfo').textContent=Math.round(S.scale*(S.vz||1)/S.fitScale*100)+'%';
 }
@@ -2744,7 +3051,16 @@ $('stage').addEventListener('wheel',e=>{
     diag('휠 스크롤');
   }
 },{passive:false});
-$('btnFit').onclick=()=>{S.vz=1;S.fitting=true;S.tx=0;S.ty=0;renderPage()};
+/* ⤢ — 폭 맞춤 ↔ 전체 맞춤 을 오갑니다. 고른 방식은 다음에도 그대로 씁니다. */
+$('btnFit').onclick=()=>{
+  S.fitMode = S.fitMode==='page' ? 'width' : 'page';
+  try{localStorage.setItem('pn.fitMode',S.fitMode)}catch(e){}
+  S.vz=1;S.fitting=true;S.tx=0;S.ty=0;S.rsig='';
+  renderPage().then(()=>{
+    viewTop();
+    toast(S.fitMode==='width' ? '폭 맞춤 — 화면 폭에 꽉 채웁니다' : '전체 맞춤 — 쪽 전체가 보입니다');
+  });
+};
 $('btnMagIn').onclick=()=>{ if(S.doc)quickZoom(1.3) };     /* 누를 때마다 한 단계 확대 */
 $('btnMagOut').onclick=()=>{ if(S.doc)quickZoom(1/1.3) };   /* 누를 때마다 한 단계 축소 */
 $('btnPrev2').onclick=()=>flip(-1);
@@ -2764,7 +3080,8 @@ function syncBoardCtl(){
 /* 경계선을 끌어 칠판 폭을 조절합니다 (화면의 20%~75%) */
 (()=>{
   const sb=$('splitBar');if(!sb)return;
-  try{const w=localStorage.getItem('pn.boardW');if(w)$('board').style.flexBasis=w+'%'}catch(e){}
+  const setBoardW=p=>document.documentElement.style.setProperty('--boardW',p+'%');
+  try{const w=localStorage.getItem('pn.boardW');if(w)setBoardW(w)}catch(e){}
   let drag=null;
   sb.addEventListener('pointerdown',e=>{
     e.preventDefault();
@@ -2778,7 +3095,7 @@ function syncBoardCtl(){
     const left=document.body.classList.contains('board-left');
     let pct=left?((e.clientX-row.left)/row.width*100):((row.right-e.clientX)/row.width*100);
     pct=Math.max(20,Math.min(75,pct));
-    $('board').style.flexBasis=pct+'%';
+    setBoardW(pct);
     drag.pct=pct;
   });
   const end=e=>{
@@ -2788,7 +3105,7 @@ function syncBoardCtl(){
     if(pct==null)return;
     try{localStorage.setItem('pn.boardW',String(Math.round(pct)))}catch(err){}
     bdResize();
-    if(S.doc){S.fitting=true;renderPage()}
+    /* 칠판은 PDF 위에 떠 있을 뿐이므로, 칠판 폭이 바뀌어도 PDF는 건드리지 않습니다 */
   };
   sb.addEventListener('pointerup',end);
   sb.addEventListener('pointercancel',end);
@@ -2801,17 +3118,20 @@ async function applySplitMode(mode,quiet){
   try{localStorage.setItem('pn.splitMode',String(mode))}catch(e){}
   document.body.classList.toggle('board-full',full);
   document.documentElement.classList.toggle('board-full',full);
+  /* 반반이 아니라 '겹침' — 칠판이 PDF 위에 떠 있고, PDF는 그 아래에서 따로 움직입니다 */
+  document.body.classList.toggle('board-ov',S.split&&!full);
+  document.documentElement.classList.toggle('board-ov',S.split&&!full);
   $('btnSplit').classList.toggle('on',S.split);
   $('btnSplit').textContent=mode===1?'▥ 칠판만':'▥ 칠판';
   $('board').hidden=!S.split;
   $('board').style.display=S.split?'':'none';
   syncBoardCtl();
   const keepScale=S.scale*(S.vz||1);
-  S.vz=1;S.fitting=false;S.tx=0;S.ty=0;
+  S.vz=1;S.fitting=false;
   S.scale=keepScale;
   if(S.split){bdResize();await bdLoad()}
   if(S.doc&&!full){                     /* 단독 모드에서는 PDF가 숨겨져 있어 그리지 않습니다 */
-    S.fitting=true;
+    /* 칠판은 PDF 위에 떠 있을 뿐입니다 — PDF의 크기도 보던 자리도 건드리지 않습니다 */
     await renderPage();
   }
   if(!quiet)toast(mode===1?'칠판을 켰습니다 — 한 번 더 누르면 칠판만 봅니다'
@@ -3459,7 +3779,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='21.6';
+const APP_VER='21.7';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -3797,7 +4117,7 @@ $('jsonInput').onchange=async e=>{
   await step(()=>renderWhere());
   $('verLabel2').textContent=APP_VER;
   setTimeout(autoCheckUpdate,2500);
-  setTimeout(showGuide,900);                 /* 켤 때마다 손동작 안내 */
+  setTimeout(()=>showGuide(true),900);       /* 켤 때마다 손동작 안내 — 잠깐만 */
   setTool('pen',$('btnPen'));
   paintSwatches();showColor();updateTouchBtn();
   markSaved();
