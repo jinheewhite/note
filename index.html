@@ -21,8 +21,20 @@
 <meta name="apple-mobile-web-app-title" content="판서노트">
 <script>
 /* 무거운 라이브러리를 읽기 전에 배치부터 정합니다 — 화면이 흔들리지 않게 */
+var d=document.documentElement;
+/* 기기 종류 — 도구 크기와 그림판 예산이 여기서 갈립니다.
+   화면 너비가 아니라 기기로 봅니다. 전자칠판은 화면이 크지만
+   안드로이드이고, 손가락으로 쓰므로 작은 도구가 오히려 편하기 때문입니다. */
+(function(){
+  var ua=navigator.userAgent||'';
+  /* 아이패드는 iOS 13 부터 스스로를 맥이라고 말합니다 — 손가락 수로 가려냅니다 */
+  var ios=/iPad|iPhone|iPod/.test(ua)||(/Macintosh/.test(ua)&&(navigator.maxTouchPoints||0)>1);
+  var os=ios?'ios':/Android/i.test(ua)?'android':/Windows/i.test(ua)?'win'
+        :/Macintosh|Mac OS X/i.test(ua)?'mac':'other';
+  window.PN_OS=os;
+  d.classList.add('os-'+os);
+})();
 try{
-  var d=document.documentElement;
   if(localStorage.getItem('pn.barTop')==='1')d.classList.add('bar-top');
   if(localStorage.getItem('pn.boardLeft')==='1')d.classList.add('board-left');
 }catch(e){}
@@ -411,6 +423,18 @@ try{
     transition:.25s;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:80vw;text-align:center}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   /* 휴대폰·작은 화면 */
+  /* 안드로이드(전자칠판·태블릿)는 화면이 커도 도구를 작게 씁니다.
+     아래 @media 는 창이 좁을 때만 걸리므로, 화면이 넓은 전자칠판에서는
+     도구가 계속 커다란게 남아 자료를 가렸습니다. */
+  html.os-android{--bar:58px}
+  html.os-android button{min-height:38px;padding:0 10px;font-size:13px}
+  html.os-android button.icon{width:38px;font-size:16px}
+  html.os-android .ghosticon{width:34px;min-height:34px;font-size:14px}
+  html.os-android #tools .tool{width:42px}
+  html.os-android #tools .tool svg{width:21px;height:21px}
+  html.os-android #tools .tool.on{padding:0 10px 0 8px}
+  html.os-android #tools .tool.on::after{font-size:13px;margin-left:5px}
+  html.os-android .grp{gap:5px;padding-right:7px}
   @media (max-width:860px){
     :root{--bar:64px}
     button{min-height:44px;padding:0 11px;font-size:14px}
@@ -1262,11 +1286,13 @@ const PN_WORKER_SHIM=
    실제로 쓰는 메모리는 아래 값의 12배입니다 — 42e6 이면 504MB 라서
    전자칠판 같은 기기는 첫 쪽을 그리다가 탭이 통째로 꺼집니다. */
 const PN_BUDGET=(function(){
-  const android=/Android/i.test(navigator.userAgent);
+  const os=window.PN_OS||'other';
+  const small=(os==='android'||os==='ios');
   let gb=navigator.deviceMemory||0;          /* 크롬만 알려 줍니다. 모르면 0 입니다 */
-  if(!gb)gb=android?2:8;                     /* 모를 때는 안전한 쪽으로 봅니다 */
+  if(!gb)gb=small?2:8;                     /* 모를 때는 안전한 쪽으로 봅니다 */
   let px=gb>=8?42e6:gb>=6?24e6:gb>=4?14e6:7e6;
-  if(android)px=Math.min(px,14e6);           /* 안드로이드는 탭 하나에 주는 몫이 훨씬 적습니다 */
+  if(os==='android')px=Math.min(px,14e6);
+  if(os==='ios')px=Math.min(px,10e6);           /* 안드로이드는 탭 하나에 주는 몫이 훨씬 적습니다 */
   return px;
 })();
 
@@ -1454,7 +1480,7 @@ const Backup={
   async connect(){
     if(!this.supported()){toast('이 기기에서는 폴더 저장을 지원하지 않습니다');return false}
     try{
-      const h=await window.showDirectoryPicker({mode:'readwrite',startIn:'documents'});
+      const h=await window.showDirectoryPicker({mode:'readwrite',startIn:'downloads'});
       if(await h.requestPermission({mode:'readwrite'})!=='granted')return false;
       this.handle=h;this.ok=true;
       await Store.putFile({id:DIR_KEY,name:h.name,opened:Date.now(),handle:h});
@@ -1611,7 +1637,7 @@ async function askSaveDir(){
   if(Backup.ok)return;                                   /* 이미 연결돼 있으면 조용히 */
   try{ if(localStorage.getItem('pn.dirAsked')===APP_VER)return }catch(e){}
   try{ localStorage.setItem('pn.dirAsked',APP_VER) }catch(e){}
-  const yes=await askConfirm('판서 PDF가 자동으로 저장될 폴더를 한 번만 정해 주세요.\n(정하지 않으면 다운로드 폴더에 저장됩니다)');
+  const yes=await askConfirm('판서 PDF를 저장할 폴더를 한 번만 정해 주세요.\n창이 다운로드 폴더에서 열립니다 — 그대로 [폴더 선택] 을 누르면 다운로드에 저장됩니다.\n\n(정하지 않아도 다운로드에 저장됩니다. 다만 폴더별로 나누어 담지는 못합니다)');
   if(!yes)return;
   const ok=Backup.handle&&!Backup.ok ? await Backup.reauth() : await Backup.connect();
   if(ok)toast('이제 이 폴더에 자동으로 저장됩니다');
@@ -4089,7 +4115,13 @@ $('btnPdf').onclick=async()=>{
     }else{
       const doc=await buildPdf();
       if(!doc)toast('저장할 판서가 없습니다');
-      else{doc.save(`${baseName()}_${S.date}.pdf`);toast('다운로드 폴더에 저장했습니다');}
+      else{
+        /* 폴더를 못 만드는 기기(안드로이드·아이패드)에서는 다운로드에 평평하게 쌓입니다.
+           서재 폴더 이름을 앞에 붙여 두어야 나중에 찾을 수 있습니다. */
+        const pre=S.folder?S.folder.replace(/[\\/:*?"<>|]/g,'_')+'_':'';
+        doc.save(`${pre}${baseName()}_${S.date}.pdf`);
+        toast('다운로드 폴더에 저장했습니다');
+      }
     }
     S.edited=false;AutoDL.dirty=false;AutoDL.lastKey=AutoDL.key();  /* 저장 끝 — 닫을 때 다시 저장하지 않습니다 */
   }catch(e){toast('PDF를 만들지 못했습니다: '+e.message)}
@@ -4235,7 +4267,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='21.8';
+const APP_VER='21.9';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
