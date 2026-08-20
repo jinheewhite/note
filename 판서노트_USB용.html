@@ -62,6 +62,12 @@ try{
     display:flex;align-items:center;gap:8px;padding:0 12px;overflow-x:auto}
   #topbar::-webkit-scrollbar{height:0}
   #topbar button{min-height:42px;padding:0 13px;font-size:14px}
+  /* 서재 길잡이 — 폴더 안에서 나가는 길을 제목 자리에 둘니다 */
+  #libTitle2 .crumb{background:transparent;border:1px solid var(--line);color:var(--chalk);
+    font-size:.5em;font-weight:700;padding:0 12px;min-height:38px;border-radius:9px;vertical-align:middle}
+  #libTitle2 .crumb:hover{background:var(--chalk);color:#1a1a12;border-color:var(--chalk)}
+  #libTitle2 .crumbSep{opacity:.45;margin:0 10px;vertical-align:middle}
+  #libTitle2 .crumbNow{vertical-align:middle}
   /* 한 줄에 다 들어가게 자동으로 줄입니다.
      fitBar() 가 넘치는 만큼만 --fit 을 낮춥니다.
      [data-fit] 을 함께 걸어 특이도를 올려야 아래 @media 규칙에 덤별리지 않습니다. */
@@ -668,16 +674,16 @@ try{
       <button id="btnSort" class="seg on">최근순</button>
       <button id="btnSortName" class="seg">이름순</button>
       <button id="btnSortFolder" class="seg">폴더별</button>
-      <button id="btnView" class="ghosticon" title="표지 / 목록">▦</button>
-      <button id="btnExplore" class="ghosticon" title="저장 폴더 탐색 — 저장된 판서 PDF를 봅니다">🗂</button>
+      <button id="btnView" data-hover="표지 ↔ 목록 바꾸기" class="ghosticon" title="표지 / 목록">▦</button>
+      <button id="btnExplore" data-hover="저장된 판서 PDF 보기" class="ghosticon" title="저장 폴더 탐색 — 저장된 판서 PDF를 봅니다">🗂</button>
     </div>
     <div class="acts">
-      <button id="btnSync" class="ghosticon" title="새로고침">🔄</button>
-      <button id="btnUp" class="ghosticon" hidden title="뒤로">←</button>
-      <button id="btnRenameFolder" class="ghosticon" hidden title="폴더 이름 바꾸기">✎</button>
-      <button id="btnNewFolder" class="ghosticon" hidden title="새 폴더">📁＋</button>
-      <button id="libTitle" class="ghosticon" hidden title="저장 폴더 열어보기">📂</button>
-      <button id="btnMore2" class="ghosticon big" title="설정">⚙︎</button>
+      <button id="btnSync" data-hover="서재 새로고침" class="ghosticon" title="새로고침">🔄</button>
+      <button id="btnUp" data-hover="상위 폴더로 나가기" class="ghosticon" hidden title="뒤로">←</button>
+      <button id="btnRenameFolder" data-hover="폴더 이름 바꾸기" class="ghosticon" hidden title="폴더 이름 바꾸기">✎</button>
+      <button id="btnNewFolder" data-hover="새 폴더 만들기" class="ghosticon" hidden title="새 폴더">📁＋</button>
+      <button id="libTitle" data-hover="저장 폴더 열어보기" class="ghosticon" hidden title="저장 폴더 열어보기">📂</button>
+      <button id="btnMore2" data-hover="설정" class="ghosticon big" title="설정">⚙︎</button>
     </div>
   </div>
 
@@ -1842,9 +1848,23 @@ async function loadPdf(bytes,name,id){
   await renderPage();
   viewTop();                           /* 열자마자 쪽의 맨 위부터 보이게 */
   if(S.split){bdResize();await bdLoad()}
-  /* 화면 크기가 확정된 뒤 한 번 더 그려 첫 화면이 어긋나지 않게 합니다 */
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{ if(S.fitting)renderPage().then(viewTop) }));
-  setTimeout(()=>{ if(S.doc&&S.fitting)renderPage().then(viewTop) },260);
+  /* 배치가 자리를 잡은 뒤 한 번 더 그립니다. 다만 정말 달라졌을 때만 그립니다 —
+     전에는 조건 없이 두 번 더 그려서, 자리가 잡힐 때까지 쪽이 조금씩
+     커졌다 작아졌다 하며 울렁거렸습니다. */
+  {
+    const st=$('stage');
+    const sizeNow=()=>st?Math.round(st.clientWidth)+'x'+Math.round(st.clientHeight):'';
+    let seen=sizeNow();
+    const again=()=>{
+      if(!S.doc||!S.fitting)return;
+      const now=sizeNow();
+      if(now===seen)return;            /* 크기가 그대로면 다시 그리지 않습니다 */
+      seen=now;
+      renderPage().then(viewTop);
+    };
+    requestAnimationFrame(()=>requestAnimationFrame(again));
+    setTimeout(again,260);
+  }
   markSaved();
   /* 진단 — 그리기가 끝난 뒤 이 쪽의 글꼴 상태를 확인합니다 */
   setTimeout(async()=>{
@@ -3395,7 +3415,9 @@ function paintSwatches(){
     b.onclick=()=>{S.colors[key]=c;S.barAt=performance.now();paintSwatches();showColor()};
     box.appendChild(b);
   });
-  box.style.visibility=(S.tool==='eraser'||S.tool==='hand'||S.tool==='cut')?'hidden':'visible';
+  /* 색은 도구를 고를 때 뚜는 창에서 굵기와 함께 고릅니다 —
+     막대에 따로 펼쳐 두면 굵기와 따로 놀아 헷갈립니다 */
+  box.hidden=true;box.style.display='none';
 }
 function showColor(){
   for(const [id,key] of [['btnPen','pen'],['btnHl','hl'],['btnLaser','laser']]){
@@ -3405,7 +3427,7 @@ function showColor(){
   applyCursor();
   clearTimeout(sharpTimer);                 /* 색을 고르는 동안 다시 그리지 않습니다 */
 }
-$('btnPen').onclick=e=>{const b=e.currentTarget;if(S.tool==='pen'){openPop(b,'pen');return}setTool('pen',b)};
+$('btnPen').onclick=e=>{const b=e.currentTarget;setTool('pen',b);openPop(b,'pen')};
 /* 색 고르는 작은 창 — 형광펜·레이저 버튼을 누르면 바로 뜹니다 */
 const PALETTES={
   pen:  [['#111111','검정'],['#ffffff','흰색'],['#e02424','빨강'],['#1d6fe0','파랑'],['#12a150','초록'],['#f5c400','노랑']],
@@ -3465,8 +3487,8 @@ document.addEventListener('pointerdown',e=>{
     closePop();
 },true);
 
-$('btnHl').onclick=e=>{const b=e.currentTarget;if(S.tool==='hl'){openPop(b,'hl');return}setTool('hl',b)};
-$('btnEraser').onclick=e=>{const b=e.currentTarget;if(S.tool==='eraser'){openPop(b,'eraser');return}setTool('eraser',b)};
+$('btnHl').onclick=e=>{const b=e.currentTarget;setTool('hl',b);openPop(b,'hl')};
+$('btnEraser').onclick=e=>{const b=e.currentTarget;setTool('eraser',b);openPop(b,'eraser')};
 function openEraserPop(anchor){
   const pop=$('pop');pop.innerHTML='';pop.classList.add('wide');
   const mk=(label,fn,primary)=>{
@@ -3488,7 +3510,7 @@ $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
 $('btnCut').onclick=e=>{setTool('cut',e.currentTarget);
   if(!CUT.seen){CUT.seen=true;toast('오릴 그림 둘레를 한 바퀴 둘러 주세요')}};
 $('btnFinger').onclick=()=>setFinger(!S.fingerDraws,true);
-$('btnLaser').onclick=e=>{const b=e.currentTarget;if(S.tool==='laser'){openPop(b,'laser');return}setTool('laser',b)};
+$('btnLaser').onclick=e=>{const b=e.currentTarget;setTool('laser',b);openPop(b,'laser')};
 /* 전체화면 유지 — 한 번 켜 두면 다음에 열 때도, 중간에 풀려도 다시 들어갑니다.
    브라우저 규칙상 화면을 한 번 눌러야(사용자 동작) 다시 전체화면이 됩니다. */
 const FULL_KEY='pn.keepFull';
@@ -3754,7 +3776,15 @@ async function renderFolders(){
   const inside=!!S.lib;
   const nf=$('btnNewFolder'); if(nf)nf.hidden=(S.sort!=='folder');
   const tb=$('libTitle');
-  $('libTitle2').textContent=inside?S.lib:'서재';
+  /* 폴더 안에서 나가는 길이 오른쪽 끝의 작은 ← 하나뿐이라 보이지 않았습니다.
+     제목 자체를 길잡이로 씁니다 — '← 서재' 를 누르면 나갑니다. */
+  const t2=$('libTitle2');
+  if(inside){
+    t2.innerHTML='<button id="crumbHome" class="crumb">← 서재</button>'+
+      '<span class="crumbSep">›</span><span class="crumbNow"></span>';
+    t2.querySelector('.crumbNow').textContent=S.lib;
+    $('crumbHome').onclick=()=>{S.lib='';renderFolders();renderRecent()};
+  }else t2.textContent='서재';
   tb.textContent='📂';
   tb.title=inside?'':'저장 폴더 열어보기';
   tb.onclick=()=>{
@@ -3913,8 +3943,8 @@ async function renderRecent(){
   let count=0;
 
   /* 폴더는 보기 설정과 상관없이 늘 표지 격자로 보여줍니다 */
-  grid.appendChild(addCard());
-  if(!S.lib&&S.sort!=='recent'){
+  /* 폴더는 '폴더별' 을 고를 때만 나열합니다 */
+  if(!S.lib&&S.sort==='folder'){
     for(const nm of await getFolders()){
       if(S.q&&!nm.toLowerCase().includes(S.q))continue;
       const inside=all.filter(x=>x.folder===nm).length;
@@ -3926,8 +3956,9 @@ async function renderRecent(){
     }
   }
 
-  /* 최근순 · 검색 중에는 폴더를 가로질러 전부 보여줍니다 */
-  const flat=S.q||(!S.lib&&S.sort==='recent');
+  /* 최근순·이름순은 폴더와 상관없이 모두 보여 줍니다.
+     전에는 이름순에서 폴더에 든 자료가 통째로 사라졌습니다. */
+  const flat=S.q||(!S.lib&&S.sort!=='folder');
   let files=all.filter(x=>flat?true:(S.lib?(x.folder===S.lib):!x.folder));
   if(S.q)files=files.filter(x=>x.name.toLowerCase().includes(S.q));
   files.sort((a,b)=>(b.pin?1:0)-(a.pin?1:0)||
@@ -3942,7 +3973,7 @@ async function renderRecent(){
       '<button class="more">⋯</button>'+
       `<span class="nm">${f.name.replace(/\.pdf$/i,'')}</span>`+
       `<span class="dt">${f.data?'':'다시 선택 · '}${new Date(f.opened).toLocaleDateString('ko-KR')}`+
-      `${flat&&f.folder?' · 📁 '+f.folder:''}</span>`;
+      `${flat&&f.folder?' · 🏷 '+f.folder:''}</span>`;
     c.querySelector('.cover').onclick=()=>{
       if(f.data)loadPdf(f.data,f.name,f.id);
       else{toast('같은 PDF 파일을 다시 선택해 주세요 — 판서는 그대로 남아 있습니다');$('fileInput').click()}
@@ -4379,8 +4410,10 @@ function renderWhere(){
         '<small>필기가 멈추면 판서 PDF가 자동으로 들어갑니다 · 서재의 폴더가 그대로 만들어집니다</small>';
   else if(AutoDL.on())
     txt='파일 저장 위치 · <b>다운로드 폴더</b>'+
-        '<small>저장할 때마다 창이 뜬다면 크롬 설정 → 다운로드에서 "저장 위치 확인"을 꺼 주세요 · '+
-        '폴더를 한 번 고르면 창 없이 그 폴더로 바로 저장됩니다</small>';
+        '<small><b>서재의 폴더는 앱 안에서만 나뉩니다</b> — 탐색기의 다운로드 폴더 안에는 '+
+        '그 이름의 폴더가 만들어지지 않습니다. 브라우저가 막기 때문입니다.<br>'+
+        '대신 파일 이름 앞에 폴더 이름이 붙습니다 — <b>dd_자료이름_2026-08-20.pdf</b><br>'+
+        '진짜 폴더로 나누려면 오른쪽에서 저장 폴더를 한 번 고르세요.</small>';
   else
     txt='<b>파일로 저장되지 않습니다</b><small>필기는 앱 안에만 남습니다 · 저장 위치를 지정해 주세요</small>';
   const label=Backup.supported()?'📁 저장 폴더 고르기':'저장 위치 안내';
@@ -4396,7 +4429,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='22.8';
+const APP_VER='22.9';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
