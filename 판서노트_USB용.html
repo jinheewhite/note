@@ -4096,12 +4096,19 @@ function flatten(){
   return out;
 }
 const baseName=()=>S.fileName.replace(/\.pdf$/i,'');
+/* 다운로드 폴더에는 폴더를 만들 수 없어 파일이 평평하게 쌓입니다.
+   그래서 서재에서 정한 폴더 이름을 파일 이름 앞에 붙입니다.
+   예)  dd_전주시 일자리관리_2026-08-20.pdf */
+const dlName=(ext)=>{
+  const pre=S.folder?S.folder.replace(/[\\/:*?"<>|]/g,'_')+'_':'';
+  return `${pre}${baseName()}_${S.date}${ext||'.pdf'}`;
+};
 function download(href,name){const a=document.createElement('a');a.href=href;a.download=name;document.body.appendChild(a);a.click();a.remove()}
 
 $('btnPng').onclick=async()=>{
   if(!S.doc)return;
   await saveNow();
-  download(flatten().toDataURL('image/png'),`${baseName()}_${S.date}_${S.page}쪽.png`);
+  download(flatten().toDataURL('image/png'),dlName(`_${S.page}쪽.png`));
   S.edited=false;AutoDL.dirty=false;AutoDL.lastKey=AutoDL.key();   /* 저장 끝 — 닫을 때 다시 저장하지 않습니다 */
   toast('이 쪽을 그림으로 저장했습니다 — 닫을 때 전체 저장은 건너뜁니다');
 };
@@ -4234,8 +4241,7 @@ $('btnPdf').onclick=async()=>{
       else{
         /* 폴더를 못 만드는 기기(안드로이드·아이패드)에서는 다운로드에 평평하게 쌓입니다.
            서재 폴더 이름을 앞에 붙여 두어야 나중에 찾을 수 있습니다. */
-        const pre=S.folder?S.folder.replace(/[\\/:*?"<>|]/g,'_')+'_':'';
-        doc.save(`${pre}${baseName()}_${S.date}.pdf`);
+        doc.save(dlName());
         toast('다운로드 폴더에 저장했습니다');
       }
     }
@@ -4269,10 +4275,10 @@ const AutoDL={
     try{
       const doc=await buildPdf();
       if(!doc)return;
-      doc.save(`${baseName()}_${S.date}.pdf`);
+      doc.save(dlName());
       this.dirty=false;this.at=Date.now();this.lastKey=this.key();
       try{localStorage.setItem('pn.savedDay',this.key())}catch(e){}   /* 하루 한 번만 */
-      toast('판서를 다운로드 폴더에 저장했습니다');
+      toast(`다운로드 폴더에 저장했습니다 — ${dlName()}`);
       return true;
     }catch(e){toast('자동 저장에 실패했습니다: '+e.message)}
   }
@@ -4390,7 +4396,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='22.7';
+const APP_VER='22.8';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
