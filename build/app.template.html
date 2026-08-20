@@ -817,6 +817,19 @@ const PN_WORKER_SHIM=
   "console[fn]=function(){send(fn==='log'?'엔진':'엔진'+fn,arguments);return o.apply(console,arguments)}});"+
   "}catch(e){}})();\n";
 
+/* 이 기기가 감당할 수 있는 그림판 크기입니다.
+   그림판은 pdfCv·inkCv·fxCv 세 장이고 한 픽셀이 4바이트이므로,
+   실제로 쓰는 메모리는 아래 값의 12배입니다 — 42e6 이면 504MB 라서
+   전자칠판 같은 기기는 첫 쪽을 그리다가 탭이 통째로 꺼집니다. */
+const PN_BUDGET=(function(){
+  const android=/Android/i.test(navigator.userAgent);
+  let gb=navigator.deviceMemory||0;          /* 크롬만 알려 줍니다. 모르면 0 입니다 */
+  if(!gb)gb=android?2:8;                     /* 모를 때는 안전한 쪽으로 봅니다 */
+  let px=gb>=8?42e6:gb>=6?24e6:gb>=4?14e6:7e6;
+  if(android)px=Math.min(px,14e6);           /* 안드로이드는 탭 하나에 주는 몫이 훨씬 적습니다 */
+  return px;
+})();
+
 const PN_WSRC=document.getElementById('pdfWorkerSrc').textContent;
 function pnUseMainThread(){          /* 예전 방식 — PDF 해석을 본문에서 직접 돌립니다 */
   try{(0,eval)(PN_WSRC)}catch(e){}
@@ -1322,14 +1335,14 @@ async function doRender(my){
   S.rendered={w:vp.width,h:vp.height};
   /* 화질 — 원본 PDF 해상도(72dpi) 기준으로 최소 3배는 확보해 글자가 뭉개지지 않게 합니다.
      화면에 맞춰 축소된 상태에서도 원본보다 크게 그립니다. */
-  const BUDGET=42e6;                                   /* 약 4200만 픽셀까지 허용 */
+  const BUDGET=PN_BUDGET;                              /* 기기가 감당하는 만큼만 (위 PN_BUDGET) */
   /* 칠판은 이제 PDF 위에 떠 있을 뿐이라 PDF가 좁아지지 않습니다 —
      칠판을 켰다고 더 크게 그릴 이유가 없어졌습니다. */
   const MIN_SCALE=3;
   let dpr=Math.max(MIN_SCALE/Math.max(S.scale,0.01), window.devicePixelRatio||1, 2.5);
   dpr=Math.min(dpr,6);
   const need=vp.width*vp.height;
-  if(need*dpr*dpr>BUDGET)dpr=Math.max(2,Math.sqrt(BUDGET/need));
+  if(need*dpr*dpr>BUDGET)dpr=Math.max(1,Math.sqrt(BUDGET/need));
   S.dpr=dpr;
   const cw=Math.round(vp.width*dpr), ch=Math.round(vp.height*dpr);
   /* 자료를 열면 자리를 잡느라 첫 쪽을 세 번까지 다시 그립니다. 그릴 때마다 화면을
@@ -2322,7 +2335,10 @@ function bdResize(){
   bdCv.style.transform='';                  /* 칠판은 이제 그림 자체를 옮깁니다 */
   const r=bdCv.getBoundingClientRect();
   if(!r.width||!r.height)return;
-  const dpr=Math.max(2.5,Math.min(window.devicePixelRatio||1,4));
+  let dpr=Math.max(2.5,Math.min(window.devicePixelRatio||1,4));
+  /* 칠판도 예산 안에서만 큽니다 -- 안 그러면 PDF 그림판과 합쳐 메모리가 넘칩니다 */
+  const bdNeed=r.width*r.height;
+  if(bdNeed*dpr*dpr>PN_BUDGET)dpr=Math.max(1,Math.sqrt(PN_BUDGET/bdNeed));
   bdCv.width=Math.round(r.width*dpr);bdCv.height=Math.round(r.height*dpr);
   bdctx.setTransform(dpr,0,0,dpr,0,0);
   BD.w=r.width;BD.h=r.height;
@@ -3779,7 +3795,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='21.7';
+const APP_VER='21.8';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
