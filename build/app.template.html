@@ -2245,7 +2245,15 @@ function touches(){return [...ptrs.values()].filter(p=>p.type==='touch').length}
      · 두 손 사이가 ZOOM_SPREAD 만큼 벌어지거나 좁아지고,
        그 변화가 손 가운데가 움직인 거리보다 뚜렷할 때만 확대입니다.
      · 손 가운데가 먼저 PAN_MOVE 만큼 움직이면 그때부터는 이동 전용입니다. */
-const ZOOM_SPREAD=44, PAN_MOVE=14;
+/* 이동인지 확대인지 가리는 문턱입니다. 고정 픽셀로 두면 화면이 큰
+   전자칠판에서는 손이 자리잡는 것만으로 14px 을 넘겨 늘 '이동'으로
+   굳어버려, 두 손가락을 벌려도 확대가 되지 않았습니다.
+   화면 크기에 맞춰 정합니다. */
+function gestUnit(){
+  const w=window.innerWidth||1280, h=window.innerHeight||720;
+  return Math.max(320,Math.min(w,h));
+}
+const ZOOM_SPREAD_MIN=30, PAN_MOVE_MIN=14;
 function startPinch(){
   const [a,b]=two();if(!a||!b)return;
   const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
@@ -2259,12 +2267,23 @@ function movePinch(){
   const d=Math.max(1,Math.hypot(a.x-b.x,a.y-b.y));
   const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
   if(!P.mode){
+    const u=gestUnit();
+    const PAN_MOVE=Math.max(PAN_MOVE_MIN,u*0.02);      /* 큰 화면에서는 더 움직여야 이동 */
+    const ZOOM_SPREAD=Math.max(ZOOM_SPREAD_MIN,u*0.03);
     const spread=Math.abs(d-P.d);                  /* 벌어지거나 좁아진 정도 */
     const moved=Math.hypot(mx-P.sx,my-P.sy);       /* 두 손 가운데가 옮겨간 정도 */
-    if(moved>=PAN_MOVE&&moved*1.2>=spread)P.mode='pan';
-    else if(spread>=ZOOM_SPREAD&&spread>moved*1.2){
+    if(spread>=ZOOM_SPREAD&&spread>moved*1.2){
       P.mode='zoom';
       P.d=d;P.vz0=S.vz||1;                         /* 여기서부터 세어 툭 튀지 않게 */
+    }
+    else if(moved>=PAN_MOVE&&moved*1.2>=spread)P.mode='pan';
+  }
+  else if(P.mode==='pan'){
+    /* 이동으로 굳었더라도, 알아볼 만큼 크게 벌리면 확대로 넘깁니다.
+       종이를 밀다 저절로 확대되는 일은 막고, 확대하려는 뜻은 알아듣습니다. */
+    const spread=Math.abs(d-P.d), moved=Math.hypot(mx-P.sx,my-P.sy);
+    if(spread>gestUnit()*0.10&&spread>moved*2.5){
+      P.mode='zoom';P.d=d;P.vz0=S.vz||1;
     }
   }
   if(P.mode==='zoom'){
@@ -4254,7 +4273,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='24.6';
+const APP_VER='24.7';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
