@@ -1367,6 +1367,17 @@ const PN_WORKER_SHIM=
    그림판은 pdfCv·inkCv·fxCv 세 장이고 한 픽셀이 4바이트이므로,
    실제로 쓰는 메모리는 아래 값의 12배입니다 — 42e6 이면 504MB 라서
    전자칠판 같은 기기는 첫 쪽을 그리다가 탭이 통째로 꺼집니다. */
+/* 지난번에 그리다 꺼졌는지 봅니다.
+   그리기 직전에 표시를 남기고, 무사히 그리면 지웁니다.
+   표시가 남아 있다면 그리는 도중에 탭이 꺼졌다는 뜻이므로,
+   이번에는 예산을 반으로 줄입니다. 세 번까지 줄입니다(1/8).
+   전자칠판에서 한 번 꺼져도 다음엔 열리도록 하는 장치입니다. */
+const PN_SAFE=(function(){
+  try{return Math.max(0,Math.min(3,parseInt(localStorage.getItem('pn.crash')||'0')||0))}
+  catch(e){return 0}
+})();
+function pnMarkDrawing(){try{localStorage.setItem('pn.crash',String(PN_SAFE+1))}catch(e){}}
+function pnMarkDrawn(){try{localStorage.setItem('pn.crash','0')}catch(e){}}
 const PN_BUDGET=(function(){
   const os=window.PN_OS||'other';
   const small=(os==='android'||os==='ios');
@@ -1375,6 +1386,7 @@ const PN_BUDGET=(function(){
   let px=gb>=8?42e6:gb>=6?24e6:gb>=4?14e6:7e6;
   if(os==='android')px=Math.min(px,14e6);
   if(os==='ios')px=Math.min(px,10e6);           /* 안드로이드는 탭 하나에 주는 몫이 훨씬 적습니다 */
+  if(PN_SAFE)px=Math.round(px/Math.pow(2,PN_SAFE));   /* 지난번에 꺼졌으면 더 가벼게 */
   return px;
 })();
 
@@ -1973,6 +1985,7 @@ async function doRender(my){
   /* 같은 자료라면 쪽을 넘겨도 그림판 크기가 똑같습니다.
      그런데 width 를 다시 넣으면 그때마다 큰 메모리를 새로 잡습니다(4K 화면에서는
      한 장에 수십 MB). 그래서 크기가 그대로면 새로 잡지 않고 지우기만 합니다. */
+  pnMarkDrawing();            /* 여기서 꺼지면 다음번에 알 수 있게 */
   for(const cv of [pdfCv,inkCv,fxCv]){
     if(cv.width!==cw||cv.height!==ch){cv.width=cw;cv.height=ch}
     else{
@@ -1990,7 +2003,7 @@ async function doRender(my){
   const hiVp=pg.getViewport({scale:S.scale*dpr,rotation:rot});
   const task=pg.render({canvasContext:pctx,viewport:hiVp,intent:'display'});
   renderTask=task;
-  try{ await task.promise }
+  try{ await task.promise; pnMarkDrawn(); }
   catch(e){ if(renderTask===task)renderTask=null; if(e&&e.name==='RenderingCancelledException')return; throw e }
   if(renderTask===task)renderTask=null;
   if(my!==renderSeq)return;
@@ -4601,7 +4614,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='24.3';
+const APP_VER='24.4';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
