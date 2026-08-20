@@ -571,6 +571,8 @@ try{
     <span class="mono" id="bdPageInfo" title="칠판 쪽">1/1</span>
     <button id="btnBdNext" class="mini" title="칠판 다음 쪽">▶</button>
     <button id="btnBoardBg" class="mini" title="칠판 바탕을 바꿉니다">칠판 바탕</button>
+    <button id="btnBdUp" class="mini icon" data-hover="종이를 올려 아래에 이어 씁니다" title="종이 올리기 — 긴 식을 아래로 이어 씁니다">↑</button>
+    <button id="btnBdDown" class="mini icon" data-hover="올리기 전으로 되돌아갑니다" title="되돌리기">↓</button>
     <button id="btnBdSave" class="mini primary" data-hover="칠판 쪽만 PDF 로 저장" title="칠판 쪽만 따로 저장합니다">💾 칠판 저장</button>
     <button id="btnBoardClear" class="mini" title="지금 보는 칠판 쪽을 지웁니다">칠판 비우기</button>
   </span>
@@ -2792,6 +2794,15 @@ $('btnBdNext').onclick=async()=>{
   bdGoto(nx);
 };
 /* 칠판 쪽만 따로 저장합니다 — PDF 판서는 빼고 칠판만 묶습니다 */
+/* 칠판은 아래로 계속 이어지는 두루마리입니다. 긴 식을 쓸 때 끜어서
+   올리는 대신 단추로 한 번에 올립니다. 한 번에 한 화면의 80% 씩 올라갑니다. */
+function bdShift(dir){
+  const step=(BD.h/bdSc())*0.8;
+  BD.oy=(BD.oy||0)+dir*step;
+  bdClamp();bdRedraw();bdScrollBar();
+}
+$('btnBdUp')&&($('btnBdUp').onclick=()=>bdShift(1));
+$('btnBdDown')&&($('btnBdDown').onclick=()=>bdShift(-1));
 $('btnBdSave')&&($('btnBdSave').onclick=async()=>{
   if(S.busy)return;
   await saveNow();
@@ -4123,7 +4134,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='24.0';
+const APP_VER='24.1';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
