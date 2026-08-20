@@ -3290,7 +3290,19 @@ $('btnBoardClear').onclick=async()=>{
   if(!BD.strokes.length&&!(BD.imgs||[]).length){toast('칠판이 비어 있습니다');return}
   if(!await askConfirm('칠판의 필기와 가져온 그림을 모두 지웁니다. 계속할까요?'))return;
   BD.strokes=[];BD.imgs=[];BD.sel=null;
-  S.edited=true;bdRedraw();bdSave();toast('칠판을 비웠습니다');
+  S.edited=true;bdRedraw();await bdSave();
+  /* 마지막 쪽을 비웠으면 그 쪽 자체를 없애고 앞 쪽으로 갑니다.
+     전에는 내용만 지워서 2/2 가 그대로 남았습니다. */
+  if((BD.page||1)===(BD.pages||1)&&(BD.pages||1)>1){
+    try{await Store.delNote(boardKey())}catch(e){}
+    BD.page=Math.max(1,(BD.page||1)-1);
+    BD.pages=Math.max(1,(BD.pages||1)-1);
+    const rec=await Store.getNote(boardKey());
+    BD.strokes=rec&&rec.strokes?JSON.parse(JSON.stringify(rec.strokes)):[];
+    BD.imgs=rec&&rec.imgs?JSON.parse(JSON.stringify(rec.imgs)):[];
+    BD.sel=null;bdPageInfo();bdRedraw();
+    toast('빈 칠판 쪽을 없앨습니다');
+  }else toast('칠판을 비웠습니다');
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -4274,22 +4286,30 @@ function paintOn(cx,strokes,w,h){
   }
 }
 /* 칠판 한 쪽을 그림으로 그려 냅니다 — 화면에서 보던 그대로, 아래로 쓴 것까지 전부 */
-function paintBoardPage(cx,W,rec,aspect){
-  const th=BOARD_BG[bdBgKey()]||BOARD_BG.white;
+/* 칠판 내용이 아래로 어디까지 내려가는지 (화면 높이 단위) */
+function boardExtent(rec,aspect){
   const strokes=(rec&&rec.strokes)||[], imgs=(rec&&rec.imgs)||[];
   let bottom=0;
-  const legY=q=>q*aspect;                       /* 옛 방식으로 저장된 획 */
   strokes.forEach(st=>{const a=st.u?1:aspect;for(const q of st.pts)if(q[1]*a>bottom)bottom=q[1]*a});
   imgs.forEach(it=>{const b=it.y+it.w*it.ar;if(b>bottom)bottom=b});
-  const worldH=Math.max(aspect,bottom+0.03);
-  const H=Math.round(W*worldH);
+  return Math.max(aspect,bottom+0.03);
+}
+/* 화면에서 본 그대로 — 한 장은 칠판 한 화면만큼입니다.
+   예전에는 내용이 내려간 만큼 페이지가 길어져, 가로 칠판을 저장했는데
+   세로로 길쪽한 파일이 나왔습니다. offY 만큼 내려본 한 화면을 그립니다. */
+function paintBoardPage(cx,W,rec,aspect,offY){
+  const th=BOARD_BG[bdBgKey()]||BOARD_BG.white;
+  const strokes=(rec&&rec.strokes)||[], imgs=(rec&&rec.imgs)||[];
+  const legY=q=>q*aspect;                       /* 옛 방식으로 저장된 획 */
+  const H=Math.round(W*aspect);
   cx.canvas.width=W;cx.canvas.height=H;
   cx.setTransform(1,0,0,1,0,0);
   cx.fillStyle=th.bg;cx.fillRect(0,0,W,H);
   if(th.line){
     cx.save();cx.strokeStyle=th.line;cx.lineWidth=Math.max(1,W/1400);
     const gap=W*0.036;
-    for(let y=gap;y<H;y+=gap){cx.beginPath();cx.moveTo(0,y);cx.lineTo(W,y);cx.stroke()}
+    const shift=((offY||0)*W)%gap;              /* 줄이 장마다 어긋나지 않게 */
+    for(let y=gap-shift;y<H;y+=gap){cx.beginPath();cx.moveTo(0,y);cx.lineTo(W,y);cx.stroke()}
     if(th.grid)for(let x=gap;x<W;x+=gap){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,H);cx.stroke()}
     cx.restore();
   }
@@ -4336,32 +4356,38 @@ async function buildPdf(boardOnly){
   const aspect=(BD.w>1&&BD.h>1)?(BD.h/BD.w):0.56;
   for(const rec of boards){
     const W=2000;
-    const {H,strokes,imgs,legY}=paintBoardPage(cx,W,rec,aspect);
-    for(const it of imgs){                       /* 오려 붙인 그림이 먼저 */
-      try{
-        const im=await new Promise((ok,no)=>{const q=new Image();q.onload=()=>ok(q);q.onerror=no;q.src=it.src});
-        cx.drawImage(im,it.x*W,it.y*W,it.w*W,it.w*it.ar*W);
-      }catch(e){}
+    /* 내용이 한 화면을 넘으면 칠판 1쪽, 2쪽 처럼 여러 장으로 나눕니다 */
+    const worldH=boardExtent(rec,aspect);
+    const slices=Math.max(1,Math.ceil((worldH-1e-6)/aspect));
+    for(let s=0;s<slices;s++){
+      const offY=s*aspect;
+      const {H,strokes,imgs,legY}=paintBoardPage(cx,W,rec,aspect,offY);
+      for(const it of imgs){                       /* 오려 붙인 그림이 먼저 */
+        try{
+          const im=await new Promise((ok,no)=>{const q=new Image();q.onload=()=>ok(q);q.onerror=no;q.src=it.src});
+          cx.drawImage(im,it.x*W,(it.y-offY)*W,it.w*W,it.w*it.ar*W);
+        }catch(e){}
+      }
+      for(const st of strokes){                    /* 칠판 필기 — 화면과 같은 곡선으로 */
+        const pts=st.pts;if(!pts.length)continue;
+        const P=q=>[q[0]*W,((st.u?q[1]:legY(q[1]))-offY)*W];
+        cx.save();cx.lineCap='round';cx.lineJoin='round';cx.strokeStyle=st.color;
+        if(st.mode==='hl'){cx.globalAlpha=.32;cx.lineCap='butt'}
+        cx.lineWidth=st.w*W;
+        if(pts.length===1){
+          const [x,y]=P(pts[0]);
+          cx.beginPath();cx.arc(x,y,st.w*W/2,0,Math.PI*2);cx.fillStyle=st.color;cx.fill();
+        }else smoothPath(cx,pts.map(P));
+        cx.restore();
+      }
+      const img=cv.toDataURL('image/jpeg',.95), land=W>H;
+      const fmt=[land?842:595,land?595:842];
+      if(!doc)doc=new jsPDF({orientation:land?'l':'p',unit:'pt',format:fmt});
+      else doc.addPage(fmt,land?'l':'p');
+      const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
+      const r=Math.min(pw/W,ph/H),w=W*r,h=H*r;
+      doc.addImage(img,'JPEG',(pw-w)/2,(ph-h)/2,w,h);
     }
-    for(const st of strokes){                    /* 칠판 필기 — 화면과 같은 곡선으로 */
-      const pts=st.pts;if(!pts.length)continue;
-      const P=q=>[q[0]*W,(st.u?q[1]:legY(q[1]))*W];
-      cx.save();cx.lineCap='round';cx.lineJoin='round';cx.strokeStyle=st.color;
-      if(st.mode==='hl'){cx.globalAlpha=.32;cx.lineCap='butt'}
-      cx.lineWidth=st.w*W;
-      if(pts.length===1){
-        const [x,y]=P(pts[0]);
-        cx.beginPath();cx.arc(x,y,st.w*W/2,0,Math.PI*2);cx.fillStyle=st.color;cx.fill();
-      }else smoothPath(cx,pts.map(P));
-      cx.restore();
-    }
-    const img=cv.toDataURL('image/jpeg',.95), land=W>H;
-    const fmt=[land?842:595,land?595:842];
-    if(!doc)doc=new jsPDF({orientation:land?'l':'p',unit:'pt',format:fmt});
-    else doc.addPage(fmt,land?'l':'p');
-    const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
-    const r=Math.min(pw/W,ph/H),w=W*r,h=H*r;
-    doc.addImage(img,'JPEG',(pw-w)/2,(ph-h)/2,w,h);
   }
   return doc;
 }
@@ -4537,7 +4563,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='23.9';
+const APP_VER='24.0';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
