@@ -1491,7 +1491,7 @@ const Backup={
     }catch(e){
       const m=String(e&&e.message||'');
       if(/system|보안|security|not allowed|denied/i.test(m))
-        toast('시스템 폴더는 고를 수 없습니다 — 문서 안에 새 폴더를 만들어 골라 주세요');
+        toast('다운로드 폴더 자체와 시스템 폴더는 크롬이 막습니다 — 그 안에 새 폴더를 만들어 고라 주세요');
       return false;
     }
   },
@@ -1637,7 +1637,7 @@ async function askSaveDir(){
   if(Backup.ok)return;                                   /* 이미 연결돼 있으면 조용히 */
   try{ if(localStorage.getItem('pn.dirAsked')===APP_VER)return }catch(e){}
   try{ localStorage.setItem('pn.dirAsked',APP_VER) }catch(e){}
-  const yes=await askConfirm('판서 PDF를 저장할 폴더를 한 번만 정해 주세요.\n창이 다운로드 폴더에서 열립니다 — 그대로 [폴더 선택] 을 누르면 다운로드에 저장됩니다.\n\n(정하지 않아도 다운로드에 저장됩니다. 다만 폴더별로 나누어 담지는 못합니다)');
+  const yes=await askConfirm('판서 PDF를 저장할 폴더를 한 번만 정해 주세요.\n창이 다운로드 폴더에서 열립니다.\n\n※ 다운로드 폴더 자체는 크롬이 막아 두었습니다.\n그 안에 새 폴더(예: 판서노트)를 만들어 고르시면 됩니다.');
   if(!yes)return;
   const ok=Backup.handle&&!Backup.ok ? await Backup.reauth() : await Backup.connect();
   if(ok)toast('이제 이 폴더에 자동으로 저장됩니다');
@@ -4267,7 +4267,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='21.9';
+const APP_VER='22.0';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
