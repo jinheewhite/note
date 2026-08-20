@@ -619,6 +619,8 @@ try{
   </g>
   <circle cx="20.4" cy="5.2" r="5" fill="currentColor" opacity=".18"/>
   <circle cx="20.4" cy="5.2" r="2.7" fill="currentColor"/>
+  <path class="penInk" d="M2.4 23.4 q3 -2.4 6 0 t6 0 t6 0" fill="none"
+        stroke="currentColor" stroke-linecap="round"/>
       </svg>
     </button>
     <button class="tool" data-label="오리기" id="btnCut"
@@ -3056,8 +3058,9 @@ function openPop(anchor,tool){
     steps.forEach(v=>{
       const b=document.createElement('button');
       const d=Math.max(4,Math.min(26,Math.round(v*1.1)));
-      b.title=`굵기 ${v}`;
-      b.innerHTML=`<i style="width:${d}px;height:${d}px;background:var(--text)"></i>`;
+      /* 굵기 동그라미도 고른 색으로 — 빨간 펜이면 빨간 동그라미로 보입니다 */
+      const dc=S.colors[tool]||'var(--text)';
+      b.innerHTML=`<i style="width:${d}px;height:${d}px;background:${dc}"></i>`;
       if(S.sizes[tool]===v)b.classList.add('on');
       b.onclick=()=>{S.sizes[tool]=v;showSize();closePop();toast(`굵기 ${v}`)};
       sizeRow.appendChild(b);
@@ -3591,6 +3594,7 @@ function cardMenu(f){
   sheet.className='sheet';sheet.style.width='min(420px,92vw)';
   sheet.innerHTML=`<h2>${f.name.replace(/\.pdf$/i,'')}</h2>`+
     '<div class="row" style="margin-top:16px;flex-direction:column;align-items:stretch;gap:8px">'+
+    '<button id="mSave" class="primary">💾 지금 폴더에 저장</button>'+
     `<button id="mPin">${f.pin?'📌 맨 앞 고정 해제':'📌 맨 앞에 고정'}</button>`+
     '<button id="mMove">📁 폴더 옮기기</button>'+
     '<button id="mRen">✎ 이름 바꾸기</button>'+
@@ -3604,6 +3608,29 @@ function cardMenu(f){
   sheet.querySelector('#mPin').onclick=async()=>{
     const rec=await Store.getFile(f.id);if(rec){rec.pin=rec.pin?0:1;await Store.putFile(rec)}
     close();renderRecent();
+  };
+  /* 서재에서 바로 파일로 내려놓습니다.
+     writePdf 는 자료가 열려 있어야 하므로, 닫혀 있으면 먼저 엽니다. */
+  sheet.querySelector('#mSave').onclick=async()=>{
+    close();
+    if(!Backup.supported()){
+      toast('이 기기는 폴더 저장을 지원하지 않습니다 — 다운로드 폴더로 갑니다');return;
+    }
+    if(!Backup.ok){
+      const yes=await askConfirm('저장 폴더를 아직 정하지 않았습니다.\n지금 정할까요?');
+      if(!yes)return;
+      if(!await Backup.connect())return;
+    }
+    if(S.fileId!==f.id){
+      const rec=await Store.getFile(f.id);
+      if(!rec||!rec.data){
+        toast('원본 PDF 가 없어 저장할 수 없습니다 — 자료를 한 번 열어 주세요');return;
+      }
+      await loadPdf(rec.data,rec.name,rec.id);
+    }
+    const ok=await Backup.writePdf();
+    toast(ok?(Backup.handle.name+(S.folder?' > '+S.folder:'')+' 에 저장했습니다')
+            :'이 자료에는 저장할 판서가 없습니다');
   };
   sheet.querySelector('#mMove').onclick=()=>{close();pickFolder(f)};
   sheet.querySelector('#mRen').onclick=async()=>{
@@ -4027,7 +4054,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='23.2';
+const APP_VER='23.3';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
