@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>판서노트 시작하기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+
+<style>
+  :root{
+    --slate:#16202b;
+    --panel:#1e2b38;
+    --line:#3a4c5f;
+    --chalk:#eef3f7;
+    --chalk-dim:#93a7b8;
+    --mark:#f5d547;
+    --mark-soft:rgba(245,213,71,.14);
+    --step:'Gaegu','Noto Sans KR',sans-serif;
+    --body:'Noto Sans KR','Malgun Gothic',sans-serif;
+  }
+
+  *{box-sizing:border-box}
+
+  body{
+    margin:0;
+    background:var(--slate);
+    color:var(--chalk);
+    font-family:var(--body);
+    font-size:16px;
+    line-height:1.75;
+    /* 칠판 결 — 아주 옅게 */
+    background-image:
+      radial-gradient(ellipse 80% 50% at 20% 0%, rgba(255,255,255,.035), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 85% 100%, rgba(255,255,255,.025), transparent 60%);
+  }
+
+  .sheet{max-width:640px;margin:0 auto;padding:52px 24px 72px}
+
+  /* ── 머리 ── */
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .brand .chip{width:15px;height:15px;border-radius:3px;background:var(--mark);flex:0 0 auto}
+  .brand span{font-size:13px;letter-spacing:.14em;color:var(--chalk-dim);font-weight:500}
+
+  h1{
+    font-family:var(--step);
+    font-size:52px;line-height:1.15;font-weight:700;
+    margin:0 0 10px;color:var(--chalk);text-wrap:balance;
+  }
+  .lede{margin:0 0 24px;color:var(--chalk-dim);font-size:16.5px;max-width:34em}
+
+  .addr{
+    display:block;padding:16px 20px;border-radius:12px;
+    background:var(--panel);border:1px solid var(--line);
+    text-decoration:none;margin-bottom:8px;
+  }
+  .addr b{display:block;font-size:12.5px;letter-spacing:.1em;color:var(--chalk-dim);font-weight:500;margin-bottom:4px}
+  .addr code{
+    font-family:var(--body);font-size:18px;font-weight:700;
+    color:var(--mark);word-break:break-all;
+  }
+  .addr:hover{border-color:var(--mark)}
+  .addr:focus-visible{outline:2px solid var(--mark);outline-offset:3px}
+  .note{font-size:14px;color:var(--chalk-dim);margin:0 0 40px}
+
+  /* ── 단계 ── */
+  h2{
+    font-family:var(--step);font-size:15px;font-weight:700;
+    letter-spacing:.16em;color:var(--mark);
+    margin:0 0 20px;padding-bottom:9px;border-bottom:1px solid var(--line);
+  }
+  section{margin-bottom:44px}
+
+  .steps{display:flex;flex-direction:column;gap:24px}
+  .step{display:grid;grid-template-columns:44px 1fr;gap:16px;align-items:start}
+  .step .n{
+    font-family:var(--step);font-size:34px;font-weight:700;line-height:1;
+    color:var(--mark);text-align:center;padding-top:2px;
+  }
+  .step h3{margin:0 0 4px;font-size:18px;font-weight:700;line-height:1.4}
+  .step p{margin:0;color:var(--chalk-dim);font-size:15px}
+
+  /* 화면 속 단추를 글 안에 그대로 보여 줍니다 */
+  kbd{
+    font-family:var(--body);font-size:.92em;font-weight:700;
+    background:var(--mark);color:#1a1a12;
+    padding:2px 9px;border-radius:6px;white-space:nowrap;
+  }
+  kbd.ghost{background:transparent;color:var(--chalk);border:1px solid var(--line)}
+
+  /* ── 그림 ── */
+  figure{margin:20px 0 0;padding:0}
+  figure svg{display:block;width:100%;height:auto}
+  figcaption{margin-top:8px;font-size:13px;color:var(--chalk-dim);text-align:center}
+
+  .frame{
+    background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:16px;overflow-x:auto;
+  }
+
+  /* ── 도움 ── */
+  .help{
+    background:var(--panel);border:1px solid var(--line);
+    border-left:3px solid var(--mark);
+    border-radius:10px;padding:18px 20px;
+  }
+  .help h3{margin:0 0 6px;font-size:16px;font-weight:700}
+  .help p{margin:0;font-size:14.5px;color:var(--chalk-dim)}
+  .fixlink{
+    display:inline-block;margin-top:10px;
+    color:var(--mark);font-weight:700;font-size:15px;
+    word-break:break-all;text-decoration:none;
+    border-bottom:1px solid var(--mark);padding-bottom:1px;
+  }
+  .fixlink:hover{background:var(--mark-soft)}
+  .fixlink:focus-visible{outline:2px solid var(--mark);outline-offset:3px}
+
+  .tips{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+  .tips li{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:baseline;font-size:15px}
+  .tips .t{color:var(--mark);font-weight:700;white-space:nowrap}
+  .tips span:last-child{color:var(--chalk-dim)}
+
+  footer{
+    margin-top:56px;padding-top:20px;border-top:1px solid var(--line);
+    font-size:13px;color:var(--chalk-dim);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  }
+
+  /* ── 인쇄 (PDF 로 저장) ── */
+  @media print{
+    body{background:#fff;color:#111;background-image:none}
+    .sheet{max-width:none;padding:0}
+    h1{font-size:34px;color:#111}
+    h2{color:#7a5c00;border-color:#ccc}
+    .lede,.step p,.tips span:last-child,.help p,figcaption,footer{color:#444}
+    .addr,.frame,.help{background:#fafafa;border-color:#ccc;break-inside:avoid}
+    .addr code,.fixlink,.step .n,.tips .t{color:#7a5c00}
+    .fixlink{border-color:#7a5c00}
+    kbd{background:#f0e4a8;color:#1a1a12}
+    kbd.ghost{border-color:#bbb;color:#111}
+    section{break-inside:avoid}
+    .brand span{color:#666}
+  }
+
+  @media (max-width:480px){
+    .sheet{padding:36px 18px 56px}
+    h1{font-size:40px}
+    .step{grid-template-columns:34px 1fr;gap:12px}
+    .step .n{font-size:27px}
+  }
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="sheet">
+
+  <div class="brand"><span class="chip"></span><span>판서노트</span></div>
+  <h1>PDF에 그대로<br>필기하세요</h1>
+  <p class="lede">전자칠판·컴퓨터·태블릿에서 씁니다. 설치할 것도, 로그인할 것도 없습니다. 주소만 열면 바로 시작합니다.</p>
+
+  <a class="addr" href="https://jinheewhite.github.io/note/">
+    <b>주소 — 눌러서 바로 열기</b>
+    <code>https://jinheewhite.github.io/note/</code>
+  </a>
+  <p class="note">전자칠판에서는 이 주소를 즐겨찾기에 두세요. 설정 <kbd class="ghost">⚙</kbd> → <kbd>앱으로 설치하기</kbd> 를 누르면 주소창 없이, 인터넷이 끊겨도 열립니다.</p>
+
+  <section>
+    <h2>세 걸음이면 됩니다</h2>
+    <div class="steps">
+
+      <div class="step">
+        <div class="n">1</div>
+        <div>
+          <h3>수업 자료를 엽니다</h3>
+          <p><kbd>＋ 새 자료</kbd> 를 눌러 PDF를 고릅니다. 한 번 연 자료는 서재에 남아, 다음 시간에는 표지를 누르기만 하면 됩니다.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="n">2</div>
+        <div>
+          <h3>펜으로 씁니다</h3>
+          <p>아래 도구모음에서 펜을 고릅니다. <b style="color:var(--chalk)">같은 펜을 한 번 더 누르면</b> 색과 굵기를 고르는 창이 열립니다.</p>
+          <figure>
+            <div class="frame">
+              <svg viewBox="0 0 560 150" role="img" aria-label="펜을 한 번 더 누르면 색과 굵기를 고르는 창이 열립니다">
+                <!-- 도구모음 -->
+                <rect x="8" y="98" width="544" height="44" rx="10" fill="#16202b" stroke="#3a4c5f"/>
+                <rect x="20" y="106" width="30" height="28" rx="7" fill="#f5d547"/>
+                <path d="M28 126 l8 -8" stroke="#1a1a12" stroke-width="3" stroke-linecap="round"/>
+                <path d="M26 130 q3 -2.4 6 0 t6 0" stroke="#e02424" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+                <rect x="58" y="106" width="30" height="28" rx="7" fill="#1e2b38" stroke="#3a4c5f"/>
+                <rect x="96" y="106" width="30" height="28" rx="7" fill="#1e2b38" stroke="#3a4c5f"/>
+                <rect x="134" y="106" width="30" height="28" rx="7" fill="#1e2b38" stroke="#3a4c5f"/>
+                <!-- 올라온 창 -->
+                <rect x="8" y="10" width="290" height="76" rx="12" fill="#1e2b38" stroke="#f5d547"/>
+                <circle cx="36" cy="34" r="10" fill="#111111" stroke="#f5d547" stroke-width="2"/>
+                <circle cx="66" cy="34" r="10" fill="#ffffff"/>
+                <circle cx="96" cy="34" r="10" fill="#e02424"/>
+                <circle cx="126" cy="34" r="10" fill="#1d6fe0"/>
+                <circle cx="156" cy="34" r="10" fill="#12a150"/>
+                <circle cx="186" cy="34" r="10" fill="#f5c400"/>
+                <circle cx="36" cy="64" r="2.5" fill="#e02424"/>
+                <circle cx="66" cy="64" r="4" fill="#e02424"/>
+                <circle cx="96" cy="64" r="6" fill="#e02424"/>
+                <circle cx="126" cy="64" r="8.5" fill="#e02424"/>
+                <circle cx="156" cy="64" r="11" fill="#e02424"/>
+                <path d="M34 86 l0 12" stroke="#f5d547" stroke-width="2" stroke-dasharray="3 3"/>
+                <text x="316" y="32" fill="#93a7b8" font-family="Noto Sans KR,sans-serif" font-size="13">위 줄 — 색</text>
+                <text x="316" y="70" fill="#93a7b8" font-family="Noto Sans KR,sans-serif" font-size="13">아래 줄 — 굵기</text>
+              </svg>
+            </div>
+            <figcaption>고른 색과 굵기는 펜 아이콘 아래 자국에 그대로 나타납니다</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="n">3</div>
+        <div>
+          <h3>저장은 하지 않아도 됩니다</h3>
+          <p><kbd class="ghost">✕ 자료 닫기</kbd> 를 누르면 그날 필기가 PDF 한 개로 다운로드 폴더에 저장됩니다. 필기가 멈추면 중간에도 알아서 저장합니다.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>칠판도 있습니다</h2>
+    <p style="margin:0 0 4px;color:var(--chalk-dim);font-size:15px">
+      오른쪽 아래 <kbd class="ghost">▥ 칠판</kbd> 을 누르면 자료 옆에 빈 칠판이 열립니다.
+      긴 수식을 쓰다 자리가 모자라면 <kbd>↑</kbd> 로 종이를 올려 계속 이어 쓰세요.
+      새 쪽을 만들지 않아도 됩니다.
+    </p>
+    <figure>
+      <div class="frame">
+        <svg viewBox="0 0 560 130" role="img" aria-label="칠판에서 위 화살표를 누르면 종이가 올라가 계속 이어 쓸 수 있습니다">
+          <rect x="8" y="12" width="250" height="106" rx="8" fill="#16202b" stroke="#3a4c5f"/>
+          <text x="133" y="70" fill="#93a7b8" font-family="Noto Sans KR,sans-serif" font-size="13" text-anchor="middle">수업 자료 (PDF)</text>
+          <rect x="270" y="12" width="282" height="106" rx="8" fill="#f7f8fa" stroke="#3a4c5f"/>
+          <path d="M288 44 h130 M288 62 h180 M288 80 h96" stroke="#33475b" stroke-width="3" stroke-linecap="round" opacity=".72"/>
+          <rect x="500" y="22" width="34" height="26" rx="7" fill="#f5d547"/>
+          <path d="M517 42 l0 -13 M511 35 l6 -6 6 6" stroke="#1a1a12" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M517 60 l0 34" stroke="#f5d547" stroke-width="2" stroke-dasharray="4 4"/>
+          <path d="M511 66 l6 -6 6 6" stroke="#f5d547" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <figcaption>칠판만 따로 저장하려면 <kbd>💾 칠판 저장</kbd></figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>손으로 다루기</h2>
+    <ul class="tips">
+      <li><span class="t">한 손가락 길게 쭉</span><span>다음 쪽으로 넘어갑니다</span></li>
+      <li><span class="t">두 손가락 밀기</span><span>화면을 옮깁니다 (쪽은 안 넘어갑니다)</span></li>
+      <li><span class="t">양손 벌리기</span><span>확대 · 오므리면 축소</span></li>
+      <li><span class="t">칠판에 손바닥</span><span>문지르면 지워집니다</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>잘 안 될 때</h2>
+    <div class="help">
+      <h3>화면이 예전 그대로이거나 열리지 않으면</h3>
+      <p>아래 주소를 한 번 열어 주세요. 옛 파일을 정리하고 최신본으로 다시 엽니다. <b style="color:var(--chalk)">필기는 지워지지 않습니다.</b></p>
+      <a class="fixlink" href="https://jinheewhite.github.io/note/fix.html">https://jinheewhite.github.io/note/fix.html</a>
+    </div>
+  </section>
+
+  <footer>
+    <span>만든 사람 · 강진희</span>
+    <span>문의는 메신저로 주세요</span>
+  </footer>
+
+</div>
+
+</body>
+</html>
