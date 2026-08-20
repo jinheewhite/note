@@ -1742,7 +1742,7 @@ function tidyShape(Q){
   if(n<8)return null;
   let len=0;
   for(let i=1;i<n;i++)len+=Math.hypot(Q[i][0]-Q[i-1][0],Q[i][1]-Q[i-1][1]);
-  if(len<90)return null;                       /* 짧은 것은 글씨일 수 있어 건드리지 않습니다 */
+  if(len<140)return null;                      /* 짧은 것은 글씨일 수 있어 건드리지 않습니다 */                       /* 짧은 것은 글씨일 수 있어 건드리지 않습니다 */
   const a=Q[0], b=Q[n-1];
   const span=Math.hypot(b[0]-a[0],b[1]-a[1]);
 
@@ -1765,7 +1765,7 @@ function tidyShape(Q){
     if(q[1]<y0)y0=q[1]; if(q[1]>y1)y1=q[1];
   }
   const bw=x1-x0, bh=y1-y0;
-  if(bw<30||bh<30)return null;
+  if(bw<48||bh<48)return null;                 /* 작은 글씨가 도형으로 읽힐 수 있습니다 */
   const diag=Math.hypot(bw,bh);
 
   /* 1-b. 하트 — 위 가운데가 옴폭 들어갑니다. 이 성질은 하트에만 있습니다
@@ -1812,6 +1812,26 @@ function tidyShape(Q){
     if(bd>=diag*0.07)break;
     K.splice(best,1);
   }
+
+  /* 별 — 사람들은 한 붓으로 가로질러 그립니다(오각별). 그러면 꼭짓점이
+     다섯이고, 이웃한 꼭짓점끼리 가운데를 중심으로 144도씩 건너뜁니다.
+     오각형은 72도씩이므로 이것으로 갈립니다. */
+  if(K.length===5){
+    const cx=(x0+x1)/2, cy=(y0+y1)/2, rx=bw/2||1, ry=bh/2||1;
+    const ang=K.map(q=>Math.atan2((q[1]-cy)/ry,(q[0]-cx)/rx));
+    const rr=K.map(q=>Math.hypot((q[0]-cx)/rx,(q[1]-cy)/ry));
+    let evenR=true;
+    const rmin=Math.min.apply(null,rr), rmax=Math.max.apply(null,rr);
+    if(rmin<rmax*0.62)evenR=false;             /* 꼭짓점이 모두 바깥쪽이어야 합니다 */
+    let jump=true;
+    for(let i=0;i<5;i++){
+      let d=Math.abs(ang[(i+1)%5]-ang[i]);
+      if(d>Math.PI)d=Math.PI*2-d;              /* 0~180도로 맞춥니다 */
+      if(d<Math.PI*0.60||d>Math.PI*0.98){jump=false;break}   /* 108~176도 */
+    }
+    if(evenR&&jump)return {kind:'star',pts:starFit(x0,y0,x1,y1)};
+  }
+
 
   /* 별 — 꼭짓점 열 개가 멀고 가까움을 번갈아 합니다 */
   if(K.length===10){
@@ -4772,7 +4792,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.5';
+const APP_VER='25.6';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
