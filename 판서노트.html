@@ -32,6 +32,9 @@ var d=document.documentElement;
   var os=ios?'ios':/Android/i.test(ua)?'android':/Windows/i.test(ua)?'win'
         :/Macintosh|Mac OS X/i.test(ua)?'mac':'other';
   window.PN_OS=os;
+  /* 손가락으로 쓰는 기기는 도구를 작게 씁니다.
+     아이패드는 위쪽 막대가 넘쳐서 자료 닫기·종료가 밀려나가 보이지 않았습니다. */
+  if(os==='android'||os==='ios')d.classList.add('compact');
   d.classList.add('os-'+os);
 })();
 try{
@@ -426,15 +429,22 @@ try{
   /* 안드로이드(전자칠판·태블릿)는 화면이 커도 도구를 작게 씁니다.
      아래 @media 는 창이 좁을 때만 걸리므로, 화면이 넓은 전자칠판에서는
      도구가 계속 커다란게 남아 자료를 가렸습니다. */
-  html.os-android{--bar:58px}
-  html.os-android button{min-height:38px;padding:0 10px;font-size:13px}
-  html.os-android button.icon{width:38px;font-size:16px}
-  html.os-android .ghosticon{width:34px;min-height:34px;font-size:14px}
-  html.os-android #tools .tool{width:42px}
-  html.os-android #tools .tool svg{width:21px;height:21px}
-  html.os-android #tools .tool.on{padding:0 10px 0 8px}
-  html.os-android #tools .tool.on::after{font-size:13px;margin-left:5px}
-  html.os-android .grp{gap:5px;padding-right:7px}
+  /* 자리 바꾸기는 눈에 안 띄다는 말을 들어 분필색으로 도드라지게 했습니다 */
+  #btnBoardSwap .swapIcon{font-size:21px;line-height:1;color:var(--chalk);font-weight:900;margin-right:3px}
+  #btnBoardSwap{border-color:var(--chalk)}
+  #btnBoardSwap:hover{background:var(--chalk);color:#1a1a12}
+  #btnBoardSwap:hover .swapIcon{color:#1a1a12}
+  /* 아이패드는 디스크 폴더를 만들 수 없어 새 폴더(+) 를 두지 않습니다 */
+  html.os-ios #btnNewFolder{display:none!important}
+  html.compact{--bar:58px}
+  html.compact button{min-height:38px;padding:0 10px;font-size:13px}
+  html.compact button.icon{width:38px;font-size:16px}
+  html.compact .ghosticon{width:34px;min-height:34px;font-size:14px}
+  html.compact #tools .tool{width:42px}
+  html.compact #tools .tool svg{width:21px;height:21px}
+  html.compact #tools .tool.on{padding:0 10px 0 8px}
+  html.compact #tools .tool.on::after{font-size:13px;margin-left:5px}
+  html.compact .grp{gap:5px;padding-right:7px}
   @media (max-width:860px){
     :root{--bar:64px}
     button{min-height:44px;padding:0 11px;font-size:14px}
@@ -499,7 +509,7 @@ try{
   <button id="btnClear" title="지금 보는 쪽의 필기만 지웁니다">쪽 비우기</button>
   <button id="btnClearAll" title="이 자료의 모든 쪽 필기를 지웁니다 (오늘 것)">전체 쪽 비우기</button>
   <button id="btnPng" title="지금 보는 쪽만 그림(PNG)으로 저장합니다 — 저장하면 닫을 때 전체 저장을 건너뜁니다">이 쪽 저장</button>
-  <button id="btnPdf" class="primary" title="판서한 쪽 전체를 PDF 한 개로 저장합니다">PDF로 저장</button>
+  <button id="btnPdf" class="primary" hidden title="판서한 쪽 전체를 PDF 한 개로 저장합니다">PDF로 저장</button>
   <button id="btnOpen" hidden>PDF 열기</button>
   <span class="tstat">
     <span class="saved">쪽 <b id="pageInfo">– / –</b></span>
@@ -510,7 +520,7 @@ try{
   </div>
   <span class="saved" id="saved" hidden>—</span>
   <span id="boardCtl" hidden style="display:flex;align-items:center;gap:6px">
-    <button id="btnBoardSwap" class="mini" title="칠판과 PDF 자리를 바꿉니다">⇄ 자리 바꾸기</button>
+    <button id="btnBoardSwap" class="mini" data-hover="칠판과 PDF 자리 바꿈" title="칠판과 PDF 자리를 바꿉니다"><b class="swapIcon">⇄</b> 자리 바꾸기</button>
     <button id="btnBdPrev" class="mini icon" title="칠판 이전 쪽">◀</button>
     <span class="mono" id="bdPageInfo" title="칠판 쪽">1/1</span>
     <button id="btnBdNext" class="mini" title="칠판 다음 쪽">▶</button>
@@ -1648,6 +1658,19 @@ $('guideOk')&&($('guideOk').onclick=()=>{
 $('btnGuide')&&($('btnGuide').onclick=()=>showGuide(false));
 /* 버튼을 길게(0.6초) 누르고 있으면 그 버튼의 설명이 뜹니다.
    설명이 뜬 채로 손을 떼면 버튼은 눌리지 않습니다 — 궁금할 땐 길게, 쓸 땐 짧게 */
+/* 마우스를 올리면 설명이 뜽니다 (data-hover 가 붙은 단추만).
+   위쪽 막대는 넘치는 부분을 잘라내므로 말풍선 대신 알림을 씁니다. */
+let hovT=null,hovEl=null;
+document.addEventListener('mouseover',e=>{
+  const b=e.target.closest&&e.target.closest('[data-hover]');
+  if(!b||b===hovEl)return;
+  hovEl=b;clearTimeout(hovT);
+  hovT=setTimeout(()=>{if(hovEl===b)toast(b.getAttribute('data-hover'))},220);
+},true);
+document.addEventListener('mouseout',e=>{
+  const b=e.target.closest&&e.target.closest('[data-hover]');
+  if(b&&b===hovEl){hovEl=null;clearTimeout(hovT)}
+},true);
 let helpT=null,helpBtn=null,helpShown=false;
 document.addEventListener('pointerdown',e=>{
   const b=e.target.closest&&e.target.closest('button[title]');
@@ -3390,7 +3413,13 @@ $('btnLaser').onclick=e=>setTool('laser',e.currentTarget);
 const FULL_KEY='pn.keepFull';
 function wantFull(){try{return localStorage.getItem(FULL_KEY)==='1'}catch(e){return false}}
 function setWantFull(v){try{localStorage.setItem(FULL_KEY,v?'1':'0')}catch(e){}}
+function fsSupported(){
+  const el=document.documentElement;
+  return typeof el.requestFullscreen==='function'||typeof el.webkitRequestFullscreen==='function';
+}
 function goFull(){
+  /* 아이패드는 진짜 전체화면이 없어, 부르면 그 자리에서 예외를 던졌습니다 */
+  if(!fsSupported()){fauxFull(true);return Promise.resolve()}
   return document.documentElement.requestFullscreen({navigationUI:'hide'})
     .catch(()=>toast('F11 키를 눌러 전체화면으로 바꿔 주세요'));
 }
@@ -3481,6 +3510,7 @@ document.addEventListener('fullscreenchange',()=>{
 });
 /* 전체화면을 켜 둔 상태라면 아무 곳이나 누를 때 복귀 */
 document.addEventListener('pointerdown',()=>{
+  if(!fsSupported())return;      /* 아이패드 — 들어갈 수 없는데 누를 때마다 시도했습니다 */
   if(wantFull()&&!document.fullscreenElement)goFull();
 },true);
 function curKey(){return (S.tool==='hl'||S.tool==='laser'||S.tool==='eraser')?S.tool:'pen'}
@@ -4228,6 +4258,13 @@ function quitNow(){
 
 /* 브라우저 탭은 스크립트로 닫을 수 없어, 안전하게 끝났다는 화면을 보여 줍니다 */
 function showQuitScreen(){
+  /* 아이패드는 창을 닫을 수 없어 "이제 창을 닫으셔도 됩니다" 가
+     도움이 되지 않습니다. 저장됐다고만 알리고 바로 서재로 돌아갑니다. */
+  if((window.PN_OS||'')==='ios'){
+    toast('저장을 마쳤습니다');
+    setTimeout(()=>location.reload(),900);
+    return;
+  }
   const w=$('welcome');
   w.hidden=false;w.style.display='';
   w.innerHTML=
@@ -4267,7 +4304,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='22.0';
+const APP_VER='22.1';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
