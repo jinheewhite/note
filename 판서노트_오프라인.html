@@ -220,6 +220,11 @@ try{
   body.bar-top #dock,html.bar-top #dock{bottom:18px}
   /* 서재를 보는 동안에는 쪽 넘김 조각을 감춥니다 — 넘길 자료가 없습니다 */
   body.lib-open #dock,html.lib-open #dock{display:none!important}
+  /* 서재를 보는 동안에는 칠판도 감춥니다.
+     자료가 없는데 칠판이 뒤에 깔려 있어, 서재 밑에 흰 네모로 보였습니다.
+     칠판을 켜 둔 것은 그대로 기억되므로, 자료를 열면 다시 나옵니다. */
+  body.lib-open #board,html.lib-open #board,
+  body.lib-open #splitBar,html.lib-open #splitBar{display:none!important}
   #sheet{position:relative;box-shadow:0 10px 34px rgba(0,0,0,.45);background:#fff;flex:0 0 auto;
     will-change:transform;transform-origin:center center;backface-visibility:hidden}
   #pdfCv,#inkCv{display:block;position:relative}
@@ -4529,7 +4534,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='23.7';
+const APP_VER='23.8';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
