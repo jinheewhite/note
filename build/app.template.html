@@ -275,7 +275,10 @@ try{
     border-radius:10px;padding:3px;gap:2px}
   .seg{min-height:34px;padding:0 16px;font-size:13.5px;border:0;background:transparent;border-radius:8px}
   .seg.on{background:var(--slate);color:#fff;font-weight:700}
-  .acts{position:absolute;right:26px;top:24px;display:flex;align-items:center;gap:6px}
+  /* 전에는 오른쪽 구석에 따로 띄워 두어(position:absolute) 왜 거기 있는지
+     알 수 없었습니다. 정렬 단추와 같은 줄에 놓습니다. */
+  .acts{display:flex;align-items:center;gap:6px}
+  .libtools{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
   .ghosticon{width:40px;min-height:40px;padding:0;justify-content:center;font-size:16px;
     background:transparent;border-color:transparent;color:var(--text-dim);
     overflow:hidden;white-space:nowrap;flex:0 0 auto}
@@ -676,13 +679,14 @@ try{
 <div id="welcome">
   <div class="libhead">
     <h1 id="libTitle2">서재</h1>
-    <div class="segs">
+    <div class="libtools">
+      <div class="segs">
       <button id="btnSort" class="seg on">최근순</button>
       <button id="btnSortName" class="seg">이름순</button>
-      <button id="btnSortFolder" class="seg" hidden>폴더별</button>
+      <button id="btnSortFolder" class="seg">폴더별</button>
       <button id="btnView" data-hover="표지 ↔ 목록 바꾸기" class="ghosticon" title="표지 / 목록">▦</button>
       <button id="btnExplore" data-hover="저장된 판서 PDF 보기" class="ghosticon" title="저장 폴더 탐색 — 저장된 판서 PDF를 봅니다">🗂</button>
-    </div>
+      </div>
     <div class="acts">
       <button id="btnSync" data-hover="서재 새로고침" class="ghosticon" title="새로고침">🔄</button>
       <button id="btnUp" data-hover="상위 폴더로 나가기" class="ghosticon" hidden title="뒤로">←</button>
@@ -690,6 +694,7 @@ try{
       <button id="btnNewFolder" data-hover="새 폴더 만들기" class="ghosticon" hidden title="새 폴더">📁＋</button>
       <button id="libTitle" data-hover="저장 폴더 열어보기" class="ghosticon" hidden title="저장 폴더 열어보기">📂</button>
       <button id="btnMore2" data-hover="설정" class="ghosticon big" title="설정">⚙︎</button>
+      </div>
     </div>
   </div>
 
@@ -3340,7 +3345,7 @@ async function getFolders(){const r=await Store.getFile(FOLD_KEY);return (r&&r.l
 async function setFolders(list){await Store.putFile({id:FOLD_KEY,name:'folders',opened:Date.now(),list})}
 async function renderFolders(){
   const inside=!!S.lib;
-  const nf=$('btnNewFolder'); if(nf)nf.hidden=!!S.lib;   /* 폴더 안에서는 만들지 않습니다 */
+  const nf=$('btnNewFolder'); if(nf)nf.hidden=(S.sort!=='folder')||!!S.lib;
   const tb=$('libTitle');
   /* 폴더 안에서 나가는 길이 오른쪽 끝의 작은 ← 하나뿐이라 보이지 않았습니다.
      제목 자체를 길잡이로 씁니다 — '← 서재' 를 누르면 나갑니다. */
@@ -3405,6 +3410,7 @@ function setSort(v){
   $('btnSort').classList.toggle('on',v==='recent');
   $('btnSortName').classList.toggle('on',v==='name');
   $('btnSortFolder').classList.toggle('on',v==='folder');
+  $('btnNewFolder')&&($('btnNewFolder').hidden=(v!=='folder')||!!S.lib);
   renderRecent();
 }
 $('btnSort').onclick=()=>setSort('recent');
@@ -3511,9 +3517,9 @@ async function renderRecent(){
   const compact=(S.view==='list');
   const folderBox=compact?list:grid;
   folderBox.appendChild(addCard());
-  /* 폴더는 정렬과 상관없이 지금 자리에서 항상 보입니다.
-     전에는 '폴더별' 을 고를 때만 나와, 정렬을 바꾸면 폴더가 통째로 사라졌습니다. */
-  if(!S.lib&&!S.q){
+  /* 폴더 목록은 '폴더별' 을 고를 때 보입니다 */
+
+  if(!S.lib&&S.sort==='folder'&&!S.q){
     for(const nm of await getFolders()){
       if(S.q&&!nm.toLowerCase().includes(S.q))continue;
       const inside=all.filter(x=>x.folder===nm).length;
@@ -3525,8 +3531,9 @@ async function renderRecent(){
     }
   }
 
-  /* 찾기 중일 때만 폴더를 가로질러 전부 보여 줍니다 */
-  const flat=!!S.q;
+  /* 최근순·이름순은 폴더와 상관없이 모든 자료를 보여 줍니다.
+     각 자료 밑에 어느 폴더인지 이름이 붙습니다. */
+  const flat=S.q||(!S.lib&&S.sort!=='folder');
   let files=all.filter(x=>flat?true:(S.lib?(x.folder===S.lib):!x.folder));
   if(S.q)files=files.filter(x=>x.name.toLowerCase().includes(S.q));
   files.sort((a,b)=>(b.pin?1:0)-(a.pin?1:0)||
@@ -3997,7 +4004,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='23.0';
+const APP_VER='23.1';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -4323,7 +4330,6 @@ $('jsonInput').onchange=async e=>{
   await step(()=>Backup.load());
   $('modeBadge').innerHTML=Store.mode==='idb'?'':modeBadge();
   try{S.sort=localStorage.getItem('pn.sort')||'recent';S.view=localStorage.getItem('pn.view')||'grid';
-      if(S.sort==='folder')S.sort='recent';   /* 이제 정렬 항목이 아닙니다 */
       S.splitMode=parseInt(localStorage.getItem('pn.splitMode')||'0')||0;
       S.split=S.splitMode>0;
 }catch(e){}
