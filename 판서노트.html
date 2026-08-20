@@ -669,7 +669,7 @@ try{
     <button class="icon" id="btnThin" hidden title="가늘게">−</button>
     <span class="mono" id="sizeNow" hidden>4</span>
     <button class="icon" id="btnThick" hidden title="굵게">＋</button>
-    <button class="icon" id="btnUndo" hidden title="되돌리기">↩︎</button>
+    <button class="icon" id="btnUndo" hidden data-hover="방금 한 일을 되돌립니다 (Ctrl+Z)" title="되돌리기">↩</button>
   </div>
 
   <div class="grp" id="rightGrp">
@@ -2278,6 +2278,7 @@ function startStroke(e){
   S.drawing=true;S.last=[x,y];S.strokeBy=e.pointerType;S.strokeAt=performance.now();
   if(S.tool==='laser'){laserPoint(x,y,true);return}
   S.penErase=(e.pointerType==='pen'&&e.buttons===32);   /* 펜 뒤쪽 지우개 버튼 */
+  if(S.penErase||S.tool==='eraser')snap('pdf');
   if(S.penErase||S.tool==='eraser'){erase(x,y);return}
   /* 필압에 따라 굵기를 바꾸면 마디마다 각져 보입니다 — 칠판처럼 고른 굵기로 씁니다 */
   S.cur={mode:S.tool,color:curColor(),w:(S.tool==='hl'?curSize()*2.2:curSize())/S.pdfW,pts:[toN(x,y)]};
@@ -2324,6 +2325,7 @@ function endStroke(){
       const dir=strokeSwipeFlip();
       if(dir){S.cur=null;S.strokeBy='';flip(dir);return}     /* 선은 버리고 넘깁니다 */
     }
+    snap('pdf');
     S.strokes.push(S.cur);
     if(S.strokeBy==='touch')S.lastTouch={s:S.cur,at:performance.now()};
     S.cur=null;S.edited=true;
@@ -2866,19 +2868,79 @@ inkCv.addEventListener('pointerup',release);
 inkCv.addEventListener('pointercancel',release);
 inkCv.addEventListener('lostpointercapture',release);
 
+/* 되돌리기 — 무엇을 하기 직전의 모습을 적어 둡니다.
+   획 하나만 되돌리던 예전 방식으로는 지운 것을 되살릴 수 없었습니다. */
+const HIST={list:[],max:40};
+function snap(where){
+  const d=(where==='bd')
+    ? JSON.stringify({s:BD.strokes||[],i:BD.imgs||[]})
+    : JSON.stringify({s:S.strokes||[],i:S.imgs||[]});
+  const L=HIST.list;
+  if(L.length&&L[L.length-1].w===where&&L[L.length-1].d===d)return;  /* 바뀐 게 없으면 */
+  L.push({w:where,d});
+  if(L.length>HIST.max)L.shift();
+  updUndo();
+}
+function updUndo(){const b=$('btnUndo');if(b)b.hidden=!HIST.list.length}
+function undoOnce(){
+  const e=HIST.list.pop();
+  if(!e){toast('되돌릴 것이 없습니다');return}
+  const o=JSON.parse(e.d);
+  if(e.w==='bd'){
+    BD.strokes=o.s;BD.imgs=o.i;BD.sel=null;BD.cur=null;
+    bdRedraw();bdSaveSoon();
+  }else{
+    S.strokes=o.s;S.imgs=o.i;S.sel=null;S.cur=null;
+    redraw();scheduleSave();
+  }
+  S.edited=true;updUndo();
+}
+
+/* 점에서 선분까지의 거리 — 점이 드문 곳에서도 지우개가 선을 제대로 끊습니다 */
+function segDist(px,py,x1,y1,x2,y2){
+  const dx=x2-x1, dy=y2-y1, L=dx*dx+dy*dy;
+  let t=L?((px-x1)*dx+(py-y1)*dy)/L:0;
+  t=t<0?0:t>1?1:t;
+  return Math.hypot(px-(x1+t*dx),py-(y1+t*dy));
+}
+/* 지우개가 닿은 곳만 지웁니다 — 나머지 부분은 그대로 남습니다.
+   예전에는 획 하나가 조금이라도 닿으면 그 획을 통째로 없앴습니다. */
+function cutStrokes(list,toScreen,x,y,r){
+  const out=[]; let changed=false;
+  for(const st of list){
+    const P=st.pts.map(q=>toScreen(st,q));
+    if(P.length===1){
+      if(Math.hypot(P[0][0]-x,P[0][1]-y)<r)changed=true; else out.push(st);
+      continue;
+    }
+    const gone=P.map(p=>Math.hypot(p[0]-x,p[1]-y)<r);
+    let run=[], pieces=[];
+    for(let i=0;i<P.length;i++){
+      if(gone[i]){ if(run.length>1)pieces.push(run); run=[]; continue }
+      run.push(st.pts[i]);
+      if(i+1<P.length&&!gone[i+1]&&
+         segDist(x,y,P[i][0],P[i][1],P[i+1][0],P[i+1][1])<r){
+        if(run.length>1)pieces.push(run); run=[];
+      }
+    }
+    if(run.length>1)pieces.push(run);
+    if(pieces.length===1&&pieces[0].length===st.pts.length){out.push(st);continue}
+    changed=true;
+    for(const pts of pieces)out.push(Object.assign({},st,{pts}));
+  }
+  return changed?out:null;
+}
 function erase(x,y){
-  const r=Math.max(16,curSize()*2.2),before=S.strokes.length;
-  S.strokes=S.strokes.filter(st=>!st.pts.some(p=>{
-    const [px,py]=toP(p[0],p[1]);
-    return Math.hypot(px-x,py-y)<r;
-  }));
-  if(S.strokes.length!==before){S.edited=true;redraw()}
+  const r=Math.max(16,curSize()*2.2);
+  const out=cutStrokes(S.strokes,(st,q)=>toP(q[0],q[1]),x,y,r);
+  if(out){S.strokes=out;S.edited=true;redraw()}
 }
 
 /* ══════════════════════════════════════════════════════════
    4. 날짜별 자동 저장
    ══════════════════════════════════════════════════════════ */
 async function loadStrokes(){
+  HIST.list=[];updUndo();   /* 쪽이 바뀌면 되돌릴 것도 바뀝니다 */
   const rec=await Store.getNote(noteKey(S.fileId,S.date,S.page));
   S.strokes=rec&&rec.strokes?JSON.parse(JSON.stringify(rec.strokes)):[];
   S.imgs=rec&&rec.imgs?JSON.parse(JSON.stringify(rec.imgs)):[];
@@ -2970,6 +3032,7 @@ function bdPageInfo(){
   }
 }
 async function bdGoto(pg){
+  HIST.list=[];updUndo();
   await bdSave();                                    /* 지금 쪽 저장 */
   BD.page=Math.max(1,pg);
   BD.pages=Math.max(BD.pages||1,BD.page);
@@ -3034,6 +3097,7 @@ function bdRedraw(){
   bdScrollBar();
 }
 async function bdLoad(){
+  HIST.list=[];updUndo();   /* 쪽이 바뀌면 되돌릴 것도 바뀝니다 */
   BD.page=1;
   /* 이 자료·오늘 날짜의 칠판 쪽 수를 셉니다 */
   let mx=1;
@@ -3187,12 +3251,14 @@ bdCv.addEventListener('pointerdown',e=>{
     try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
     BD.drawing=true;BD.palm=true;BD.last=[x,y];
     if(!BD.palmSeen){BD.palmSeen=true;toast('칠판: 손바닥으로 문지르면 지워집니다')}
+    snap('bd');
     bdErase(x,y);return;
   }
   if(e.pointerType==='touch')bdPtrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   ghostShow(e);
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
   BD.drawing=true;BD.palm=false;BD.last=[x,y];BD.prev=null;
+  snap('bd');
   if(S.tool==='eraser'){bdErase(x,y);return}
   BD.cur={u:1,mode:S.tool,color:curColor(),
           w:(S.tool==='hl'?curSize()*2.2:curSize())/bdSc(),pts:[[bdWX(x),bdWY(y)]]};
@@ -3249,6 +3315,7 @@ function bdEnd(e){
   if(!BD.drawing)return;
   BD.drawing=false;BD.palm=false;
   if(BD.cur){
+    snap('bd');
     BD.strokes.push(BD.cur);
     if(e&&e.pointerType==='touch')BD.lastTouch={s:BD.cur,at:performance.now()};
     BD.cur=null;S.edited=true;bdRedraw();   /* 뗀 순간 매끈하게 정리 */
@@ -3259,9 +3326,9 @@ bdCv.addEventListener('pointerup',bdEnd);
 bdCv.addEventListener('pointercancel',bdEnd);
 bdCv.addEventListener('lostpointercapture',bdEnd);
 function bdErase(x,y){
-  const rad=Math.max(16,curSize()*2.2),before=BD.strokes.length;
-  BD.strokes=BD.strokes.filter(st=>!st.pts.some(q=>{const s=bdPt(st,q);return Math.hypot(s[0]-x,s[1]-y)<rad}));
-  if(BD.strokes.length!==before){S.edited=true;bdRedraw()}
+  const r=Math.max(16,curSize()*2.2);
+  const out=cutStrokes(BD.strokes,(st,q)=>bdPt(st,q),x,y,r);
+  if(out){BD.strokes=out;S.edited=true;bdRedraw()}
 }
 $('btnBdPrev').onclick=()=>{ if((BD.page||1)>1)bdGoto(BD.page-1) };
 $('btnBdNext').onclick=async()=>{
@@ -3351,6 +3418,7 @@ $('btnBoardSwap').onclick=async()=>{
 $('btnBoardClear').onclick=async()=>{
   if(!BD.strokes.length&&!(BD.imgs||[]).length){toast('칠판이 비어 있습니다');return}
   if(!await askConfirm('칠판의 필기와 가져온 그림을 모두 지웁니다. 계속할까요?'))return;
+  snap('bd');
   BD.strokes=[];BD.imgs=[];BD.sel=null;
   S.edited=true;bdRedraw();await bdSave();
   /* 마지막 쪽을 비웠으면 그 쪽 자체를 없애고 앞 쪽으로 갑니다.
@@ -3776,10 +3844,11 @@ function bumpSize(d){
 }
 $('btnThin').onclick=()=>bumpSize(-1);
 $('btnThick').onclick=()=>bumpSize(1);
-$('btnUndo').onclick=()=>{if(S.strokes.length)S.edited=true;S.strokes.pop();redraw();scheduleSave()};
+$('btnUndo').onclick=undoOnce;
 $('btnClear').onclick=async()=>{
   if(!S.strokes.length)return;
   if(await askConfirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`)){S.strokes=[];S.edited=true;redraw();saveNow()}
+  snap('pdf');
 };
 $('btnClearAll').onclick=async()=>{
   if(!S.doc)return;
@@ -4625,7 +4694,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='24.5';
+const APP_VER='24.6';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
