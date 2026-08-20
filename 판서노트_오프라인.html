@@ -371,7 +371,13 @@ try{
     max-height:none;overflow:visible;padding:6px 0 10px}
   #folderGrid{padding-bottom:2px}
   #folderGrid:not(:empty){margin-bottom:22px}
-  .shelf.list{grid-template-columns:1fr;gap:8px}
+  /* 목록 보기 = 탐색기 모양 — 작은 그림에 이름 한 줄, 여러 칸으로 초초하게 */
+  .shelf.list{grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:1px 20px}
+  .shelf.list .card .dt,.shelf.list .card .pgs,.shelf.list .card .pinmark{display:none}
+  .shelf.list .card .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13.5px}
+  .shelf.list .card:hover{background:var(--ink-3);border-radius:6px}
+  .shelf.list .newcard .cover{border-width:1px}
+  .shelf.list .newcard .plus{font-size:15px}
   .card{position:relative;text-align:center}
   .card .cover{width:100%;aspect-ratio:3/4;padding:0;border-radius:6px;overflow:hidden;
     background:#fff;border:0;display:block;min-height:0;
@@ -396,9 +402,9 @@ try{
   .card .pgs{position:absolute;left:7px;bottom:56px;background:rgba(20,29,38,.78);
     color:var(--text);font-size:11px;padding:3px 7px;border-radius:6px}
   /* 목록 보기 */
-  .shelf.list .card{display:flex;align-items:center;gap:14px;text-align:left;
+  .shelf.list .card{display:flex;align-items:center;gap:9px;text-align:left;
     background:var(--ink-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-  .shelf.list .card .cover{width:44px;aspect-ratio:3/4;flex:0 0 auto;box-shadow:none}
+  .shelf.list .card .cover{width:21px;aspect-ratio:3/4;flex:0 0 auto;box-shadow:none;border-radius:2px}
   .shelf.list .card .cover:hover{transform:none}
   .shelf.list .card .fold{font-size:22px}
   .shelf.list .card .nm{flex:1;margin:0;font-size:14px}
@@ -673,7 +679,7 @@ try{
     <div class="segs">
       <button id="btnSort" class="seg on">최근순</button>
       <button id="btnSortName" class="seg">이름순</button>
-      <button id="btnSortFolder" class="seg">폴더별</button>
+      <button id="btnSortFolder" class="seg" hidden>폴더별</button>
       <button id="btnView" data-hover="표지 ↔ 목록 바꾸기" class="ghosticon" title="표지 / 목록">▦</button>
       <button id="btnExplore" data-hover="저장된 판서 PDF 보기" class="ghosticon" title="저장 폴더 탐색 — 저장된 판서 PDF를 봅니다">🗂</button>
     </div>
@@ -3774,7 +3780,7 @@ async function getFolders(){const r=await Store.getFile(FOLD_KEY);return (r&&r.l
 async function setFolders(list){await Store.putFile({id:FOLD_KEY,name:'folders',opened:Date.now(),list})}
 async function renderFolders(){
   const inside=!!S.lib;
-  const nf=$('btnNewFolder'); if(nf)nf.hidden=(S.sort!=='folder');
+  const nf=$('btnNewFolder'); if(nf)nf.hidden=!!S.lib;   /* 폴더 안에서는 만들지 않습니다 */
   const tb=$('libTitle');
   /* 폴더 안에서 나가는 길이 오른쪽 끝의 작은 ← 하나뿐이라 보이지 않았습니다.
      제목 자체를 길잡이로 씁니다 — '← 서재' 를 누르면 나갑니다. */
@@ -3839,7 +3845,6 @@ function setSort(v){
   $('btnSort').classList.toggle('on',v==='recent');
   $('btnSortName').classList.toggle('on',v==='name');
   $('btnSortFolder').classList.toggle('on',v==='folder');
-  $('btnNewFolder')&&($('btnNewFolder').hidden=(v!=='folder'));
   renderRecent();
 }
 $('btnSort').onclick=()=>setSort('recent');
@@ -3942,9 +3947,13 @@ async function renderRecent(){
   list.innerHTML='';grid.innerHTML='';
   let count=0;
 
-  /* 폴더는 보기 설정과 상관없이 늘 표지 격자로 보여줍니다 */
-  /* 폴더는 '폴더별' 을 고를 때만 나열합니다 */
-  if(!S.lib&&S.sort==='folder'){
+  /* 목록 보기에서는 폴더도 파일과 같은 줄에 놓습니다 — 탐색기처럼. */
+  const compact=(S.view==='list');
+  const folderBox=compact?list:grid;
+  folderBox.appendChild(addCard());
+  /* 폴더는 정렬과 상관없이 지금 자리에서 항상 보입니다.
+     전에는 '폴더별' 을 고를 때만 나와, 정렬을 바꾸면 폴더가 통째로 사라졌습니다. */
+  if(!S.lib&&!S.q){
     for(const nm of await getFolders()){
       if(S.q&&!nm.toLowerCase().includes(S.q))continue;
       const inside=all.filter(x=>x.folder===nm).length;
@@ -3952,13 +3961,12 @@ async function renderRecent(){
       c.innerHTML=`<button class="cover"><span class="fold">📁<span>${inside}개</span></span></button>`+
                   `<span class="nm">${nm}</span><span class="dt">자료 ${inside}개</span>`;
       c.querySelector('.cover').onclick=()=>{S.lib=nm;renderFolders();renderRecent()};
-      grid.appendChild(c);count++;
+      folderBox.appendChild(c);count++;
     }
   }
 
-  /* 최근순·이름순은 폴더와 상관없이 모두 보여 줍니다.
-     전에는 이름순에서 폴더에 든 자료가 통째로 사라졌습니다. */
-  const flat=S.q||(!S.lib&&S.sort!=='folder');
+  /* 찾기 중일 때만 폴더를 가로질러 전부 보여 줍니다 */
+  const flat=!!S.q;
   let files=all.filter(x=>flat?true:(S.lib?(x.folder===S.lib):!x.folder));
   if(S.q)files=files.filter(x=>x.name.toLowerCase().includes(S.q));
   files.sort((a,b)=>(b.pin?1:0)-(a.pin?1:0)||
@@ -4429,7 +4437,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='22.9';
+const APP_VER='23.0';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -4755,6 +4763,7 @@ $('jsonInput').onchange=async e=>{
   await step(()=>Backup.load());
   $('modeBadge').innerHTML=Store.mode==='idb'?'':modeBadge();
   try{S.sort=localStorage.getItem('pn.sort')||'recent';S.view=localStorage.getItem('pn.view')||'grid';
+      if(S.sort==='folder')S.sort='recent';   /* 이제 정렬 항목이 아닙니다 */
       S.splitMode=parseInt(localStorage.getItem('pn.splitMode')||'0')||0;
       S.split=S.splitMode>0;
 }catch(e){}
