@@ -535,12 +535,27 @@ try{
     .status{width:100%;order:9;margin-left:0;padding-left:0;justify-content:flex-end}
     .grp{border-right:0}
     .status{margin-left:auto}
-    #welcome{inset:52px 0 auto 0;height:calc(100% - 190px)}
-    body.bar-top #welcome,html.bar-top #welcome{inset:186px 0 0 0;height:auto}
+    /* 190px 은 짐작한 값이었습니다. 폰 가로 화면처럼 낮은 화면에서는
+       서재가 90px 밖에 안 남아 새 자료(+) 가 잘렸습니다.
+       위쪽 막대와 아래 도구모음 사이에 딱 맞춥니다. */
+    #welcome{inset:52px 0 var(--bar) 0;height:auto}
+    body.bar-top #welcome,html.bar-top #welcome{inset:calc(52px + var(--bar)) 0 0 0;height:auto}
     /* 위쪽 막대가 56px 이므로 그 밑으로 내려야 합니다 —
        top:8px 이면 막대를 덮어 단추가 서로 걹칩니다 */
     #dock{bottom:auto;top:calc(56px + 8px);right:14px}
     body.bar-top #dock,html.bar-top #dock{top:auto;bottom:14px}
+  }
+  /* 낮은 화면(폰 가로) — 머리를 얇게, 카드를 작게 해야 자료가 보입니다 */
+  @media (max-height:560px){
+    .libhead{padding:8px 14px 6px;gap:6px}
+    .libhead h1{font-size:18px;min-height:0}
+    .libtools{gap:8px}
+    .seg{min-height:30px;padding:0 11px;font-size:12.5px}
+    .ghosticon{width:32px;min-height:32px;font-size:14px}
+    .shelfwrap{padding:4px 14px 12px}
+    .shelf{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px 12px}
+    .card .nm{font-size:12px}
+    .card .dt{font-size:11px}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -3237,9 +3252,21 @@ $('btnBdNext').onclick=async()=>{
 /* 칠판은 아래로 계속 이어지는 두루마리입니다. 긴 식을 쓸 때 끜어서
    올리는 대신 단추로 한 번에 올립니다. 한 번에 한 화면의 80% 씩 올라갑니다. */
 function bdShift(dir){
-  const step=(BD.h/bdSc())*0.8;
-  BD.oy=(BD.oy||0)+dir*step;
-  bdClamp();bdRedraw();bdScrollBar();
+  /* 한 번에 한 화면의 30% 만 — 80% 는 너무 팡 튀었습니다.
+     그리고 단번에 건너뛰지 않고 미끄러지듯 올라가게 합니다. */
+  const step=(BD.h/bdSc())*0.3;
+  const from=BD.oy||0;
+  const to=Math.max(0,Math.min(bdBottom(),from+dir*step));
+  if(Math.abs(to-from)<1e-6)return;
+  const t0=performance.now(), dur=220;
+  const tick=()=>{
+    const k=Math.min(1,(performance.now()-t0)/dur);
+    const e=1-Math.pow(1-k,3);            /* 끝에서 부드럽게 멈춥니다 */
+    BD.oy=from+(to-from)*e;
+    bdClamp();bdRedraw();bdScrollBar();
+    if(k<1)requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 $('btnBdUp')&&($('btnBdUp').onclick=()=>bdShift(1));
 $('btnBdDown')&&($('btnBdDown').onclick=()=>bdShift(-1));
@@ -4574,7 +4601,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='24.1';
+const APP_VER='24.2';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
