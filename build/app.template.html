@@ -1474,7 +1474,12 @@ async function loadPdf(bytes,name,id){
   /* 보던 자리가 있으면 그리로, 없으면 쪽의 맨 위부터 */
   const wantView=(prev&&prev.lastView&&typeof prev.lastView.ty==='number')?prev.lastView:null;
   const goView=()=>{
-    if(wantView){S.vz=wantView.vz||1;S.tx=wantView.tx||0;S.ty=wantView.ty;clampView();applyView()}
+    if(wantView){
+      /* 보던 자리는 되살리되, 줄여 둔 배율까지 되살리지는 않습니다.
+         언젠가 작게 보던 것이 그대로 남아, 자료를 열 때마다 작게 떴습니다. */
+      S.vz=Math.max(1,wantView.vz||1);
+      S.tx=wantView.tx||0;S.ty=wantView.ty;clampView();applyView();
+    }
     else viewTop();
   };
   goView();
@@ -3465,9 +3470,19 @@ $('stage').addEventListener('wheel',e=>{
   }
 },{passive:false});
 /* ⤢ — 폭 맞춤 ↔ 전체 맞춤 을 오갑니다. 고른 방식은 다음에도 그대로 씁니다. */
+/* 어느 맞춤인지 단추에 드러내야, 작게 열렸을 때 어디를 누를지 알 수 있습니다 */
+function updFitBtn(){
+  const b=$('btnFit');if(!b)return;
+  const w=(S.fitMode!=='page');
+  b.textContent=w?'↔':'⧉';
+  b.title=w?'폭 맞춤 (누르면 전체 맞춤)':'전체 맞춤 (누르면 폭 맞춤)';
+  b.setAttribute('data-hover',w?'지금 폭 맞춤 — 누르면 전체 맞춤':'지금 전체 맞춤 — 누르면 폭 맞춤');
+  b.classList.toggle('on',!w);
+}
 $('btnFit').onclick=()=>{
   S.fitMode = S.fitMode==='page' ? 'width' : 'page';
   try{localStorage.setItem('pn.fitMode',S.fitMode)}catch(e){}
+  updFitBtn();
   S.vz=1;S.fitting=true;S.tx=0;S.ty=0;S.rsig='';
   renderPage().then(()=>{
     viewTop();
@@ -4273,7 +4288,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='24.7';
+const APP_VER='24.8';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -4611,6 +4626,7 @@ $('jsonInput').onchange=async e=>{
       document.documentElement.classList.toggle('board-left',bl)}catch(e){}
   if(S.split)setTimeout(bdResize,80);
   bdCv.style.background=(BOARD_BG[bdBgKey()]||BOARD_BG.white).bg;
+  updFitBtn();
   setSort(S.sort);
   $('btnView').textContent=S.view==='grid'?'▦':'☰';
   await step(()=>renderFolders());
