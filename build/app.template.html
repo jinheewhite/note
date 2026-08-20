@@ -62,6 +62,22 @@ try{
     display:flex;align-items:center;gap:8px;padding:0 12px;overflow-x:auto}
   #topbar::-webkit-scrollbar{height:0}
   #topbar button{min-height:42px;padding:0 13px;font-size:14px}
+  /* 한 줄에 다 들어가게 자동으로 줄입니다.
+     fitBar() 가 넘치는 만큼만 --fit 을 낮춥니다.
+     [data-fit] 을 함께 걸어 특이도를 올려야 아래 @media 규칙에 덤별리지 않습니다. */
+  #topbar[data-fit]{--fit:1;gap:calc(8px*var(--fit))}
+  #topbar[data-fit] button{min-height:calc(42px*var(--fit));padding:0 calc(13px*var(--fit));font-size:calc(14px*var(--fit))}
+  #topbar[data-fit] button.icon{width:calc(42px*var(--fit));padding:0;font-size:calc(17px*var(--fit))}
+  #topbar[data-fit] .brand small{max-width:calc(34vw*var(--fit))}
+  #topbar[data-fit] .tsep{height:calc(26px*var(--fit))}
+  header[data-fit]{--fit:1;gap:calc(4px*var(--fit))}
+  header[data-fit] button{min-height:calc(44px*var(--fit));padding:0 calc(11px*var(--fit));font-size:calc(14px*var(--fit))}
+  header[data-fit] #tools .tool{width:calc(54px*var(--fit))}
+  header[data-fit] #tools .tool svg{width:calc(26px*var(--fit));height:calc(26px*var(--fit))}
+  header[data-fit] .pen{width:calc(50px*var(--fit));height:calc(50px*var(--fit))}
+  header[data-fit] .pen i{width:calc(22px*var(--fit));height:calc(22px*var(--fit))}
+  header[data-fit] .swatches{width:calc(246px*var(--fit))}
+  header[data-fit] .swatches button{width:calc(28px*var(--fit));height:calc(28px*var(--fit));min-height:calc(28px*var(--fit))}
   #topbar button.icon{width:42px;padding:0;font-size:17px}
   #topbar .tsep{width:1px;height:26px;background:var(--line);margin:0 2px}
   #topbar .tstat{margin-left:auto;display:flex;align-items:center;gap:12px;flex:0 0 auto}
@@ -134,6 +150,12 @@ try{
   .pen i{width:22px;height:22px;border-radius:50%;display:block}
   .pen.on{background:var(--ink-3);border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.25)}
   #btnPen svg,#btnHl svg,#btnEraser svg,#btnLaser svg{display:block}
+  /* 펜 뒤에 남는 자국 — 지금 굵기를 그대로 보여 줍니다 */
+  #btnPen .penInk{stroke-width:var(--penw,1.6)}
+  /* 굵기 고르기 — 숫자 대신 실제 굵기를 보여 줍니다 */
+  #pop .popRow{display:flex;gap:8px;align-items:center;justify-content:center}
+  #pop .sizeRow button{width:36px;height:36px;min-height:36px;padding:0;justify-content:center;align-items:center}
+  #pop .sizeRow button i{border-radius:50%;display:block}
   button:focus{outline:none}
   #tools .tool{width:54px;opacity:.82;transition:opacity .12s;position:relative}
   #tools .tool:hover{opacity:1}
@@ -553,6 +575,8 @@ try{
     <rect x="5.4" y="-2.9" width="12.4" height="5.8" rx="1.4" fill="currentColor"/>
     <rect x="15.4" y="-2.9" width="2.6" height="5.8" rx="1.3" fill="#8b97a5"/>
   </g>
+  <path class="penInk" d="M2.4 23.4 q3 -2.4 6 0 t6 0 t6 0" fill="none"
+        stroke="currentColor" stroke-linecap="round"/>
       </svg>
     </button>
     <button class="icon tool" data-label="형광펜" id="btnHl" title="형광펜">
@@ -594,9 +618,9 @@ try{
   </div>
 
   <div class="grp size-wrap">
-    <button class="icon" id="btnThin" title="가늘게">−</button>
-    <span class="mono" id="sizeNow">4</span>
-    <button class="icon" id="btnThick" title="굵게">＋</button>
+    <button class="icon" id="btnThin" hidden title="가늘게">−</button>
+    <span class="mono" id="sizeNow" hidden>4</span>
+    <button class="icon" id="btnThick" hidden title="굵게">＋</button>
     <button class="icon" id="btnUndo" hidden title="되돌리기">↩︎</button>
   </div>
 
@@ -1220,6 +1244,42 @@ $('btnGuide')&&($('btnGuide').onclick=()=>showGuide(false));
    설명이 뜬 채로 손을 떼면 버튼은 눌리지 않습니다 — 궁금할 땐 길게, 쓸 땐 짧게 */
 /* 마우스를 올리면 설명이 뜽니다 (data-hover 가 붙은 단추만).
    위쪽 막대는 넘치는 부분을 잘라내므로 말풍선 대신 알림을 씁니다. */
+/* 도구모음은 넘치면 소리 없이 옆으로 밀려나 보이지 않았습니다
+   (overflow-x:auto). 그래서 자료 닫기·종료 같은 끝쪽 단추가 사라졌습니다.
+   들어갈 때까지만 조금씩 줄여 한 줄에 담습니다. */
+function fitBar(el,floor){
+  if(!el)return;
+  el.removeAttribute('data-fit');
+  el.style.removeProperty('--fit');
+  if(el.scrollWidth<=el.clientWidth+1)return;    /* 이미 들어가면 그대로 둡니다 */
+  el.setAttribute('data-fit','');
+  let lo=floor,hi=1;                             /* lo 는 들어가는 배율, hi 는 넘치는 배율 */
+  for(let i=0;i<7;i++){
+    const mid=(lo+hi)/2;
+    el.style.setProperty('--fit',mid);
+    if(el.scrollWidth<=el.clientWidth+1)lo=mid;else hi=mid;
+  }
+  el.style.setProperty('--fit',lo);              /* 들어가는 것 중 가장 큰 배율 */
+}
+function fitBars(){
+  fitBar(document.getElementById('topbar'),0.6);
+  fitBar(document.querySelector('header'),0.6);
+}
+let fitT=null;
+function fitBarsSoon(){clearTimeout(fitT);fitT=setTimeout(fitBars,60)}
+window.addEventListener('resize',fitBarsSoon);
+window.addEventListener('orientationchange',fitBarsSoon);
+/* 칠판 단추 묶음·날짜가 나타나고 사라질 때도 폭이 달라집니다.
+   막대 자신을 보면 fitBar 가 고친 style 때문에 끝없이 돌므로, 자식만 봅니다. */
+try{
+  if(window.MutationObserver){
+    const mo=new MutationObserver(fitBarsSoon);
+    for(const id of ['boardCtl','dateChip','saved','fileName'])
+      {const t=document.getElementById(id);if(t)mo.observe(t,{attributes:true,attributeFilter:['hidden'],childList:true,characterData:true,subtree:true})}
+  }
+}catch(e){}
+setTimeout(fitBars,300);
+setTimeout(fitBars,1200);
 let hovT=null,hovEl=null;
 document.addEventListener('mouseover',e=>{
   const b=e.target.closest&&e.target.closest('[data-hover]');
@@ -2925,16 +2985,34 @@ function placePop(anchor){
 function showMask(on){const m=$('popMask');if(m)m.classList.toggle('open',!!on)}
 function closePop(){$('pop').classList.remove('open');showMask(false)}
 $('popMask').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();closePop()},true);
+/* 고를 수 있는 굵기 — 숫자를 올리고 내리는 대신 보고 고릅니다 */
+const SIZE_STEPS={pen:[1,2,4,6,10,16],hl:[8,12,18,26],laser:[4,8,14],eraser:[6,10,18,30]};
 function openPop(anchor,tool){
-  const pop=$('pop');pop.innerHTML='';pop.classList.remove('wide');
+  const pop=$('pop');pop.innerHTML='';pop.classList.add('wide');
+  const colorRow=document.createElement('div');colorRow.className='popRow';
   (PALETTES[tool]||PALETTES.pen).forEach(([c,nm])=>{
     const b=document.createElement('button');
     b.title=nm;b.innerHTML=`<i style="background:${c}"></i>`;
     if(S.colors[tool]===c)b.classList.add('on');
     b.onclick=()=>{S.colors[tool]=c;showColor();closePop();
-      toast(`${TOOL_NAME[tool]} 색을 ${nm}으로 바꿨습니다`)};
-    pop.appendChild(b);
+      toast(`${TOOL_NAME[tool]} 색`)};
+    colorRow.appendChild(b);
   });
+  pop.appendChild(colorRow);
+  const steps=SIZE_STEPS[tool];
+  if(steps){
+    const sizeRow=document.createElement('div');sizeRow.className='popRow sizeRow';
+    steps.forEach(v=>{
+      const b=document.createElement('button');
+      const d=Math.max(4,Math.min(26,Math.round(v*1.1)));
+      b.title=`굵기 ${v}`;
+      b.innerHTML=`<i style="width:${d}px;height:${d}px;background:var(--text)"></i>`;
+      if(S.sizes[tool]===v)b.classList.add('on');
+      b.onclick=()=>{S.sizes[tool]=v;showSize();closePop();toast(`굵기 ${v}`)};
+      sizeRow.appendChild(b);
+    });
+    pop.appendChild(sizeRow);
+  }
   pop.classList.add('open');showMask(true);
   placePop(anchor);
 }
@@ -3078,7 +3156,12 @@ document.addEventListener('pointerdown',()=>{
 },true);
 function curKey(){return (S.tool==='hl'||S.tool==='laser'||S.tool==='eraser')?S.tool:'pen'}
 function curSize(){return S.sizes[curKey()]}
-function showSize(){$('sizeNow').textContent=curSize()}
+function showSize(){
+  $('sizeNow').textContent=curSize();
+  /* 펜 아이콘의 자국 굵기를 지금 굵기에 맞춥니다 */
+  try{const w=Math.max(1,Math.min(6,S.sizes.pen*0.55));
+      $('btnPen').style.setProperty('--penw',w)}catch(e){}
+}
 function bumpSize(d){
   const k=curKey();
   S.sizes[k]=Math.max(1,Math.min(40,S.sizes[k]+d));
@@ -3867,7 +3950,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='22.3';
+const APP_VER='22.4';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
