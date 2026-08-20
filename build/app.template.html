@@ -1974,7 +1974,7 @@ function pImgEl(it){
   pdfImgCache.set(it.id,im); return im;
 }
 function pImgRect(it){const W=S.pdfW;return [it.x*W,it.y*W,it.w*W,it.w*it.ar*W]}
-/* 고른 그림에 붙는 손잡이 — ▥ 칠판으로 / ✕ 지우기 / ↘ 크기 */
+/* 고른 그림에 붙는 손잡이 — ▥ 보내기 / ✕ 지우기 / ↘ 크기 / ↻ 돌리기 */
 /* 흰 종이에서도, 초록 칠판에서도 보이는 점선입니다.
    주황 하나만 쓰면 흰 바탕에 묻혔습니다. 어두운 선을 깔고 그 위에
    밝은 점선을 얹어, 어느 바탕에서나 한쪽은 반드시 드러납니다. */
@@ -1989,8 +1989,9 @@ function dashOutline(cx,draw){
   cx.restore();
 }
 
-function drawHandles(cx,x,y,w,h,leftIcon){
+function drawHandles(cx,x,y,w,h,leftIcon,rot){
   cx.save();
+  if(rot){cx.translate(x+w/2,y+h/2);cx.rotate(rot);cx.translate(-(x+w/2),-(y+h/2))}
   dashOutline(cx,()=>{cx.beginPath();cx.rect(x,y,w,h);cx.stroke()});
   cx.font='600 17px system-ui,sans-serif';cx.textAlign='center';cx.textBaseline='middle';
   cx.beginPath();cx.arc(x,y,17,0,Math.PI*2);cx.fillStyle='#3b7ddd';cx.fill();
@@ -1999,14 +2000,43 @@ function drawHandles(cx,x,y,w,h,leftIcon){
   cx.fillStyle='#fff';cx.fillText('✕',x+w,y+1);
   cx.beginPath();cx.arc(x+w,y+h,17,0,Math.PI*2);cx.fillStyle='#f0a020';cx.fill();
   cx.fillStyle='#fff';cx.fillText('↘',x+w,y+h+1);
+  cx.beginPath();cx.arc(x,y+h,17,0,Math.PI*2);cx.fillStyle='#4aa96c';cx.fill();
+  cx.fillStyle='#fff';cx.fillText('↻',x,y+h+1);
   cx.restore();
 }
-function hitHandles(sx,sy,x,y,w,h,selected){
+/* 오려낸 조각을 돌립니다. 그림·손잡이·집기 모두 같은 각도를 씁니다. */
+function imgRot(it){ return (it&&it.rot)||0 }
+/* 0·90·180·270도 근처에서는 살짝 붙여 줍니다 — 반듯하게 놓기 쉬우라고 */
+function snapAngle(a){
+  const T=Math.PI/2, near=0.06;
+  const k=Math.round(a/T);
+  return (Math.abs(a-k*T)<near)?k*T:a;
+}
+/* 화면 위치를 조각이 안 돌아간 상태의 위치로 되돌립니다 —
+   그래야 손잡이·안쪽 검사를 예전 그대로 쓸 수 있습니다. */
+function unrotPt(sx,sy,x,y,w,h,rot){
+  if(!rot)return [sx,sy];
+  const ox=x+w/2, oy=y+h/2, dx=sx-ox, dy=sy-oy;
+  const c=Math.cos(-rot), s=Math.sin(-rot);
+  return [ox+dx*c-dy*s, oy+dx*s+dy*c];
+}
+/* 돌아간 조각을 그립니다 */
+function drawImgRot(cx,im,x,y,w,h,rot){
+  if(!rot){cx.drawImage(im,x,y,w,h);return}
+  cx.save();
+  cx.translate(x+w/2,y+h/2);cx.rotate(rot);
+  cx.drawImage(im,-w/2,-h/2,w,h);
+  cx.restore();
+}
+function hitHandles(sx,sy,x,y,w,h,selected,rot){
   const R=22;
+  const p=unrotPt(sx,sy,x,y,w,h,rot||0);
+  sx=p[0];sy=p[1];
   if(selected){
     if(Math.hypot(sx-(x+w),sy-(y+h))<R)return'size';
     if(Math.hypot(sx-(x+w),sy-y)<R)return'del';
     if(Math.hypot(sx-x,sy-y)<R)return'send';
+    if(Math.hypot(sx-x,sy-(y+h))<R)return'rot';      /* 왼쪽 아래 — 돌리기 */
   }
   if(sx>=x&&sx<=x+w&&sy>=y&&sy<=y+h)return'move';
   return null;
@@ -2015,7 +2045,7 @@ function pImgHit(sx,sy){
   const list=S.imgs||[];
   for(let i=list.length-1;i>=0;i--){
     const it=list[i], [x,y,w,h]=pImgRect(it);
-    const m=hitHandles(sx,sy,x,y,w,h,S.sel===it.id);
+    const m=hitHandles(sx,sy,x,y,w,h,S.sel===it.id,imgRot(it));
     if(m)return{it,mode:m};
   }
   return null;
@@ -2026,8 +2056,8 @@ function redraw(){
     const im=pImgEl(it);
     if(!im.complete||!im.naturalWidth)continue;
     const [x,y,w,h]=pImgRect(it);
-    ictx.drawImage(im,x,y,w,h);
-    if(S.sel===it.id)drawHandles(ictx,x,y,w,h,'▥');
+    drawImgRot(ictx,im,x,y,w,h,imgRot(it));
+    if(S.sel===it.id)drawHandles(ictx,x,y,w,h,'▥',imgRot(it));
   }
   S.strokes.forEach(paintStroke);
   if(S.cur)paintStroke(S.cur);
@@ -2048,7 +2078,7 @@ async function imgToBoard(it){
   if(w>visW*0.9)w=visW*0.9;
   if(w*it.ar>visH*0.9)w=visH*0.9/it.ar;
   BD.imgs=BD.imgs||[];
-  BD.imgs.push({id:it.id,src:it.src,ar:it.ar,w,
+  BD.imgs.push({id:it.id,src:it.src,ar:it.ar,w,rot:imgRot(it),
                 x:(BD.ox||0)+(visW-w)/2, y:(BD.oy||0)+(visH-w*it.ar)/2});
   BD.sel=it.id;
   S.imgs=(S.imgs||[]).filter(q=>q!==it); if(S.sel===it.id)S.sel=null;
@@ -2059,7 +2089,7 @@ function imgToPdf(it){
   let w=(it.w*bdSc())/S.pdfW;
   if(w>0.9)w=0.9;
   S.imgs=S.imgs||[];
-  S.imgs.push({id:it.id,src:it.src,ar:it.ar,w,x:(1-w)/2,y:0.08});
+  S.imgs.push({id:it.id,rot:imgRot(it),src:it.src,ar:it.ar,w,x:(1-w)/2,y:0.08});
   S.sel=it.id;
   BD.imgs=(BD.imgs||[]).filter(q=>q!==it); if(BD.sel===it.id)BD.sel=null;
   S.edited=true;redraw();scheduleSave();bdRedraw();bdSaveSoon();
@@ -2747,7 +2777,10 @@ inkCv.addEventListener('pointerdown',e=>{
       if(hit.mode==='del'){pImgDel(hit.it);return}
       if(hit.mode==='send'){imgToBoard(hit.it);return}
       S.sel=hit.it.id;
-      S.imgDrag={it:hit.it,mode:hit.mode,sx,sy,x0:hit.it.x,y0:hit.it.y,w0:hit.it.w};
+      const [rx0,ry0,rw0,rh0]=pImgRect(hit.it);
+      S.imgDrag={it:hit.it,mode:hit.mode,sx,sy,x0:hit.it.x,y0:hit.it.y,w0:hit.it.w,
+        rot0:imgRot(hit.it),
+        a0:Math.atan2(sy-(ry0+rh0/2),sx-(rx0+rw0/2))};
       try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
       redraw();return;
     }
@@ -2769,6 +2802,12 @@ inkCv.addEventListener('pointermove',e=>{
   if(S.imgDrag){
     const [sx,sy]=pos(e), d=S.imgDrag, W=S.pdfW;
     if(d.mode==='move'){d.it.x=d.x0+(sx-d.sx)/W;d.it.y=d.y0+(sy-d.sy)/W}
+    else if(d.mode==='rot'){
+      /* 가운데를 축으로 손이 돈 만큼 돌립니다 */
+      const [rx,ry,rw,rh]=pImgRect(d.it);
+      const a=Math.atan2(sy-(ry+rh/2),sx-(rx+rw/2));
+      d.it.rot=snapAngle(d.rot0+(a-d.a0));
+    }
     else d.it.w=Math.max(0.05,d.w0+(sx-d.sx)/W);
     redraw();return;
   }
@@ -3144,15 +3183,15 @@ function bdPaintImgs(){
     const im=bdImgEl(it);
     if(!im.complete||!im.naturalWidth)continue;
     const [x,y,w,h]=bdImgRect(it);
-    bdctx.drawImage(im,x,y,w,h);
-    if(BD.sel===it.id)drawHandles(bdctx,x,y,w,h,'📄');
+    drawImgRot(bdctx,im,x,y,w,h,imgRot(it));
+    if(BD.sel===it.id)drawHandles(bdctx,x,y,w,h,'📄',imgRot(it));
   }
 }
 function bdHit(sx,sy){                       /* 화면 위치에서 그림·손잡이를 찾습니다 */
   const list=BD.imgs||[];
   for(let i=list.length-1;i>=0;i--){
     const it=list[i], [x,y,w,h]=bdImgRect(it);
-    const m=hitHandles(sx,sy,x,y,w,h,BD.sel===it.id);
+    const m=hitHandles(sx,sy,x,y,w,h,BD.sel===it.id,imgRot(it));
     if(m)return{it,mode:m};
   }
   return null;
@@ -3233,7 +3272,10 @@ bdCv.addEventListener('pointerdown',e=>{
       if(hit.mode==='del'){bdDelImg(hit.it);return}
       if(hit.mode==='send'){imgToPdf(hit.it);return}
       BD.sel=hit.it.id;
-      BD.imgDrag={it:hit.it,mode:hit.mode,sx,sy,x0:hit.it.x,y0:hit.it.y,w0:hit.it.w};
+      const [bx0,by0,bw0,bh0]=bdImgRect(hit.it);
+      BD.imgDrag={it:hit.it,mode:hit.mode,sx,sy,x0:hit.it.x,y0:hit.it.y,w0:hit.it.w,
+        rot0:imgRot(hit.it),
+        a0:Math.atan2(sy-(by0+bh0/2),sx-(bx0+bw0/2))};
       try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
       bdRedraw();return;
     }
@@ -3300,6 +3342,11 @@ bdCv.addEventListener('pointermove',e=>{
     const k=bdSc(), rr=bdCv.getBoundingClientRect();
     const sx=e.clientX-rr.left, sy=e.clientY-rr.top, d=BD.imgDrag;
     if(d.mode==='move'){d.it.x=d.x0+(sx-d.sx)/k;d.it.y=d.y0+(sy-d.sy)/k}
+    else if(d.mode==='rot'){
+      const [bx,by,bw2,bh2]=bdImgRect(d.it);
+      const a=Math.atan2(sy-(by+bh2/2),sx-(bx+bw2/2));
+      d.it.rot=snapAngle(d.rot0+(a-d.a0));
+    }
     else d.it.w=Math.max(0.06,d.w0+(sx-d.sx)/k);
     bdRedraw();return;
   }
@@ -4792,7 +4839,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.6';
+const APP_VER='25.7';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
