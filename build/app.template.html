@@ -667,7 +667,7 @@ try{
       </svg>
     </button>
     <button class="tool" data-label="오리기" id="btnCut"
-            title="PDF의 그림을 둘러서 오려 칠판으로 가져옵니다">✂</button>
+            title="오리기 — 둘레를 둘러서 오립니다 (PDF·칠판 모두)">✂</button>
     <button class="icon tool" data-label="지우개" id="btnEraser" title="지우개 — 한 번 더 누르면 굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(13 14) rotate(-35)">
@@ -2788,6 +2788,66 @@ async function bdSave(){
 /* 칠판 위의 터치들 — 손바닥은 좁게 여러 점, 양손 확대는 멀리 두 점 */
 const bdPtrs=new Map();
 /* 오려온 그림은 필기 아래에 깔립니다 — 그림 위에 바로 풀이를 쓸 수 있습니다 */
+/* ── 칠판에서 오리기 ─────────────────────────────────────
+   PDF 의 가위와 같은 방식입니다. 둘러싼 자리를 그대로 오려
+   칠판 위에 조각으로 띄웁니다. 조각은 끌어 옮기고 크기를 바꾸고
+   PDF 로 보낼 수 있습니다 (이미 되어 있던 것들입니다). */
+const BDCUT={on:false,pts:[]};
+function bdCutDraw(){
+  bdRedraw();                                  /* 바탕과 필기를 먼저, 그 위에 점선을 얹습니다 */
+  const Q=BDCUT.pts; if(Q.length<2)return;
+  bdctx.save();
+  bdctx.beginPath();bdctx.moveTo(Q[0][0],Q[0][1]);
+  for(let i=1;i<Q.length;i++)bdctx.lineTo(Q[i][0],Q[i][1]);
+  bdctx.closePath();
+  bdctx.fillStyle='rgba(240,160,32,.14)';bdctx.fill();
+  bdctx.setLineDash([11,8]);bdctx.lineWidth=3;bdctx.strokeStyle='#f0a020';
+  bdctx.lineJoin='round';bdctx.stroke();
+  bdctx.restore();
+}
+function bdCutStart(x,y){ BDCUT.on=true;BDCUT.pts=[[x,y]];bdCutDraw() }
+function bdCutMove(x,y){
+  if(!BDCUT.on)return;
+  const l=BDCUT.pts[BDCUT.pts.length-1];
+  if(Math.hypot(x-l[0],y-l[1])<3)return;
+  BDCUT.pts.push([x,y]);bdCutDraw();
+}
+function bdCutEnd(){
+  const Q=BDCUT.pts; BDCUT.on=false;BDCUT.pts=[];
+  bdRedraw();                                  /* 점선을 지운 깨끗한 그림으로 되돌립니다 */
+  if(!Q||Q.length<8){toast('오릴 것 둘레를 한 바퀴 둘러 주세요');return}
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const q of Q){x0=Math.min(x0,q[0]);y0=Math.min(y0,q[1]);x1=Math.max(x1,q[0]);y1=Math.max(y1,q[1])}
+  x0=Math.max(0,x0-2);y0=Math.max(0,y0-2);
+  x1=Math.min(BD.w,x1+2);y1=Math.min(BD.h,y1+2);
+  const wc=x1-x0, hc=y1-y0;
+  if(wc<24||hc<24){toast('너무 작습니다 — 조금 더 넓게 둘러 주세요');return}
+  const dpr=bdCv.width/Math.max(1,BD.w);       /* 칠판 그림판이 몇 배로 그려져 있는지 */
+  let k=dpr;
+  if(wc*k>1600)k=1600/wc;                      /* 너무 크면 저장이 무거워집니다 */
+  const out=document.createElement('canvas');
+  out.width=Math.max(1,Math.round(wc*k));out.height=Math.max(1,Math.round(hc*k));
+  const cx=out.getContext('2d');
+  cx.save();
+  cx.beginPath();cx.moveTo((Q[0][0]-x0)*k,(Q[0][1]-y0)*k);
+  for(let i=1;i<Q.length;i++)cx.lineTo((Q[i][0]-x0)*k,(Q[i][1]-y0)*k);
+  cx.closePath();cx.clip();
+  cx.imageSmoothingEnabled=true;
+  try{cx.imageSmoothingQuality='high'}catch(e){}
+  cx.drawImage(bdCv, x0*dpr,y0*dpr,wc*dpr,hc*dpr, 0,0,out.width,out.height);
+  cx.restore();
+  snap('bd');
+  const sc=bdSc();
+  const it={id:'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+            src:out.toDataURL('image/png'), ar:hc/wc,
+            w:wc/sc, x:bdWX(x0), y:bdWY(y0)};   /* 오린 그 자리에 그대로 놓습니다 */
+  BD.imgs=BD.imgs||[];BD.imgs.push(it);BD.sel=it.id;
+  S.edited=true;bdRedraw();bdSaveSoon();
+  setTool('hand',$('btnHand'));                 /* 오리자마자 바로 옮길 수 있게 */
+  BD.sel=it.id;bdRedraw();
+  toast('오렸습니다 — 끓어서 옮기고, 모서리로 크기를 바꿉니다');
+}
+
 function bdImgRect(it){
   const k=bdSc();
   return [bdSX(it.x),bdSY(it.y),it.w*k,it.w*it.ar*k];
@@ -2870,6 +2930,13 @@ function bdMovePinch(){
 bdCv.addEventListener('pointerdown',e=>{
   if($('pop').classList.contains('open')){e.preventDefault();closePop();return}
   if(S.tool==='laser')return;
+  if(S.tool==='cut'){                                      /* 가위 — 둘러서 오립니다 */
+    const rr=bdCv.getBoundingClientRect();
+    BD.drawing=false;BD.palm=false;BD.cur=null;
+    try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
+    bdCutStart((e.clientX-rr.left)*(BD.w/rr.width),(e.clientY-rr.top)*(BD.h/rr.height));
+    return;
+  }
   if(S.tool==='hand'){                                     /* 손 도구 — 그림을 다루거나 칠판을 옮깁니다 */
     BD.drawing=false;BD.palm=false;
     const rr=bdCv.getBoundingClientRect();
@@ -2933,6 +3000,11 @@ bdCv.addEventListener('pointerdown',e=>{
   bdRedraw();
 });
 bdCv.addEventListener('pointermove',e=>{
+  if(BDCUT.on){
+    const rr=bdCv.getBoundingClientRect();
+    bdCutMove((e.clientX-rr.left)*(BD.w/rr.width),(e.clientY-rr.top)*(BD.h/rr.height));
+    return;
+  }
   ghostMove(e);
   const bp=bdPtrs.get(e.pointerId);
   if(bp){bp.x=e.clientX;bp.y=e.clientY}
@@ -2981,6 +3053,7 @@ bdCv.addEventListener('pointermove',e=>{
   bdctx.restore();
 });
 function bdEnd(e){
+  if(BDCUT.on){bdCutEnd();if(e)bdPtrs.delete(e.pointerId);return}
   ghostHide();
   if(e)bdPtrs.delete(e.pointerId);
   if(BD.imgDrag){BD.imgDrag=null;S.edited=true;bdClamp();bdRedraw();bdSaveSoon();return}
@@ -4410,7 +4483,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='24.9';
+const APP_VER='25.0';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
