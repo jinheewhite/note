@@ -566,6 +566,7 @@ try{
     <span class="mono" id="bdPageInfo" title="칠판 쪽">1/1</span>
     <button id="btnBdNext" class="mini" title="칠판 다음 쪽">▶</button>
     <button id="btnBoardBg" class="mini" title="칠판 바탕을 바꿉니다">칠판 바탕</button>
+    <button id="btnBdSave" class="mini primary" data-hover="칠판 쪽만 PDF 로 저장" title="칠판 쪽만 따로 저장합니다">💾 칠판 저장</button>
     <button id="btnBoardClear" class="mini" title="지금 보는 칠판 쪽을 지웁니다">칠판 비우기</button>
   </span>
   <button id="btnFull" title="전체화면 (F11)">⛶ 전체화면</button>
@@ -3225,6 +3226,27 @@ $('btnBdNext').onclick=async()=>{
   }
   bdGoto(nx);
 };
+/* 칠판 쪽만 따로 저장합니다 — PDF 판서는 빼고 칠판만 묶습니다 */
+$('btnBdSave')&&($('btnBdSave').onclick=async()=>{
+  if(S.busy)return;
+  await saveNow();
+  S.busy=true;
+  try{
+    const doc=await buildPdf(true);
+    if(!doc){toast('저장할 칠판이 없습니다');return}
+    const nm=dlName('_칠판.pdf');
+    if(Backup.ok){
+      const fh=await (await Backup.dir()).getFileHandle(nm,{create:true});
+      const w=await fh.createWritable();
+      await w.write(doc.output('arraybuffer'));await w.close();
+      toast(Backup.handle.name+(S.folder?' > '+S.folder:'')+' 에 칠판을 저장했습니다');
+    }else{
+      doc.save(nm);
+      toast('다운로드 폴더에 칠판을 저장했습니다 — '+nm);
+    }
+  }catch(e){toast('칠판을 저장하지 못했습니다: '+e.message)}
+  S.busy=false;
+});
 $('btnBoardBg').onclick=e=>{
   const anchor=e.currentTarget;              /* 나중에 쓰려면 지금 잡아둬야 합니다 */
   const pop=$('pop');pop.innerHTML='';pop.classList.add('wide');
@@ -4265,8 +4287,9 @@ function paintBoardPage(cx,W,rec,aspect){
   }
   return {H,strokes,imgs,legY};
 }
-async function buildPdf(){
-  const pages=(S.doc?[...S.pageHas]:[])
+/* boardOnly 가 참이면 PDF 쪽은 빼고 칠판만 묶습니다 */
+async function buildPdf(boardOnly){
+  const pages=((S.doc&&!boardOnly)?[...S.pageHas]:[])
       .map(Number).filter(p=>Number.isFinite(p)&&p>=1&&p<=S.pages)
       .sort((a,b)=>a-b);
   /* 오늘 이 자료의 칠판 쪽 — 마지막에 몰아서 붙입니다 */
@@ -4506,7 +4529,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='23.6';
+const APP_VER='23.7';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
