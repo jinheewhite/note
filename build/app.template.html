@@ -454,6 +454,8 @@ try{
     width:min(420px,86vw);padding:22px 22px 16px;box-shadow:0 20px 60px rgba(0,0,0,.4);
     max-height:88vh;overflow:auto}
   .cfmBox p{margin:0 0 18px;white-space:pre-wrap;line-height:1.55;font-size:15.5px}
+  .guideH{margin:18px 0 10px;font-size:14px;font-weight:700;color:var(--chalk,#f5d547);letter-spacing:.02em}
+  .guideH:first-of-type{margin-top:0}
   .guideRows{display:flex;flex-direction:column;gap:11px;padding-left:16px}
   .guideRows div{display:flex;gap:12px;align-items:baseline}
   .guideRows b{flex:0 0 175px;font-size:14.5px;white-space:nowrap}
@@ -574,7 +576,7 @@ try{
   <button id="btnOpen" hidden>PDF 열기</button>
   <span class="tstat">
     <span class="saved">쪽 <b id="pageInfo">– / –</b></span>
-    <button class="icon" id="btnGuide" title="손동작 안내">?</button>
+    <button class="icon" id="btnGuide" data-hover="사용법 — 손동작과 기능" title="사용법">🖐</button>
   </span>
   <div class="datechip" id="dateChip" hidden>
     <input type="date" id="dateInput" title="수업 날짜 — 바꾸면 그날 판서를 봅니다">
@@ -815,25 +817,34 @@ try{
 <div id="toast"></div>
 <div id="edgeTag" class="edgeTag"></div>
 <div id="guideMask" class="cfmMask">
-  <div class="cfmBox" style="width:min(560px,92vw)">
-    <h3 style="margin:0 0 14px;font-size:19px">🖐 손동작 안내</h3>
+  <div class="cfmBox" style="width:min(600px,94vw)">
+    <h3 style="margin:0 0 14px;font-size:19px">🖐 사용법</h3>
+    <h4 class="guideH">손으로 다루기</h4>
     <div class="guideRows">
-      <div><b>✍️ 펜</b><span>필기 (펜을 쓰면 손은 자동으로 이동)</span></div>
-      <div><b>☝️ 한 손가락 길게 쭉—</b><span>쪽 넘김</span></div>
-      <div><b>✌️ 두 손가락 밀기</b><span>화면 이동 — 안 넘어갑니다</span></div>
-      <div><b>🙌 양손 대각선</b><span>벌리면 확대 · 오므리면 축소</span></div>
-      <div><b>📄 쪽의 끝</b><span>멈춤 — 한 번 더 밀면 다음 쪽</span></div>
-      <div><b>🧽 칠판에서 손바닥</b><span>문지르면 지워집니다</span></div>
-      <div><b>✌️ 칠판에서 두 손가락</b><span>칠판을 위아래로 옮깁니다 (✋ 로 끌어도 됩니다)</span></div>
+      <div><b>☝ 한 손가락 길게 쭉—</b><span>다음 쪽으로 넘어갑니다</span></div>
+      <div><b>✌ 두 손가락 밀기</b><span>화면을 옆으로 옮깁니다 — 쪽은 안 넘어갑니다</span></div>
+      <div><b>🙌 양손 벌리기</b><span>확대 · 오므리면 축소</span></div>
+      <div><b>🧽 칠판에 손바닥</b><span>문지르면 지워집니다</span></div>
     </div>
-    <h3 style="margin:18px 0 12px;font-size:16px;color:var(--text-dim)">이런 것도 됩니다</h3>
+    <h4 class="guideH">펜·색·굵기</h4>
     <div class="guideRows">
-      <div><b>▥ 칠판</b><span>PDF와 따로 움직이는 칠판이 열립니다</span></div>
-      <div><b>▥ 한 번 더</b><span>칠판만 전체 화면으로 씁니다</span></div>
-      <div><b>＋</b><span>칠판 쪽을 계속 추가할 수 있습니다</span></div>
-      <div><b>║ 가운데 경계선</b><span>잡고 끌면 PDF와 칠판의 크기가 조절됩니다</span></div>
+      <div><b>고른 펜을 한 번 더</b><span>색과 굵기를 고르는 창이 열립니다 (형광펜·레이저·지우개도)</span></div>
+      <div><b>펜 아래 자국</b><span>지금 고른 색과 굵기가 그대로 보입니다</span></div>
     </div>
-    <h3 style="margin:18px 0 12px;font-size:16px;color:var(--text-dim)">✂ 오리기 — 그림을 떼어 옮기기</h3>
+    <h4 class="guideH">칠판</h4>
+    <div class="guideRows">
+      <div><b>▥ 칠판</b><span>자료 옆에 빈 칠판이 열립니다 (한 번 더 누르면 칠판만)</span></div>
+      <div><b>↑ ↓</b><span>종이를 올려 아래로 계속 이어 씁니다 — 긴 식을 끊지 않아도 됩니다</span></div>
+      <div><b>💾 칠판 저장</b><span>칠판만 따로 PDF 로 저장합니다</span></div>
+      <div><b>║ 가운데 경계선</b><span>잡고 끌면 칠판 넓이가 바뀝니다</span></div>
+    </div>
+    <h4 class="guideH">저장 — 따로 하지 않아도 됩니다</h4>
+    <div class="guideRows">
+      <div><b>✕ 자료 닫기</b><span>그날 필기가 PDF 한 개로 저장됩니다</span></div>
+      <div><b>필기를 멈추면</b><span>중간에도 알아서 저장합니다</span></div>
+      <div><b>서재의 ⋯</b><span>닫은 자료도 그 자리에서 폴더에 저장합니다</span></div>
+    </div>
+    <h4 class="guideH">✂ 오리기 — 그림을 떼어 옮기기</h4>
     <div class="guideRows">
       <div><b>① ✂ 누르고 두르기</b><span>가져올 그림 둘레를 한 바퀴 둘러 주세요</span></div>
       <div><b>② 손을 떼면</b><span>그 자리에 조각이 떠오르고, 도구가 ✋ 로 바뀝니다</span></div>
@@ -2822,7 +2833,7 @@ $('btnBdNext').onclick=async()=>{
   bdGoto(nx);
 };
 /* 칠판 쪽만 따로 저장합니다 — PDF 판서는 빼고 칠판만 묶습니다 */
-/* 칠판은 아래로 계속 이어지는 두루마리입니다. 긴 식을 쓸 때 끜어서
+/* 칠판은 아래로 계속 이어지는 두루마리입니다. 긴 식을 쓸 때 끌어서
    올리는 대신 단추로 한 번에 올립니다. 한 번에 한 화면의 80% 씩 올라갑니다. */
 function bdShift(dir){
   /* 한 번에 한 화면의 30% 만 — 80% 는 너무 팡 튀었습니다.
@@ -4174,7 +4185,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='24.4';
+const APP_VER='24.5';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
