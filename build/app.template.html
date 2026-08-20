@@ -1322,7 +1322,10 @@ async function loadPdf(bytes,name,id){
   S.fileId=id||(name+'|'+bytes.byteLength);
   $('fileName').textContent=name;
   const w=$('welcome');w.hidden=true;w.style.display='none';
-  setTimeout(askSaveDir,1500);
+  /* 시작하자마자 폴더를 정하라고 묻지 않습니다.
+     다운로드·문서 폴더는 크롬이 막아 두어 거기서 오류부터 만나게 됩니다.
+     정하지 않으면 다운로드 폴더로 자동 저장되므로 그것으로 충분하고,
+     폴더를 따로 쓰고 싶으면 설정에서 고르면 됩니다. */
   const prev=await Store.getFile(S.fileId);
   S.folder=(prev&&prev.folder!==undefined)?prev.folder:(S.lib||'');
   try{S.rot=+(localStorage.getItem('pn.rot.'+S.fileId)||0)||0}catch(e){S.rot=0}
@@ -3864,7 +3867,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='22.2';
+const APP_VER='22.3';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
