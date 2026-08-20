@@ -3263,8 +3263,7 @@ function syncBoardCtl(){
     if(pct==null)return;
     try{localStorage.setItem('pn.boardW',String(Math.round(pct)))}catch(err){}
     bdResize();
-    /* 칠판 폭이 바뀌면 PDF 가 쓸 폭도 바뀌므로 다시 맞춰 그립니다 */
-    if(S.doc){S.fitting=true;renderPage()}
+    /* 칠판은 PDF 위에 떠 있을 뿐이므로, 칠판 폭이 바뀌어도 PDF는 건드리지 않습니다 */
   };
   sb.addEventListener('pointerup',end);
   sb.addEventListener('pointercancel',end);
@@ -3277,18 +3276,17 @@ async function applySplitMode(mode,quiet){
   try{localStorage.setItem('pn.splitMode',String(mode))}catch(e){}
   document.body.classList.toggle('board-full',full);
   document.documentElement.classList.toggle('board-full',full);
-  /* 칠판과 PDF 는 서로 자리를 나눠 가집니다 — 칠판이 PDF 를 덮지 않습니다.
-     21.7 에서 잠시 겹치게 두었는데, 그러면 PDF 의 한쪽 끝이 칠판 밑으로
-     들어가 보이지 않았고, 종이를 밀어도 나오지 않았습니다. */
-  document.body.classList.remove('board-ov');
-  document.documentElement.classList.remove('board-ov');
+  /* 반반이 아니라 '겹침' — 칠판이 PDF 위에 떠 있고, PDF는 그 아래에서 따로 움직입니다 */
+  document.body.classList.toggle('board-ov',S.split&&!full);
+  document.documentElement.classList.toggle('board-ov',S.split&&!full);
   $('btnSplit').classList.toggle('on',S.split);
   $('btnSplit').textContent=mode===1?'▥ 칠판만':'▥ 칠판';
   $('board').hidden=!S.split;
   $('board').style.display=S.split?'':'none';
   syncBoardCtl();
-  /* 칠판이 자리를 차지하면 PDF 가 쓸 폭이 달라집니다 — 다시 맞춰 그립니다 */
-  S.vz=1;S.fitting=true;
+  const keepScale=S.scale*(S.vz||1);
+  S.vz=1;S.fitting=false;
+  S.scale=keepScale;
   if(S.split){bdResize();await bdLoad()}
   if(S.doc&&!full){                     /* 단독 모드에서는 PDF가 숨겨져 있어 그리지 않습니다 */
     /* 칠판은 PDF 위에 떠 있을 뿐입니다 — PDF의 크기도 보던 자리도 건드리지 않습니다 */
@@ -3952,7 +3950,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='22.5';
+const APP_VER='22.6';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
