@@ -567,7 +567,7 @@ try{
   </div>
   <div class="grp" id="tools">
     <span class="swatches" id="swatches"></span>
-    <button class="icon tool" data-label="펜" id="btnPen" title="펜">
+    <button class="icon tool" data-label="펜" id="btnPen" title="펜 — 한 번 더 누르면 색·굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(3.6 21.6) rotate(-45)">
     <path d="M0 0 L2.6 -2.6 L2.6 2.6 Z" fill="currentColor"/>
@@ -579,7 +579,7 @@ try{
         stroke="currentColor" stroke-linecap="round"/>
       </svg>
     </button>
-    <button class="icon tool" data-label="형광펜" id="btnHl" title="형광펜">
+    <button class="icon tool" data-label="형광펜" id="btnHl" title="형광펜 — 한 번 더 누르면 색·굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(3.2 21.8) rotate(-45)">
     <rect x="0" y="-3.4" width="4.6" height="6.8" rx="1" fill="currentColor"/>
@@ -589,7 +589,7 @@ try{
   </g>
       </svg>
     </button>
-    <button class="icon tool" data-label="레이저" id="btnLaser" title="레이저 — 쓰면 몇 초 뒤 저절로 사라집니다">
+    <button class="icon tool" data-label="레이저" id="btnLaser" title="레이저 — 한 번 더 누르면 색·굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(3.4 21.4) rotate(-42)">
     <rect x="0" y="-2.4" width="10.6" height="4.8" rx="2.4" fill="#9aa6b4"/>
@@ -606,7 +606,7 @@ try{
     </button>
     <button class="tool" data-label="오리기" id="btnCut"
             title="PDF의 그림을 둘러서 오려 칠판으로 가져옵니다">✂</button>
-    <button class="icon tool" data-label="지우개" id="btnEraser" title="지우개">
+    <button class="icon tool" data-label="지우개" id="btnEraser" title="지우개 — 한 번 더 누르면 굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(13 14) rotate(-35)">
     <rect x="-9" y="-5" width="18" height="10" rx="2.6" fill="#f2f4f7" stroke="#8b97a5" stroke-width="1.1"/>
@@ -2965,7 +2965,7 @@ function showColor(){
   applyCursor();
   clearTimeout(sharpTimer);                 /* 색을 고르는 동안 다시 그리지 않습니다 */
 }
-$('btnPen').onclick=e=>setTool('pen',e.currentTarget);
+$('btnPen').onclick=e=>{const b=e.currentTarget;if(S.tool==='pen'){openPop(b,'pen');return}setTool('pen',b)};
 /* 색 고르는 작은 창 — 형광펜·레이저 버튼을 누르면 바로 뜹니다 */
 const PALETTES={
   pen:  [['#111111','검정'],['#ffffff','흰색'],['#e02424','빨강'],['#1d6fe0','파랑'],['#12a150','초록'],['#f5c400','노랑']],
@@ -2990,7 +2990,7 @@ const SIZE_STEPS={pen:[1,2,4,6,10,16],hl:[8,12,18,26],laser:[4,8,14],eraser:[6,1
 function openPop(anchor,tool){
   const pop=$('pop');pop.innerHTML='';pop.classList.add('wide');
   const colorRow=document.createElement('div');colorRow.className='popRow';
-  (PALETTES[tool]||PALETTES.pen).forEach(([c,nm])=>{
+  (PALETTES[tool]||[]).forEach(([c,nm])=>{
     const b=document.createElement('button');
     b.title=nm;b.innerHTML=`<i style="background:${c}"></i>`;
     if(S.colors[tool]===c)b.classList.add('on');
@@ -2998,7 +2998,7 @@ function openPop(anchor,tool){
       toast(`${TOOL_NAME[tool]} 색`)};
     colorRow.appendChild(b);
   });
-  pop.appendChild(colorRow);
+  if(colorRow.children.length)pop.appendChild(colorRow);
   const steps=SIZE_STEPS[tool];
   if(steps){
     const sizeRow=document.createElement('div');sizeRow.className='popRow sizeRow';
@@ -3025,8 +3025,8 @@ document.addEventListener('pointerdown',e=>{
     closePop();
 },true);
 
-$('btnHl').onclick=e=>setTool('hl',e.currentTarget);
-$('btnEraser').onclick=e=>setTool('eraser',e.currentTarget);
+$('btnHl').onclick=e=>{const b=e.currentTarget;if(S.tool==='hl'){openPop(b,'hl');return}setTool('hl',b)};
+$('btnEraser').onclick=e=>{const b=e.currentTarget;if(S.tool==='eraser'){openPop(b,'eraser');return}setTool('eraser',b)};
 function openEraserPop(anchor){
   const pop=$('pop');pop.innerHTML='';pop.classList.add('wide');
   const mk=(label,fn,primary)=>{
@@ -3048,7 +3048,7 @@ $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
 $('btnCut').onclick=e=>{setTool('cut',e.currentTarget);
   if(!CUT.seen){CUT.seen=true;toast('오릴 그림 둘레를 한 바퀴 둘러 주세요')}};
 $('btnFinger').onclick=()=>setFinger(!S.fingerDraws,true);
-$('btnLaser').onclick=e=>setTool('laser',e.currentTarget);
+$('btnLaser').onclick=e=>{const b=e.currentTarget;if(S.tool==='laser'){openPop(b,'laser');return}setTool('laser',b)};
 /* 전체화면 유지 — 한 번 켜 두면 다음에 열 때도, 중간에 풀려도 다시 들어갑니다.
    브라우저 규칙상 화면을 한 번 눌러야(사용자 동작) 다시 전체화면이 됩니다. */
 const FULL_KEY='pn.keepFull';
@@ -3950,7 +3950,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='22.6';
+const APP_VER='22.7';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
