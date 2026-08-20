@@ -4001,6 +4001,9 @@ async function pickFolder(file){
 }
 
 async function renderRecent(){
+  /* 서재를 보고 있는지 표시합니다. 처음 앱을 열 때는 서재가 원래부터
+     떠 있어 '켜는 코드'가 돌지 않으므로, 그릴 때마다 맞춰 줍니다. */
+  document.body.classList.toggle('lib-open',!S.doc);
   const all=(await Store.allFiles()).filter(x=>x&&!String(x.id).startsWith('__'));
   const list=$('recentList'),grid=$('folderGrid');
   const addCard=()=>{
@@ -4534,7 +4537,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='23.8';
+const APP_VER='23.9';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){

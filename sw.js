@@ -10,7 +10,7 @@
 
    새 판이 나왔는지는 version.json(18바이트)으로 따로 확인합니다. 그 파일만은
    절대 저장해 두지 않습니다 — 그것마저 묵으면 새 판을 영영 못 보게 됩니다. */
-const CACHE = 'panseo-note-23.8';
+const CACHE = 'panseo-note-23.9';
 const APP = './index.html';
 
 self.addEventListener('install', e => {
