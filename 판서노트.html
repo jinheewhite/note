@@ -830,7 +830,7 @@ try{
     <div class="guideRows">
       <div><b>▥ 칠판</b><span>PDF와 따로 움직이는 칠판이 열립니다</span></div>
       <div><b>▥ 한 번 더</b><span>칠판만 전체 화면으로 씁니다</span></div>
-      <div><b>＋ NEW</b><span>칠판 쪽을 계속 추가할 수 있습니다</span></div>
+      <div><b>＋</b><span>칠판 쪽을 계속 추가할 수 있습니다</span></div>
       <div><b>║ 가운데 경계선</b><span>잡고 끌면 PDF와 칠판의 크기가 조절됩니다</span></div>
     </div>
     <h3 style="margin:18px 0 12px;font-size:16px;color:var(--text-dim)">✂ 오리기 — 그림을 떼어 옮기기</h3>
@@ -2941,7 +2941,7 @@ function bdPageInfo(){
   const nx=$('btnBdNext');
   if(nx){
     const atLast=(BD.page||1)>=(BD.pages||1);
-    nx.textContent=atLast?'＋ NEW':'▶';
+    nx.textContent=atLast?'＋':'▶';
     nx.title=atLast?'칠판 페이지 추가':'칠판 다음 쪽';
   }
 }
@@ -4601,7 +4601,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='24.2';
+const APP_VER='24.3';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
