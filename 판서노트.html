@@ -157,7 +157,7 @@ try{
   .pen.on{background:var(--ink-3);border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.25)}
   #btnPen svg,#btnHl svg,#btnEraser svg,#btnLaser svg{display:block}
   /* 펜 뒤에 남는 자국 — 지금 굵기를 그대로 보여 줍니다 */
-  #btnPen .penInk{stroke-width:var(--penw,1.6)}
+  .tool .penInk{stroke-width:var(--penw,1.6)}
   /* 굵기 고르기 — 숫자 대신 실제 굵기를 보여 줍니다 */
   #pop .popRow{display:flex;gap:8px;align-items:center;justify-content:center}
   #pop .sizeRow button{width:36px;height:36px;min-height:36px;padding:0;justify-content:center;align-items:center}
@@ -602,6 +602,8 @@ try{
     <rect x="6.6" y="-3.6" width="10.4" height="7.2" rx="2" fill="#b7c2ce"/>
     <rect x="6.6" y="-3.6" width="10.4" height="2.4" rx="1.2" fill="#d7dee6"/>
   </g>
+  <path class="penInk" d="M2.4 23.4 q3 -2.4 6 0 t6 0 t6 0" fill="none"
+        stroke="currentColor" stroke-linecap="round"/>
       </svg>
     </button>
     <button class="icon tool" data-label="레이저" id="btnLaser" title="레이저 — 한 번 더 누르면 색·굵기">
@@ -1857,7 +1859,13 @@ async function loadPdf(bytes,name,id){
   S.edited=false;                      /* 이번에 손댄 적이 없습니다 */
   AutoDL.dirty=false;AutoDL.lastKey='';
   await renderPage();
-  viewTop();                           /* 열자마자 쪽의 맨 위부터 보이게 */
+  /* 보던 자리가 있으면 그리로, 없으면 쪽의 맨 위부터 */
+  const wantView=(prev&&prev.lastView&&typeof prev.lastView.ty==='number')?prev.lastView:null;
+  const goView=()=>{
+    if(wantView){S.vz=wantView.vz||1;S.tx=wantView.tx||0;S.ty=wantView.ty;clampView();applyView()}
+    else viewTop();
+  };
+  goView();
   if(S.split){bdResize();await bdLoad()}
   /* 배치가 자리를 잡은 뒤 한 번 더 그립니다. 다만 정말 달라졌을 때만 그립니다 —
      전에는 조건 없이 두 번 더 그려서, 자리가 잡힐 때까지 쪽이 조금씩
@@ -1871,7 +1879,7 @@ async function loadPdf(bytes,name,id){
       const now=sizeNow();
       if(now===seen)return;            /* 크기가 그대로면 다시 그리지 않습니다 */
       seen=now;
-      renderPage().then(viewTop);
+      renderPage().then(goView);
     };
     requestAnimationFrame(()=>requestAnimationFrame(again));
     setTimeout(again,260);
@@ -2834,7 +2842,14 @@ async function saveNow(){
   if(has)S.pageHas.add(S.page);else S.pageHas.delete(S.page);
   buildRail();markSaved();Backup.schedule();AutoDL.schedule();
   try{const fr=await Store.getFile(S.fileId);
-      if(fr&&fr.lastPage!==S.page){fr.lastPage=S.page;await Store.putFile(fr)}}catch(e){}
+      if(fr){
+        /* 보던 자리도 함께 기억합니다 — 다시 열 때 맨 위로 올려버리면
+           필기가 화면 밖에 있어 저장이 안 된 것처럼 보입니다. */
+        const v={tx:S.tx,ty:S.ty,vz:S.vz||1}, o=fr.lastView||{};
+        if(fr.lastPage!==S.page||o.tx!==v.tx||o.ty!==v.ty||o.vz!==v.vz){
+          fr.lastPage=S.page;fr.lastView=v;await Store.putFile(fr);
+        }
+      }}catch(e){}
 }
 async function refreshMarks(){
   S.pageHas=new Set();
@@ -3434,6 +3449,9 @@ function showColor(){
   for(const [id,key] of [['btnPen','pen'],['btnHl','hl'],['btnLaser','laser']]){
     const b=$(id),sv=b&&b.querySelector('svg');
     if(sv)sv.style.color=b.classList.contains('on')?'#1a1a12':S.colors[key];
+    /* 자국만은 고른 색 그대로 — 빨간 펜이면 연필 아래도 빨겕니다 */
+    const ink=b&&b.querySelector('.penInk');
+    if(ink)ink.setAttribute('stroke',S.colors[key]);
   }
   applyCursor();
   clearTimeout(sharpTimer);                 /* 색을 고르는 동안 다시 그리지 않습니다 */
@@ -3632,8 +3650,13 @@ function curSize(){return S.sizes[curKey()]}
 function showSize(){
   $('sizeNow').textContent=curSize();
   /* 펜 아이콘의 자국 굵기를 지금 굵기에 맞춥니다 */
-  try{const w=Math.max(1,Math.min(6,S.sizes.pen*0.55));
-      $('btnPen').style.setProperty('--penw',w)}catch(e){}
+  /* 도구마다 제 굵기로 — 형광펜은 값이 크므로 더 많이 줄입니다 */
+  try{
+    for(const [id,key,f] of [['btnPen','pen',.55],['btnHl','hl',.22],['btnLaser','laser',.32]]){
+      const el=$(id); if(!el)continue;
+      el.style.setProperty('--penw',Math.max(1,Math.min(6,(S.sizes[key]||4)*f)));
+    }
+  }catch(e){}
 }
 function bumpSize(d){
   const k=curKey();
@@ -4444,7 +4467,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='23.1';
+const APP_VER='23.2';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
