@@ -2895,12 +2895,23 @@ function flipDist(){
   const st=$('stage');
   return Math.max(40,Math.min(90,Math.round(st.clientWidth*0.06)));
 }
+/* 칠판이 PDF 위에 얹혀 가리고 있는 폭입니다 (경계선 20px 까지).
+   칠판이 꺼져 있거나 칠판만 보는 중이면 0 입니다. */
+function bdCover(){
+  if(!document.body.classList.contains('board-ov'))return 0;
+  const bd=$('board');if(!bd)return 0;
+  const w=bd.getBoundingClientRect().width;
+  return w>0 ? w+20 : 0;
+}
 function limits(){
   const st=$('stage'),z=S.vz||1;
   /* 화면보다 작으면 움직일 여유가 없습니다 — 가운데 그대로 둡니다 */
   const ow=S.rendered.w*z-st.clientWidth, oh=S.rendered.h*z-st.clientHeight;
-  return {mx: ow>0 ? ow/2+24 : 0,
-          my: oh>0 ? oh/2+24 : 0};
+  const mx0 = ow>0 ? ow/2+24 : 0;
+  /* 칠판을 켜 두었으면, 쪽이 화면에 다 들어가더라도 칠판 폭만큼은 옆으로 밀 수 있어야
+     합니다. 칠판에 가린 곳을 보려고 종이를 끌었을 뿐인데 쪽이 넘어가 버리면 안 됩니다
+     — 넘김은 이 여유를 다 쓴 뒤에야 걸립니다. */
+  return {mx: Math.max(mx0, bdCover()), my: oh>0 ? oh/2+24 : 0, mx0};
 }
 function clampView(over){
   const {mx,my}=limits(), o=over?flipDist()+40:0;
@@ -2964,8 +2975,8 @@ async function flip(dir){
   S.tx=0;S.ty=0;
   await renderPage();
   {                                    /* 넘긴 방향의 시작점부터 보입니다 */
-    const {mx,my}=limits();
-    if(isWide()){S.tx = dir>0 ? mx : -mx; S.ty=0}
+    const {mx0,my}=limits();           /* 여기서는 '넘치는 만큼' 만 씁니다 — 칠판 여유는 빼고 */
+    if(isWide()){S.tx = dir>0 ? mx0 : -mx0; S.ty=0}
     else{S.ty = dir>0 ? my : -my; S.tx=0}
   }
   clampView();applyView();
@@ -5289,7 +5300,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.8';
+const APP_VER='25.9';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
