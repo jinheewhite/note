@@ -676,7 +676,7 @@ try{
       </svg>
     </button>
     <button class="tool" data-label="오리기" id="btnCut"
-            title="오리기 — 둘레를 둘러서 오립니다 (PDF·칠판 모두)">✂</button>
+            title="오리기 — 대각선으로 끌거나 둘레를 둘러서 오립니다 (PDF·칠판 모두)">✂</button>
     <button class="icon tool" data-label="지우개" id="btnEraser" title="지우개 — 한 번 더 누르면 굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(13 14) rotate(-35)">
@@ -858,8 +858,10 @@ try{
     </div>
     <h4 class="guideH">도형</h4>
     <div class="guideRows">
-      <div><b>도형 단추를 누르고 끓기</b><span>네모·세모·동그라미·하트·별·직선·화살표</span></div>
+      <div><b>도형 단추를 누르고 끓기</b><span>네모·세모·동그라미·직선</span></div>
       <div><b>한 번 더 누르면</b><span>모양과 색·굵기를 고릅니다</span></div>
+      <div><b>그린 뒤 바로</b><span>✥ 로 옮기고, ↘ 로 크기를 바꿉니다 (✕ 는 그 도형만 지우기)</span></div>
+      <div><b>펜으로 슥 그린 도형도</b><span>다듬어져 도형이 되면 똑같이 옮기고 늘릴 수 있습니다</span></div>
       <div><b>그냥 그려도 됩니다</b><span>동그라미를 슐 그리면 동그랑게, 선은 곱게 다듬어 줍니다</span></div>
       <div><b>다듬기 끕기</b><span>펜 창 맨 아래에서 켜고 끕니다 — 그린 대로 두고 싶을 때</span></div>
     </div>
@@ -872,7 +874,8 @@ try{
     </div>
     <h4 class="guideH">✂ 오리기 — PDF 와 칠판 모두</h4>
     <div class="guideRows">
-      <div><b>✂ 누르고 둘러 주세요</b><span>둘레를 한 바퀴 둘러 손을 떼면 오려집니다</span></div>
+      <div><b>✂ 누르고 대각선으로 끌기</b><span>왼쪽 위에서 오른쪽 아래로 죽 끌면 그 네모만큼 오려집니다</span></div>
+      <div><b>둘러서 오려도 됩니다</b><span>둘레를 한 바퀴 둘러 손을 떼면 그 모양대로 오려집니다</span></div>
       <div><b>조각을 고르면</b><span>네 모서리에 손잡이가 붙습니다</span></div>
       <div><b>↘ 오른쪽 아래</b><span>크기 바꾸기</span></div>
       <div><b>↻ 왼쪽 아래</b><span>돌리기 — 반듯한 각도에서는 살짝 붙습니다</span></div>
@@ -1745,7 +1748,8 @@ const S={
   scale:1.3,fitting:true,date:todayStr(),
   strokes:[],imgs:[],sel:null,imgDrag:null,pageHas:new Set(),
   tool:'pen',colors:{pen:'#111111',hl:'#f5c400',laser:'#ff3b30'},sizes:{pen:4,hl:12,laser:8,eraser:10},
-  shape:(()=>{try{return localStorage.getItem('pn.shape')||'rect'}catch(e){return 'rect'}})(),
+  shape:(()=>{try{const k=localStorage.getItem('pn.shape');
+    return (k==='tri'||k==='oval'||k==='line')?k:'rect'}catch(e){return 'rect'}})(),
   shapeFrom:null,
   drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false,
   fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,tx:0,ty:0,tap:null,flipAt:0,
@@ -2131,44 +2135,12 @@ function segment(st,p0,p1,base){
    지우개·되돌리기가 손댈 것 없이 그대로 통합니다.
    화면 좌표로 점을 만든 뒤, conv 로 저장할 좌표계에 옮깁니다
    (PDF 는 toN, 칠판은 bdWX/bdWY). */
-const SHAPE_NAME={rect:'네모',tri:'세모',oval:'동그라미',line:'직선',arrow:'화살표',heart:'하트',star:'별'};
-/* 하트 — 익숙한 수식으로 그리고, 끈난 뒤 둘러싼 네모에 딱 맞춥니다 */
-function heartRaw(N){
-  const R=[];
-  for(let i=0;i<=N;i++){
-    const t=i/N*Math.PI*2;
-    R.push([16*Math.pow(Math.sin(t),3),
-            -(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))]);
-  }
-  return R;
-}
-/* 별 — 꼭짓점 다섯, 안쪽으로 들어가는 점 다섯 */
-function starFit(x0,y0,x1,y1){
-  const cx=(x0+x1)/2, cy=(y0+y1)/2, rx=(x1-x0)/2, ry=(y1-y0)/2;
-  const inner=0.382;                          /* 정오각별의 안쪽 비율 */
-  const P=[];
-  for(let i=0;i<=10;i++){
-    const t=-Math.PI/2 + i*Math.PI/5;
-    const k=(i%2===0)?1:inner;
-    P.push([cx+rx*k*Math.cos(t), cy+ry*k*Math.sin(t)]);
-  }
-  return P;
-}
-function heartFit(x0,y0,x1,y1,N){
-  const R=heartRaw(N||64);
-  let a=1e9,b=1e9,c=-1e9,d=-1e9;
-  for(const q of R){ if(q[0]<a)a=q[0]; if(q[0]>c)c=q[0]; if(q[1]<b)b=q[1]; if(q[1]>d)d=q[1] }
-  const sx=(x1-x0)/(c-a||1), sy=(y1-y0)/(d-b||1);
-  return R.map(q=>[x0+(q[0]-a)*sx, y0+(q[1]-b)*sy]);
-}
+const SHAPE_NAME={rect:'네모',tri:'세모',oval:'동그라미',line:'직선'};
 const SHAPE_ICON={
   rect:'<svg viewBox="0 0 24 24" width="22" height="22"><rect x="3.5" y="5.5" width="17" height="13" rx="1.4" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
   tri :'<svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 4.5 L20.5 19 H3.5 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
   oval:'<svg viewBox="0 0 24 24" width="22" height="22"><ellipse cx="12" cy="12" rx="8.6" ry="6.8" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
   line:'<svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 19 L20 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-  arrow:'<svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 19 L20 5 M20 5 L13.5 6.4 M20 5 L18.6 11.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  heart:'<svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 20.5 C4 14.5 3 10.4 5.4 7.7 c1.9-2.1 5-1.5 6.6 1 1.6-2.5 4.7-3.1 6.6-1 2.4 2.7 1.4 6.8-6.6 12.8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
-  star:'<svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3.2 14.7 9.4 21.4 10 16.3 14.4 17.9 21 12 17.5 6.1 21 7.7 14.4 2.6 10 9.3 9.4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
 };
 /* ── 손으로 그린 것을 다듬기 ──────────────────────────
    전자칠판에서 하듯, 동그라미를 슥 그리면 동그랗게, 선을 그으면
@@ -2221,27 +2193,8 @@ function tidyShape(Q){
   if(bw<48||bh<48)return null;                 /* 작은 글씨가 도형으로 읽힐 수 있습니다 */
   const diag=Math.hypot(bw,bh);
 
-  /* 1-b. 하트 — 위 가운데가 옴폭 들어갑니다. 이 성질은 하트에만 있습니다
-     (다른 도형은 가운데가 봉우리보다 위이거나 같습니다). */
-  {
-    const cx=(x0+x1)/2;
-    const topIn=(lo,hi)=>{let m=1e9;for(const q of Q)if(q[0]>=lo&&q[0]<=hi&&q[1]<m)m=q[1];return m};
-    const tMid=topIn(cx-bw*0.10,cx+bw*0.10);
-    const tL=topIn(x0+bw*0.15,x0+bw*0.35);
-    const tR=topIn(x0+bw*0.65,x0+bw*0.85);
-    let by=-1e9,bx=0;
-    for(const q of Q)if(q[1]>by){by=q[1];bx=q[0]}
-    const ar=bw/bh;
-    if(ar>0.6&&ar<1.8&&isFinite(tMid)&&isFinite(tL)&&isFinite(tR)&&
-       tMid-Math.min(tL,tR)>bh*0.04&&           /* 가운데가 봉우리보다 아래 */
-       Math.abs(bx-cx)<bw*0.24){                /* 아래 끝이 가운데 */
-      return {kind:'heart',pts:heartFit(x0,y0,x1,y1,64)};
-    }
-  }
-
   /* 2. 꼭짓점 세기 — 닫힌 고리라 반씩 나누어 줄입니다.
-     별은 봉우리 세기로는 세모와 갈리지 않았습니다(둘 다 다섯으로 나옵니다).
-     꼭짓점으로 보면 확실합니다 — 별 10, 세모 3, 네모 4. */
+     세모 3, 네모 4 로 갈립니다. */
   const eps=Math.max(6,diag*0.055);
   const m=Math.floor(n/2);
   let C=rdp(Q.slice(0,m+1),eps).slice(0,-1).concat(rdp(Q.slice(m),eps));
@@ -2264,45 +2217,6 @@ function tidyShape(Q){
     }
     if(bd>=diag*0.07)break;
     K.splice(best,1);
-  }
-
-  /* 별 — 사람들은 한 붓으로 가로질러 그립니다(오각별). 그러면 꼭짓점이
-     다섯이고, 이웃한 꼭짓점끼리 가운데를 중심으로 144도씩 건너뜁니다.
-     오각형은 72도씩이므로 이것으로 갈립니다. */
-  if(K.length===5){
-    const cx=(x0+x1)/2, cy=(y0+y1)/2, rx=bw/2||1, ry=bh/2||1;
-    const ang=K.map(q=>Math.atan2((q[1]-cy)/ry,(q[0]-cx)/rx));
-    const rr=K.map(q=>Math.hypot((q[0]-cx)/rx,(q[1]-cy)/ry));
-    let evenR=true;
-    const rmin=Math.min.apply(null,rr), rmax=Math.max.apply(null,rr);
-    if(rmin<rmax*0.62)evenR=false;             /* 꼭짓점이 모두 바깥쪽이어야 합니다 */
-    let jump=true;
-    for(let i=0;i<5;i++){
-      let d=Math.abs(ang[(i+1)%5]-ang[i]);
-      if(d>Math.PI)d=Math.PI*2-d;              /* 0~180도로 맞춥니다 */
-      if(d<Math.PI*0.60||d>Math.PI*0.98){jump=false;break}   /* 108~176도 */
-    }
-    if(evenR&&jump)return {kind:'star',pts:starFit(x0,y0,x1,y1)};
-  }
-
-
-  /* 별 — 꼭짓점 열 개가 멀고 가까움을 번갈아 합니다 */
-  if(K.length===10){
-    const cx=(x0+x1)/2, cy=(y0+y1)/2, rx=bw/2||1, ry=bh/2||1;
-    const rr=K.map(q=>Math.hypot((q[0]-cx)/rx,(q[1]-cy)/ry));
-    let ok=true;
-    for(let i=0;i<10;i++){
-      const cur=rr[i], nxt=rr[(i+1)%10];
-      if((i%2===0)?!(cur>nxt*1.25):!(nxt>cur*1.25)){ok=false;break}
-    }
-    if(!ok){                                    /* 번갈이 시작이 반대일 수도 있습니다 */
-      ok=true;
-      for(let i=0;i<10;i++){
-        const cur=rr[i], nxt=rr[(i+1)%10];
-        if((i%2===0)?!(nxt>cur*1.25):!(cur>nxt*1.25)){ok=false;break}
-      }
-    }
-    if(ok)return {kind:'star',pts:starFit(x0,y0,x1,y1)};
   }
 
   if(K.length===3||K.length===4){
@@ -2357,17 +2271,6 @@ function shapePts(kind,x0,y0,x1,y1,conv){
   const P=[];
   const put=(x,y)=>P.push(conv(x,y));
   if(kind==='line'){ put(x0,y0);put(x1,y1);return P }
-  if(kind==='arrow'){
-    const a=Math.atan2(y1-y0,x1-x0), L=Math.hypot(x1-x0,y1-y0);
-    const h=Math.max(8,Math.min(28,L*0.22)), w=0.42;     /* 촉의 길이와 벌어짐 */
-    put(x0,y0);put(x1,y1);
-    put(x1-h*Math.cos(a-w),y1-h*Math.sin(a-w));          /* 한쪽 촉 */
-    put(x1,y1);
-    put(x1-h*Math.cos(a+w),y1-h*Math.sin(a+w));          /* 다른 쪽 촉 */
-    return P;
-  }
-  if(kind==='heart'){ for(const q of heartFit(x0,y0,x1,y1,64))put(q[0],q[1]); return P }
-  if(kind==='star'){ for(const q of starFit(x0,y0,x1,y1))put(q[0],q[1]); return P }
   if(kind==='rect'){
     put(x0,y0);put(x1,y0);put(x1,y1);put(x0,y1);put(x0,y0);   /* 닫습니다 */
     return P;
@@ -2442,6 +2345,58 @@ function dashOutline(cx,draw){
   cx.restore();
 }
 
+/* ── 그린 도형 다시 손보기 ─────────────────────────────
+   방금 그린 도형은 잠깐 '고른 상태'로 남습니다. 테두리 안을 끌면 옮기고,
+   오른쪽 아래 ↘ 를 끌면 크기가 바뀝니다. ✕ 는 그 도형만 지웁니다.
+   다른 곳을 누르면 그대로 놓이고 새 도형을 그립니다.
+   도형도 보통 획이라, 점을 화면 좌표로 펴서 옮긴 뒤 도로 넣습니다. */
+const SH_PAD=14, SH_R=22;
+function shRect(st,toS){
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const p of st.pts){
+    const q=toS(p);
+    if(q[0]<x0)x0=q[0]; if(q[0]>x1)x1=q[0];
+    if(q[1]<y0)y0=q[1]; if(q[1]>y1)y1=q[1];
+  }
+  if(x1<x0)return [0,0,0,0];
+  return [x0-SH_PAD,y0-SH_PAD,(x1-x0)+SH_PAD*2,(y1-y0)+SH_PAD*2];
+}
+/* inside=참 이면 테두리 안쪽을 끌어도 옮겨집니다 — 도형 도구일 때만입니다.
+   펜으로 쓰는 중에 안쪽이 잡히면 글씨를 못 쓰니까요. */
+function shHitBox(sx,sy,x,y,w,h,inside){
+  if(w<=0||h<=0)return null;
+  if(Math.hypot(sx-(x+w),sy-(y+h))<SH_R)return 'size';
+  if(Math.hypot(sx-(x+w),sy-y)<SH_R)return 'del';
+  if(Math.hypot(sx-x,sy-y)<SH_R)return 'move';        /* 왼쪽 위 — 옮기기 */
+  if(inside&&sx>=x&&sx<=x+w&&sy>=y&&sy<=y+h)return 'move';
+  return null;
+}
+function drawShapeBox(cx,x,y,w,h){
+  dashOutline(cx,()=>{cx.beginPath();cx.rect(x,y,w,h);cx.stroke()});
+  cx.save();
+  cx.font='600 17px system-ui,sans-serif';cx.textAlign='center';cx.textBaseline='middle';
+  cx.beginPath();cx.arc(x,y,17,0,Math.PI*2);cx.fillStyle='#3b7ddd';cx.fill();
+  cx.fillStyle='#fff';cx.fillText('✥',x,y+1);
+  cx.beginPath();cx.arc(x+w,y,17,0,Math.PI*2);cx.fillStyle='#e05a4a';cx.fill();
+  cx.fillStyle='#fff';cx.fillText('✕',x+w,y+1);
+  cx.beginPath();cx.arc(x+w,y+h,17,0,Math.PI*2);cx.fillStyle='#f0a020';cx.fill();
+  cx.fillStyle='#fff';cx.fillText('↘',x+w,y+h+1);
+  cx.restore();
+}
+/* 끌기 시작할 때의 점(pts0)에서 매번 다시 계산합니다 — 오차가 쌓이지 않습니다 */
+function shApply(st,d,dx,dy,toS,fromS){
+  const x=d.box[0], y=d.box[1], w=d.box[2], h=d.box[3];
+  const ax=x+SH_PAD, ay=y+SH_PAD;              /* 왼쪽 위 — 크기를 바꿀 때 붙박이 */
+  const iw=w-SH_PAD*2, ih=h-SH_PAD*2;
+  /* 곧은 선처럼 한쪽 폭이 0 에 가까우면 그쪽은 늘리지 않습니다 */
+  const kx=(d.mode==='size'&&iw>8)?Math.max(0.08,(iw+dx)/iw):1;
+  const ky=(d.mode==='size'&&ih>8)?Math.max(0.08,(ih+dy)/ih):1;
+  st.pts=d.pts0.map(p=>{
+    const q=toS(p);
+    if(d.mode==='move')return fromS([q[0]+dx,q[1]+dy]);
+    return fromS([ax+(q[0]-ax)*kx, ay+(q[1]-ay)*ky]);
+  });
+}
 function drawHandles(cx,x,y,w,h,leftIcon,rot){
   cx.save();
   if(rot){cx.translate(x+w/2,y+h/2);cx.rotate(rot);cx.translate(-(x+w/2),-(y+h/2))}
@@ -2514,6 +2469,10 @@ function redraw(){
   }
   S.strokes.forEach(paintStroke);
   if(S.cur)paintStroke(S.cur);
+  if(S.shSel&&S.strokes.indexOf(S.shSel)>=0){
+    const b=shRect(S.shSel,q=>toP(q[0],q[1]));
+    if(b[2]>0)drawShapeBox(ictx,b[0],b[1],b[2],b[3]);
+  }
 }
 async function pImgDel(it){
   if(!await askConfirm('오려 온 그림을 지웁니다. 계속할까요?'))return;
@@ -2538,11 +2497,45 @@ async function imgToBoard(it){
   S.edited=true;redraw();scheduleSave();bdRedraw();bdSaveSoon();
   toast('칠판으로 보냈습니다');
 }
-function imgToPdf(it){
-  let w=(it.w*bdSc())/S.pdfW;
+/* 지금 눈에 보이는 자리의 한가운데 (그림 좌표 — 쪽 폭을 1 로 봅니다).
+   칠판이 가린 쪽은 뺍니다. 전에는 쪽의 맨 위 가운데에 놓았는데,
+   폭 맞춤으로 아래쪽을 보고 있으면 조각이 화면 밖으로 가 버렸습니다. */
+function pdfViewCenter(){
+  const W=S.pdfW||1, H=(S.rendered.h||1)/W;
+  const r=inkCv.getBoundingClientRect(), st=$('stage').getBoundingClientRect();
+  if(!r.width||!r.height)return [0.5,H/2];
+  let L=Math.max(r.left,st.left), T=Math.max(r.top,st.top);
+  let R=Math.min(r.right,st.right), B=Math.min(r.bottom,st.bottom);
+  if(document.body.classList.contains('board-ov')){
+    const bd=$('board'), b=bd&&bd.getBoundingClientRect();
+    if(b&&b.width>0&&b.bottom>T&&b.top<B){
+      if(document.body.classList.contains('board-left'))L=Math.max(L,b.right);
+      else R=Math.min(R,b.left);
+    }
+  }
+  /* 남은 자리가 너무 좁으면 칠판을 빼기 전으로 되돌립니다 */
+  if(R-L<40||B-T<40){
+    L=Math.max(r.left,st.left); T=Math.max(r.top,st.top);
+    R=Math.min(r.right,st.right); B=Math.min(r.bottom,st.bottom);
+  }
+  if(R-L<10||B-T<10)return [0.5,H/2];
+  const sx=S.rendered.w/r.width, sy=S.rendered.h/r.height;
+  return [((L+R)/2-r.left)*sx/W, ((T+B)/2-r.top)*sy/W];
+}
+async function imgToPdf(it){
+  /* 칠판만 보고 있었다면 PDF 가 보이도록 되돌립니다 — 안 그러면
+     보낸 조각이 어디로 갔는지 볼 수가 없습니다 */
+  if(S.splitMode===2)await applySplitMode(1,true);
+  const rr=inkCv.getBoundingClientRect();
+  /* 칠판에서 보이던 크기 그대로 — 화면 픽셀을 거쳐 쪽 폭의 몇 분의 몇인지로 */
+  let w=rr.width?(it.w*bdSc())/rr.width:(it.w*bdSc())/S.pdfW;
   if(w>0.9)w=0.9;
+  const h=w*it.ar, H=(S.rendered.h||1)/(S.pdfW||1);
+  const c=pdfViewCenter();
+  const x=Math.max(0,Math.min(Math.max(0,1-w),c[0]-w/2));
+  const y=Math.max(0,Math.min(Math.max(0,H-h),c[1]-h/2));
   S.imgs=S.imgs||[];
-  S.imgs.push({id:it.id,rot:imgRot(it),src:it.src,ar:it.ar,w,x:(1-w)/2,y:0.08});
+  S.imgs.push({id:it.id,rot:imgRot(it),src:it.src,ar:it.ar,w,x,y});
   S.sel=it.id;
   BD.imgs=(BD.imgs||[]).filter(q=>q!==it); if(BD.sel===it.id)BD.sel=null;
   S.edited=true;redraw();scheduleSave();bdRedraw();bdSaveSoon();
@@ -2656,7 +2649,7 @@ function updateTouchBtn(){
 }
 /* 손가락으로 그릴 수 있게 켜고 끕니다 (EJ Pen 같은 칠판 프로그램이 켜져 있을 때 필요) */
 document.addEventListener('DOMContentLoaded',()=>{},{once:true});
-function cancelStroke(){if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=null;S.penErase=false;S.pinch=null}
+function cancelStroke(){if(S.shDrag){S.shDrag=null;scheduleSave()}if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=null;S.penErase=false;S.pinch=null}
 
 /* 펜 ─ 획 그리기 */
 function startStroke(e){
@@ -2666,6 +2659,24 @@ function startStroke(e){
   S.penErase=(e.pointerType==='pen'&&e.buttons===32);   /* 펜 뒤쪽 지우개 버튼 */
   if(S.penErase||S.tool==='eraser')snap('pdf');
   if(S.penErase||S.tool==='eraser'){erase(x,y);return}
+  /* 고른 도형의 손잡이는 어느 도구로든 먼저 봅니다 — 펜으로 슥 그려
+     동그라미가 된 것도 그 자리에서 옮기고 늘릴 수 있어야 하니까요.
+     안쪽을 끌어 옮기는 것은 도형 도구일 때만입니다 (펜은 글씨를 써야 합니다). */
+  if(S.shSel&&S.strokes.indexOf(S.shSel)>=0){
+    const b=shRect(S.shSel,q=>toP(q[0],q[1]));
+    const m=shHitBox(x,y,b[0],b[1],b[2],b[3],S.tool==='shape');
+    if(m==='del'){
+      snap('pdf');
+      S.strokes.splice(S.strokes.indexOf(S.shSel),1);
+      S.shSel=null;S.drawing=false;S.edited=true;redraw();scheduleSave();return;
+    }
+    if(m){
+      snap('pdf');
+      S.shDrag={mode:m,box:b,sx:x,sy:y,pts0:S.shSel.pts.map(q=>q.slice())};
+      return;
+    }
+    S.shSel=null;                       /* 딴 데를 눌렀으면 그대로 놓습니다 */
+  }
   if(S.tool==='shape'){
     /* 누른 자리를 한 귀퉁이로 삼고, 끄는 동안 모양이 따라옵니다 */
     S.shapeFrom=[x,y];
@@ -2681,6 +2692,11 @@ function startStroke(e){
    세게 걸면 글씨가 펜보다 늦게 따라와 답답합니다 */
 const STEADY=0.22;                       /* 손떨림 보정 세기 (0=없음, 커질수록 차분) */
 function moveStroke(e){
+  if(S.shDrag&&S.shSel){
+    const q=pos(e), d=S.shDrag;
+    shApply(S.shSel,d,q[0]-d.sx,q[1]-d.sy,a=>toP(a[0],a[1]),a=>toN(a[0],a[1]));
+    redraw();return;
+  }
   if(!S.cur&&!(S.penErase||S.tool==='eraser'||S.tool==='laser')){S.drawing=false;return}
   let [x,y]=pos(e);
   if(S.tool==='shape'&&S.cur&&S.shapeFrom){
@@ -2717,19 +2733,25 @@ function strokeSwipeFlip(){
   return dir;
 }
 function endStroke(){
+  if(S.shDrag){S.shDrag=null;S.drawing=false;S.edited=true;redraw();scheduleSave();return}
   if(!S.drawing)return;
   S.drawing=false;S.penErase=false;
+  const wasShape=(S.tool==='shape');
   if(S.cur){
     /* 도형은 크게 끌어 그리므로, 쪽 넘김으로 오해하면 안 됩니다 */
     if(S.strokeBy==='touch'&&S.tool!=='shape'){
       const dir=strokeSwipeFlip();
       if(dir){S.cur=null;S.strokeBy='';flip(dir);return}     /* 선은 버리고 넘깁니다 */
     }
-    /* 그은 것이 동그라미나 곱은 선에 가까우면 다듬어 줍니다 */
+    /* 그은 것이 동그라미나 곧은 선에 가까우면 다듬어 줍니다 */
+    let tidied=false;
     if(S.tool!=='shape')
-      tidyCur(S.cur, p=>toP(p[0],p[1]), q=>toN(q[0],q[1]));
+      tidied=tidyCur(S.cur, p=>toP(p[0],p[1]), q=>toN(q[0],q[1]));
     snap('pdf');
     S.strokes.push(S.cur);
+    /* 도형 도구로 그린 것도, 펜으로 슥 그려 도형이 된 것도 고른 채로 둡니다 */
+    S.shSel=(wasShape||tidied)?S.cur:null;
+    if(S.shSel&&!S.shSeen){S.shSeen=true;toast('✥ 로 옮기고, ↘ 로 크기를 바꿉니다 (✕ 는 지우기)')}
     if(S.strokeBy==='touch')S.lastTouch={s:S.cur,at:performance.now()};
     S.cur=null;S.edited=true;
     redraw();                               /* 뗀 순간 곡선으로 매끈하게 정리 */
@@ -3162,11 +3184,28 @@ function endPinch(){
 }
 
 /* ══ ✂ 오리기 — PDF에 그려진 그림을 둘러서 칠판으로 가져옵니다 ══ */
+/* 가위 — 대각선으로 죽 끌면 그 네모만큼 오립니다.
+   둘레를 한 바퀴 두르는 예전 방식도 그대로 됩니다. 어느 쪽인지는
+   '지나온 길'과 '두 끝을 이은 선'을 견주어 저절로 갈립니다 —
+   둘이 비슷하면 곧게 끈 것이고, 길이 훨씬 길면 한 바퀴 두른 것입니다. */
+function cutRectIfDiagonal(P){
+  if(!P||P.length<2)return P;
+  const a=P[0], b=P[P.length-1];
+  const span=Math.hypot(b[0]-a[0],b[1]-a[1]);
+  if(span<40)return P;                        /* 너무 짧으면 판단하지 않습니다 */
+  let len=0;
+  for(let i=1;i<P.length;i++)len+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]);
+  if(len>span*1.35)return P;                  /* 한 바퀴 둘렀습니다 — 그대로 */
+  const x0=Math.min(a[0],b[0]), y0=Math.min(a[1],b[1]);
+  const x1=Math.max(a[0],b[0]), y1=Math.max(a[1],b[1]);
+  if(x1-x0<20||y1-y0<20)return P;             /* 가로나 세로로만 그었습니다 — 네모가 안 됩니다 */
+  return [[x0,y0],[x1,y0],[x1,y1],[x0,y1]];
+}
 const CUT={on:false,pts:[],seen:false};
 function cutClear(){ fctx.clearRect(0,0,S.rendered.w,S.rendered.h) }
 function cutDraw(){
   cutClear();
-  const P=CUT.pts; if(P.length<2)return;
+  const P=cutRectIfDiagonal(CUT.pts); if(P.length<2)return;
   fctx.save();
   fctx.beginPath();fctx.moveTo(P[0][0],P[0][1]);
   for(let i=1;i<P.length;i++)fctx.lineTo(P[i][0],P[i][1]);
@@ -3188,14 +3227,14 @@ function cutMove(e){
   CUT.pts.push(q);cutDraw();
 }
 async function cutEnd(){
-  const P=CUT.pts; CUT.on=false;CUT.pts=[];cutClear();
-  if(!P||P.length<8){toast('그림 둘레를 한 바퀴 둘러 주세요');return}
+  const P=cutRectIfDiagonal(CUT.pts); CUT.on=false;CUT.pts=[];cutClear();
+  if(!P||P.length<3){toast('대각선으로 죽 끌거나, 둘레를 한 바퀴 둘러 주세요');return}
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   for(const q of P){x0=Math.min(x0,q[0]);y0=Math.min(y0,q[1]);x1=Math.max(x1,q[0]);y1=Math.max(y1,q[1])}
   x0=Math.max(0,x0-2);y0=Math.max(0,y0-2);
   x1=Math.min(S.rendered.w,x1+2);y1=Math.min(S.rendered.h,y1+2);
   const wc=x1-x0, hc=y1-y0;
-  if(wc<24||hc<24){toast('너무 작습니다 — 조금 더 넓게 둘러 주세요');return}
+  if(wc<24||hc<24){toast('너무 작습니다 — 조금 더 넓게 잡아 주세요');return}
   const dpr=S.dpr||1;
   let k=dpr;                                  /* 오려낼 해상도 — 너무 크면 저장이 무거워집니다 */
   if(wc*k>1600)k=1600/wc;
@@ -3337,10 +3376,10 @@ function undoOnce(){
   if(!e){toast('되돌릴 것이 없습니다');return}
   const o=JSON.parse(e.d);
   if(e.w==='bd'){
-    BD.strokes=o.s;BD.imgs=o.i;BD.sel=null;BD.cur=null;
+    BD.strokes=o.s;BD.imgs=o.i;BD.sel=null;BD.cur=null;BD.shSel=null;BD.shDrag=null;
     bdRedraw();bdSaveSoon();
   }else{
-    S.strokes=o.s;S.imgs=o.i;S.sel=null;S.cur=null;
+    S.strokes=o.s;S.imgs=o.i;S.sel=null;S.cur=null;S.shSel=null;S.shDrag=null;
     redraw();scheduleSave();
   }
   S.edited=true;updUndo();
@@ -3394,7 +3433,7 @@ async function loadStrokes(){
   const rec=await Store.getNote(noteKey(S.fileId,S.date,S.page));
   S.strokes=rec&&rec.strokes?JSON.parse(JSON.stringify(rec.strokes)):[];
   S.imgs=rec&&rec.imgs?JSON.parse(JSON.stringify(rec.imgs)):[];
-  S.sel=null;S.imgDrag=null;
+  S.sel=null;S.imgDrag=null;S.shSel=null;S.shDrag=null;
 }
 function scheduleSave(){clearTimeout(S.saveTimer);S.saveTimer=setTimeout(saveNow,600)}
 async function saveNow(){
@@ -3489,7 +3528,7 @@ async function bdGoto(pg){
   const rec=await Store.getNote(boardKey());
   BD.strokes=rec&&rec.strokes?JSON.parse(JSON.stringify(rec.strokes)):[];
   BD.imgs=rec&&rec.imgs?JSON.parse(JSON.stringify(rec.imgs)):[];
-  BD.cur=null;BD.sel=null;BD.imgDrag=null;
+  BD.cur=null;BD.sel=null;BD.imgDrag=null;BD.shSel=null;BD.shDrag=null;
   BD.ox=0;BD.oy=0;BD.vz=1;                  /* 새 쪽은 맨 위부터 */
   bdRedraw();bdPageInfo();
 }
@@ -3544,6 +3583,10 @@ function bdRedraw(){
   bdPaintImgs();
   BD.strokes.forEach(bdPaint);
   if(BD.cur)bdPaint(BD.cur);
+  if(BD.shSel&&BD.strokes.indexOf(BD.shSel)>=0){
+    const b=shRect(BD.shSel,q=>[bdSX(q[0]),bdSY(q[1])]);
+    if(b[2]>0)drawShapeBox(bdctx,b[0],b[1],b[2],b[3]);
+  }
   bdScrollBar();
 }
 async function bdLoad(){
@@ -3561,7 +3604,7 @@ async function bdLoad(){
   const rec=await Store.getNote(boardKey());
   BD.strokes=rec&&rec.strokes?JSON.parse(JSON.stringify(rec.strokes)):[];
   BD.imgs=rec&&rec.imgs?JSON.parse(JSON.stringify(rec.imgs)):[];
-  BD.sel=null;BD.imgDrag=null;
+  BD.sel=null;BD.imgDrag=null;BD.shSel=null;BD.shDrag=null;
   bdRedraw();
 }
 function bdSaveSoon(){clearTimeout(BD.timer);BD.timer=setTimeout(bdSave,600)}
@@ -3585,7 +3628,7 @@ const bdPtrs=new Map();
 const BDCUT={on:false,pts:[]};
 function bdCutDraw(){
   bdRedraw();                                  /* 바탕과 필기를 먼저, 그 위에 점선을 얹습니다 */
-  const Q=BDCUT.pts; if(Q.length<2)return;
+  const Q=cutRectIfDiagonal(BDCUT.pts); if(Q.length<2)return;
   bdctx.save();
   bdctx.beginPath();bdctx.moveTo(Q[0][0],Q[0][1]);
   for(let i=1;i<Q.length;i++)bdctx.lineTo(Q[i][0],Q[i][1]);
@@ -3607,15 +3650,15 @@ function bdCutMove(x,y){
   BDCUT.pts.push([x,y]);bdCutDraw();
 }
 function bdCutEnd(){
-  const Q=BDCUT.pts; BDCUT.on=false;BDCUT.pts=[];
+  const Q=cutRectIfDiagonal(BDCUT.pts); BDCUT.on=false;BDCUT.pts=[];
   bdRedraw();                                  /* 점선을 지운 깨끗한 그림으로 되돌립니다 */
-  if(!Q||Q.length<8){toast('오릴 것 둘레를 한 바퀴 둘러 주세요');return}
+  if(!Q||Q.length<3){toast('대각선으로 죽 끌거나, 둘레를 한 바퀴 둘러 주세요');return}
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   for(const q of Q){x0=Math.min(x0,q[0]);y0=Math.min(y0,q[1]);x1=Math.max(x1,q[0]);y1=Math.max(y1,q[1])}
   x0=Math.max(0,x0-2);y0=Math.max(0,y0-2);
   x1=Math.min(BD.w,x1+2);y1=Math.min(BD.h,y1+2);
   const wc=x1-x0, hc=y1-y0;
-  if(wc<24||hc<24){toast('너무 작습니다 — 조금 더 넓게 둘러 주세요');return}
+  if(wc<24||hc<24){toast('너무 작습니다 — 조금 더 넓게 잡아 주세요');return}
   const dpr=bdCv.width/Math.max(1,BD.w);       /* 칠판 그림판이 몇 배로 그려져 있는지 */
   let k=dpr;
   if(wc*k>1600)k=1600/wc;                      /* 너무 크면 저장이 무거워집니다 */
@@ -3778,6 +3821,23 @@ bdCv.addEventListener('pointerdown',e=>{
     snap('bd');
     bdErase(x,y);return;
   }
+  /* 고른 도형의 손잡이는 어느 도구로든 먼저 봅니다 (지우개는 빼고) */
+  if(S.tool!=='eraser'&&BD.shSel&&BD.strokes.indexOf(BD.shSel)>=0){
+    const b=shRect(BD.shSel,q=>[bdSX(q[0]),bdSY(q[1])]);
+    const m=shHitBox(x,y,b[0],b[1],b[2],b[3],S.tool==='shape');
+    if(m==='del'){
+      snap('bd');
+      BD.strokes.splice(BD.strokes.indexOf(BD.shSel),1);
+      BD.shSel=null;S.edited=true;bdRedraw();bdSaveSoon();return;
+    }
+    if(m){
+      snap('bd');
+      BD.shDrag={mode:m,box:b,sx:x,sy:y,pts0:BD.shSel.pts.map(q=>q.slice())};
+      try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
+      return;
+    }
+    BD.shSel=null;                      /* 딴 데를 눌렀으면 그대로 놓습니다 */
+  }
   if(e.pointerType==='touch')bdPtrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   ghostShow(e);
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
@@ -3806,6 +3866,13 @@ bdCv.addEventListener('pointermove',e=>{
   const bp=bdPtrs.get(e.pointerId);
   if(bp){bp.x=e.clientX;bp.y=e.clientY}
   if(BD.pinch)return bdMovePinch();
+  if(BD.shDrag&&BD.shSel){
+    const rr=bdCv.getBoundingClientRect();
+    const x=(e.clientX-rr.left)*(BD.w/rr.width), y=(e.clientY-rr.top)*(BD.h/rr.height);
+    const d=BD.shDrag;
+    shApply(BD.shSel,d,x-d.sx,y-d.sy,q=>[bdSX(q[0]),bdSY(q[1])],q=>[bdWX(q[0]),bdWY(q[1])]);
+    bdRedraw();return;
+  }
   if(BD.imgDrag){
     const k=bdSc(), rr=bdCv.getBoundingClientRect();
     const sx=e.clientX-rr.left, sy=e.clientY-rr.top, d=BD.imgDrag;
@@ -3858,16 +3925,21 @@ function bdEnd(e){
   if(BDCUT.on){bdCutEnd();if(e)bdPtrs.delete(e.pointerId);return}
   ghostHide();
   if(e)bdPtrs.delete(e.pointerId);
+  if(BD.shDrag){BD.shDrag=null;S.edited=true;bdRedraw();bdSaveSoon();return}
   if(BD.imgDrag){BD.imgDrag=null;S.edited=true;bdClamp();bdRedraw();bdSaveSoon();return}
   if(BD.drag){BD.drag=null;return}
   if(BD.pinch){ if(bdPtrs.size<2){BD.pinch=null;BD.drawing=false;BD.palm=false} return }
   if(!BD.drawing)return;
   BD.drawing=false;BD.palm=false;
   if(BD.cur){
+    let tidied=false;
     if(S.tool!=='shape')
-      tidyCur(BD.cur, q=>bdPt(BD.cur,q), s=>[bdWX(s[0]),bdWY(s[1])]);
+      tidied=tidyCur(BD.cur, q=>bdPt(BD.cur,q), s=>[bdWX(s[0]),bdWY(s[1])]);
     snap('bd');
     BD.strokes.push(BD.cur);
+    /* 도형 도구로 그린 것도, 펜으로 슥 그려 도형이 된 것도 고른 채로 둡니다 */
+    BD.shSel=(S.tool==='shape'||tidied)?BD.cur:null;
+    if(BD.shSel&&!S.shSeen){S.shSeen=true;toast('✥ 로 옮기고, ↘ 로 크기를 바꿉니다 (✕ 는 지우기)')}
     if(e&&e.pointerType==='touch')BD.lastTouch={s:BD.cur,at:performance.now()};
     BD.cur=null;S.edited=true;bdRedraw();   /* 뗀 순간 매끈하게 정리 */
   }
@@ -4141,6 +4213,11 @@ function setTool(t,btn){
   if(S.doc)applyView();
   else{const sh=$('sheet');if(sh){sh.style.transform='';sh.style.transformOrigin=''}}
   S.tool=t;
+  /* 도형 말고 다른 도구로 가면 고른 도형을 놓습니다 */
+  if(t!=='shape'){
+    S.shSel=null;S.shDrag=null;
+    if(typeof BD!=='undefined'){BD.shSel=null;BD.shDrag=null;if(S.split)bdRedraw()}
+  }
   S.barAt=performance.now();               /* 도구를 고른 직후 화면 이동을 막습니다 */
   clearTimeout(sharpTimer);                /* 예약된 다시 그리기를 취소합니다 */
   if(t==='hand'){const pp=$('pop');if(pp){pp.classList.remove('open');showMask(false)}}
@@ -4215,7 +4292,7 @@ function openPop(anchor,tool){
   if(tool==='shape'){
     const shapeRow=document.createElement('div');shapeRow.className='popRow shapeRow';
     lab(shapeRow,'모양');
-    for(const k of ['rect','tri','oval','heart','star','line','arrow']){
+    for(const k of ['rect','tri','oval','line']){
       const b=document.createElement('button');
       b.title=SHAPE_NAME[k];
       b.innerHTML=SHAPE_ICON[k];
@@ -4303,7 +4380,7 @@ function openEraserPop(anchor){
 }
 $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
 $('btnCut').onclick=e=>{setTool('cut',e.currentTarget);
-  if(!CUT.seen){CUT.seen=true;toast('오릴 그림 둘레를 한 바퀴 둘러 주세요')}};
+  if(!CUT.seen){CUT.seen=true;toast('대각선으로 죽 끌면 그 네모만큼 — 둘러서 오려도 됩니다')}};
 /* 도형 — 고른 상태에서 한 번 더 누르면 모양·색·굵기를 고릅니다 */
 $('btnShape')&&($('btnShape').onclick=e=>{
   const b=e.currentTarget;
@@ -4352,7 +4429,7 @@ $('btnClose').onclick=async()=>{
     saved=await AutoDL.run(true);
   }
   S.doc=null;S.fileId=null;S.fileName='';S.folder='';
-  S.pages=0;S.page=1;S.strokes=[];S.imgs=[];S.sel=null;S.cur=null;S.pageHas=new Set();
+  S.pages=0;S.page=1;S.strokes=[];S.imgs=[];S.sel=null;S.cur=null;S.shSel=null;S.shDrag=null;S.pageHas=new Set();
   S.inkKey='';   /* 다음에 열 때는 반드시 다시 읽습니다 */
   S.tx=0;S.ty=0;S.fitting=true;laser.list=[];
   try{
@@ -5307,7 +5384,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.10';
+const APP_VER='25.11';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
