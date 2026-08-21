@@ -1752,8 +1752,11 @@ const S={
   lib:'',folder:'',q:'',sort:'recent',view:'grid',split:false,pdfW:1,downAt:null,pickedOnce:false,rot:0,barAt:0,
   hidAt:0,vz:1,edited:false,
   /* 'width' = 화면 폭에 꽉 채움(글자가 큼, 아래는 밀어서 봄)
-     'page'  = 쪽 전체가 한 화면에(작지만 통째로 보임)  — ⤢ 로 바꿉니다 */
-  fitMode:(()=>{try{return localStorage.getItem('pn.fitMode')==='page'?'page':'width'}catch(e){return 'width'}})(),
+     'page'  = 쪽 전체가 한 화면에(작지만 통째로 보임)  — ⤢ 로 바꿉니다
+     켤 때는 늘 폭 맞춤으로 시작합니다. 언젠가 한 번 눌러 둔 전체 맞춤이
+     그대로 남아, 자료가 작게 열린다는 말을 들었습니다. 전체 맞춤은
+     그때그때 ⤢ 로 쓰고, 다음에 켜면 다시 폭 맞춤입니다. */
+  fitMode:'width',
   rsig:''
 };
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
@@ -2931,6 +2934,10 @@ function flipDir(){
   const {mx,my}=limits(), d=flipDist()+50, p=S.pan;
   if(S.ty<-my-d)return (!p||p.atBot)?1:0;   /* 끝에서 시작한 손짓만 넘깁니다 */
   if(S.ty> my+d)return (!p||p.atTop)?-1:0;
+  /* 좌우로 밀어서 넘기는 것은 '가로 자료' 일 때만입니다.
+     세로 자료에서는 위아래로 넘깁니다 — 칠판에 가린 곳을 보려고 종이를
+     옆으로 밀었을 뿐인데 쪽이 넘어가 버리면 안 됩니다. */
+  if(!isWide())return 0;
   if(S.tx<-mx-d)return (!p||p.atR)?1:0;
   if(S.tx> mx+d)return (!p||p.atL)?-1:0;
   return 0;
@@ -4493,7 +4500,7 @@ function updFitBtn(){
 }
 $('btnFit').onclick=()=>{
   S.fitMode = S.fitMode==='page' ? 'width' : 'page';
-  try{localStorage.setItem('pn.fitMode',S.fitMode)}catch(e){}
+  try{localStorage.removeItem('pn.fitMode')}catch(e){}   /* 다음에 켜면 다시 폭 맞춤입니다 */
   updFitBtn();
   S.vz=1;S.fitting=true;S.tx=0;S.ty=0;S.rsig='';
   renderPage().then(()=>{
@@ -5300,7 +5307,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.9';
+const APP_VER='25.10';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -5626,9 +5633,11 @@ $('jsonInput').onchange=async e=>{
   await step(()=>Backup.load());
   $('modeBadge').innerHTML=Store.mode==='idb'?'':modeBadge();
   try{S.sort=localStorage.getItem('pn.sort')||'recent';S.view=localStorage.getItem('pn.view')||'grid';
-      S.splitMode=parseInt(localStorage.getItem('pn.splitMode')||'0')||0;
-      S.split=S.splitMode>0;
 }catch(e){}
+  /* 켤 때는 늘 자료만 크게 보입니다 — 칠판은 ▥ 를 누르면 나옵니다.
+     지난번에 칠판을 켜 둔 채로 닫았더라도 시작은 자료 단독입니다.
+     칠판이 반쯤 덮은 채로 열리면, 자료가 작게 열린 것처럼 보였습니다. */
+  S.splitMode=0;S.split=false;
   try{if(localStorage.getItem('pn.faux')==='1')fauxFull(true)}catch(e){}
 
   updFullBtn();
