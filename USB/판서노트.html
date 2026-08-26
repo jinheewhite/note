@@ -193,6 +193,8 @@ try{
   #btnCut.tool{font-size:20px}
   /* 오른쪽 끝 지우개 — 왼쪽 지우개와 켜진 표시가 같아 보이게 */
   #rightGrp #btnEraser2.on{box-shadow:0 0 0 3px rgba(245,213,71,.3)}
+  /* 왼쪽 지우개는 오른쪽으로, 오른쪽 지우개는 왼쪽으로 — 그림이 서로 마주 보게 */
+  #btnEraser2 svg{transform:scaleX(-1)}
   .size-wrap{display:flex;align-items:center;gap:3px;padding:0;border-right:0;margin-right:0}
   .size-wrap .mono{min-width:34px;text-align:center;font-size:16px}
   .size-wrap button{font-size:22px;font-weight:700}
@@ -619,6 +621,15 @@ try{
     <button class="tool" data-label="이동" id="btnHand" title="끌어서 화면 옮기기">✋</button>
   </div>
   <div class="grp" id="tools">
+    <button class="icon tool" data-label="지우개" id="btnEraser" title="지우개 — 한 번 더 누르면 굵기">
+      <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
+  <g transform="translate(13 14) rotate(-35)">
+    <rect x="-9" y="-5" width="18" height="10" rx="2.6" fill="#f2f4f7" stroke="#8b97a5" stroke-width="1.1"/>
+    <rect x="-9" y="-5" width="7.5" height="10" rx="2.6" fill="#5aa0e8"/>
+  </g>
+  <path d="M4 22.5 h18" stroke="#8b97a5" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="3 3"/>
+      </svg>
+    </button>
     <span class="swatches" id="swatches"></span>
     <button class="icon tool" data-label="펜" id="btnPen" title="펜 — 한 번 더 누르면 색·굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
@@ -672,15 +683,6 @@ try{
     </button>
     <button class="tool" data-label="오리기" id="btnCut"
             title="오리기 — 대각선으로 끌거나 둘레를 둘러서 오립니다 (PDF·칠판 모두)">✂</button>
-    <button class="icon tool" data-label="지우개" id="btnEraser" title="지우개 — 한 번 더 누르면 굵기">
-      <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
-  <g transform="translate(13 14) rotate(-35)">
-    <rect x="-9" y="-5" width="18" height="10" rx="2.6" fill="#f2f4f7" stroke="#8b97a5" stroke-width="1.1"/>
-    <rect x="-9" y="-5" width="7.5" height="10" rx="2.6" fill="#5aa0e8"/>
-  </g>
-  <path d="M4 22.5 h18" stroke="#8b97a5" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="3 3"/>
-      </svg>
-    </button>
   </div>
 
   <div class="grp size-wrap">
@@ -5380,7 +5382,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.14';
+const APP_VER='25.15';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
