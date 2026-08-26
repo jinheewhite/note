@@ -847,7 +847,7 @@ try{
       <div><b>☝ 한 손가락으로 밀기</b><span>화면을 옮깁니다 — 쪽 끝에 닿아도 그 자리에 멈춥니다</span></div>
       <div><b>✌ 두 손가락 밀기</b><span>화면을 옆으로 옮깁니다 — 쪽 끝에서 힘차게 밀면 다음/이전 쪽으로 넘어갑니다</span></div>
       <div><b>🙌 양손 벌리기</b><span>확대 · 오므리면 축소</span></div>
-      <div><b>🧽 칠판에 손바닥</b><span>문지르면 지워집니다</span></div>
+      <div><b>🧽 손바닥으로 문지르기</b><span>펜은 글씨를 쓰고, 손바닥은 지웁니다 — 칠판·자료 모두</span></div>
     </div>
     <h4 class="guideH">펜 · 색 · 굵기</h4>
     <div class="guideRows">
@@ -1752,7 +1752,8 @@ const S={
     return (k==='tri'||k==='oval'||k==='line')?k:'rect'}catch(e){return 'rect'}})(),
   shapeFrom:null,
   drawing:false,cur:null,last:null,rendered:{w:0,h:0},saveTimer:null,busy:false,
-  fingerDraws:true,penSeen:false,palmSeen:false,penErase:false,pan:null,tx:0,ty:0,tap:null,flipAt:0,
+  fingerDraws:true,penSeen:false,palmSeen:false,palmEraseSeen:false,penErase:false,palmErase:false,
+  pan:null,tx:0,ty:0,tap:null,flipAt:0,
   lib:'',folder:'',q:'',sort:'recent',view:'grid',split:false,pdfW:1,downAt:null,pickedOnce:false,rot:0,barAt:0,
   hidAt:0,vz:1,edited:false,
   /* 'width' = 화면 폭에 꽉 채움(글자가 큼, 아래는 밀어서 봄)
@@ -2640,12 +2641,13 @@ function updateTouchBtn(){
 }
 /* 손가락으로 그릴 수 있게 켜고 끕니다 (EJ Pen 같은 칠판 프로그램이 켜져 있을 때 필요) */
 document.addEventListener('DOMContentLoaded',()=>{},{once:true});
-function cancelStroke(){if(S.shDrag){S.shDrag=null;scheduleSave()}if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=null;S.penErase=false;S.pinch=null}
+function cancelStroke(){if(S.shDrag){S.shDrag=null;scheduleSave()}if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=null;S.penErase=false;S.palmErase=false;S.pinch=null}
 
 /* 펜 ─ 획 그리기 */
 function startStroke(e){
   const [x,y]=pos(e);
   S.drawing=true;S.last=[x,y];S.strokeBy=e.pointerType;S.strokeAt=performance.now();
+  if(S.palmErase){snap('pdf');erase(x,y);return}   /* 손바닥 — 어느 도구를 골라 뒀든 지웁니다 */
   if(S.tool==='laser'){laserPoint(x,y,true);return}
   S.penErase=(e.pointerType==='pen'&&e.buttons===32);   /* 펜 뒤쪽 지우개 버튼 */
   if(S.penErase||S.tool==='eraser')snap('pdf');
@@ -2688,6 +2690,7 @@ function moveStroke(e){
     shApply(S.shSel,d,q[0]-d.sx,q[1]-d.sy,a=>toP(a[0],a[1]),a=>toN(a[0],a[1]));
     redraw();return;
   }
+  if(S.palmErase){const [px,py]=pos(e);erase(px,py);return}
   if(!S.cur&&!(S.penErase||S.tool==='eraser'||S.tool==='laser')){S.drawing=false;return}
   let [x,y]=pos(e);
   if(S.tool==='shape'&&S.cur&&S.shapeFrom){
@@ -2726,7 +2729,7 @@ function strokeSwipeFlip(){
 function endStroke(){
   if(S.shDrag){S.shDrag=null;S.drawing=false;S.edited=true;redraw();scheduleSave();return}
   if(!S.drawing)return;
-  S.drawing=false;S.penErase=false;
+  S.drawing=false;S.penErase=false;S.palmErase=false;
   const wasShape=(S.tool==='shape');
   if(S.cur){
     /* 도형은 크게 끌어 그리므로, 쪽 넘김으로 오해하면 안 됩니다 */
@@ -3277,8 +3280,16 @@ inkCv.addEventListener('pointerdown',e=>{
   try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
   if(!isWriter(e.pointerType)&&touches()>=2){cancelStroke();undoTouchSmudge();S.pan=null;startPinch();return}
   if(isPalm(e)){
-    if(!S.palmSeen){S.palmSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 밀면 화면이 움직입니다')}
-    cancelStroke();undoTouchSmudge();startPan(e);return;
+    if(S.tool==='hand'){                    /* ✋ 를 일부러 골랐으면 손바닥도 이동입니다 */
+      if(!S.palmSeen){S.palmSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 밀면 화면이 움직입니다')}
+      cancelStroke();undoTouchSmudge();startPan(e);return;
+    }
+    /* 전자칠판처럼 — 펜은 글씨를 쓰고, 손바닥은 지웁니다 */
+    if(!S.palmEraseSeen){S.palmEraseSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 문지르면 지워집니다')}
+    cancelStroke();undoTouchSmudge();
+    S.palmErase=true;
+    ghostShow(e);
+    startStroke(e);return;
   }
   if(canDraw(e.pointerType,e))startStroke(e);else startPan(e);
 });
@@ -4152,14 +4163,16 @@ const ghost=document.createElement('div');
 ghost.id='ghost';document.body.appendChild(ghost);
 function ghostShow(e){
   if(e.pointerType==='mouse')return;
-  if(S.tool!=='eraser'){ghost.style.display='none';return}   /* 지우개만 그림을 띄웁니다 */
+  /* 지우개 도구이거나, 손바닥으로 지우는 중일 때만 그림을 띄웁니다 —
+     손바닥일 때는 어느 도구를 골라 뒀든 지우개 그림으로 보여 줍니다 */
+  if(S.tool!=='eraser'&&!S.palmErase){ghost.style.display='none';return}
   ghost.innerHTML=toolSVG('eraser',44);
   ghost.style.display='block';
   ghostMove(e);
 }
 function ghostMove(e){
   if(ghost.style.display!=='block')return;
-  const a=CUR_ART[S.tool];if(!a)return;
+  const a=CUR_ART[S.palmErase?'eraser':S.tool];if(!a)return;
   ghost.style.left=(e.clientX-a.hx*44/32)+'px';
   ghost.style.top=(e.clientY-a.hy*44/32)+'px';
 }
@@ -5367,7 +5380,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.13';
+const APP_VER='25.14';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
