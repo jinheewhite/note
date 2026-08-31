@@ -130,14 +130,36 @@ try{
     max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .grp{display:flex;align-items:center;gap:3px;flex:0 0 auto;padding-right:6px;margin-right:1px;border-right:1px solid var(--line)}
   .grp:last-child{border-right:0}
-  /* 왼쪽 끝부터: 굵기 → 색·도구 → 손/이동/❔ (지우개 바로 옆).
-     가운데는 빈 공간(EJ Pen 자리). 오른쪽 끝: 돋보기·화면맞춤·돌리기·칠판 */
+  /* 도구막대 배치 (왼→오): 손·이동 → 실행취소 → ⟵ 가운데 빈 공간
+     (EJ Pen 자리) ⟶ → 확대·맞춤·회전·칠판 → 가위·도형·지우개·레이저·
+     형광펜·연필. 칠판이 화면 오른쪽에 서 있어, 자주 쓰는 필기도구를
+     오른쪽 끝으로 모읍니다 — 연필이 가장 바깥입니다.
+     #tools 안의 좌→우 차례는 아래 order 로 정합니다 (DOM 을 안 건드려 깜빡임이 없습니다). */
+  #grpHand{order:0}
   .size-wrap{order:1}
-  #tools{order:2}
-  #grpHand{order:3}
-  #rightGrp{order:9;margin-left:auto;border-right:0}
-  #btnFinger{min-width:74px;justify-content:center}
-  #btnFinger.move{border-color:var(--chalk-dim);color:var(--chalk)}
+  #rightGrp{order:2;border-right:1px solid var(--line)}
+  /* 필기도구 묶음은 자투리 공간을 전부 왼쪽으로 밀어 화면 오른쪽 끝에 딱 붙입니다 */
+  #tools{order:3;margin-left:auto;border-right:0;padding-right:0;margin-right:0}
+  #tools>#btnBoardBg{order:1}
+  #tools>#btnSplit{order:2}
+  #tools>#btnCut{order:3}
+  #tools>#btnShape{order:4}
+  #tools>#btnEraser{order:5}
+  #tools>#btnLaser{order:6}
+  #tools>#btnHl{order:7}
+  #tools>#btnPen{order:8}
+  #tools>#swatches{display:none}      /* 색은 길게 꾹으로 — 가로 246px 자리를 뺍니다 */
+  #btnEraser2{display:none}           /* 여분 지우개 — 도구가 다 오른쪽이라 뺍니다 */
+  /* '손 ✍' 토글은 없앴습니다 — 손끝·펜은 늘 필기, 이동은 ✋ 하나로 */
+  #btnFinger{display:none}
+  /* 폭맞춤·쪽맞춤 — 둘을 붙여 '하나 고르는 스위치'처럼 보이게 합니다.
+     따로 떨어져 있으면 그냥 지나쳐서 있는 줄도 몰랐습니다. */
+  #btnFitW,#btnFitP{padding:0 12px;font-size:13.5px;
+    border:1.5px solid rgba(245,213,71,.55);background:var(--ink-2)}
+  #btnFitW{border-radius:var(--radius) 0 0 var(--radius);border-right-width:0;margin-right:0}
+  #btnFitP{border-radius:0 var(--radius) var(--radius) 0;margin-left:0}
+  #btnFitW.on,#btnFitP.on{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700}
+  #btnFitW:not(.on):hover,#btnFitP:not(.on):hover{background:var(--slate)}
 
   button{font:inherit;color:var(--text);background:var(--ink-3);border:1px solid var(--line);
     border-radius:var(--radius);min-height:50px;padding:0 15px;cursor:pointer;
@@ -198,6 +220,7 @@ try{
   .size-wrap{display:flex;align-items:center;gap:3px;padding:0;border-right:0;margin-right:0}
   .size-wrap .mono{min-width:34px;text-align:center;font-size:16px}
   .size-wrap button{font-size:22px;font-weight:700}
+  #btnUndo{font-size:13.5px;font-weight:600;padding:0 12px}   /* 글자 라벨이라 굵기 버튼처럼 크지 않게 */
 
   .status{display:flex;align-items:center;gap:12px;flex:0 0 auto;padding-left:14px}
   .saved{color:var(--text-dim);font-size:12.5px;white-space:nowrap}
@@ -343,48 +366,57 @@ try{
   #btnFinger{min-height:44px;padding:0 12px;font-size:13.5px;flex:0 0 auto}
   #btnMagIn,#btnMagOut{width:auto;padding:0 10px;font-size:16px}
   #btnFinger.on{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700}
-  /* 양옆 세로 도구막대 — 가운데 높이에 뜹니다. 칠판(z:30)·경계선(z:31) 위입니다 */
+  /* 왼쪽 세로 도구막대 — 화면 왼쪽 끝, 세로 가운데에 뜹니다.
+     크면 부담스럽다고 하여 아담하게 줄였습니다. 칠판(z:30)·경계선(z:31) 위입니다 */
   .sideBar{position:fixed;top:50%;transform:translateY(-50%);z-index:34;
-    display:flex;flex-direction:column;gap:7px;padding:7px;
-    background:rgba(30,43,56,.94);border:1px solid var(--line);border-radius:16px;
-    box-shadow:0 10px 30px rgba(0,0,0,.45)}
-  /* 쪽번호 줄(aside, 78px) 을 덮으면 그 자리 쪽번호를 못 누릅니다 — 비켜 세웁니다.
-     칠판을 왼쪽으로 옮기면 쪽번호 줄도 오른쪽으로 가므로 자리를 맞바꿉니다.
-     가로 자료(rail-h)는 쪽번호가 위쪽에 눕고, 칠판 단독(board-full)은
-     쪽번호 줄이 아예 없으므로 둘 다 바깥쪽 끝까지 붙입니다. */
-  #sideL{left:88px}
-  #sideR{right:10px}
-  body.board-left #sideL,html.board-left #sideL{left:10px}
-  body.board-left #sideR,html.board-left #sideR{right:88px}
-  html.rail-h #sideL{left:10px}
-  html.rail-h #sideR{right:10px}
-  body.board-full #sideL,html.board-full #sideL{left:10px}
-  body.board-full #sideR,html.board-full #sideR{right:10px}
+    display:flex;flex-direction:column;gap:5px;padding:5px;
+    background:rgba(20,30,42,.96);border:1.5px solid #4aa8ff;border-radius:13px;
+    box-shadow:0 0 12px rgba(74,168,255,.28),0 8px 22px rgba(0,0,0,.5)}
+  /* 수평은 왼쪽 끝, 수직은 가운데. (쪽번호 줄 위에 살짝 걸칠 수 있지만,
+     아담해서 대부분의 쪽번호는 그대로 눌립니다.) */
+  #sideL{left:8px}
+  html.rail-h #sideL{left:6px}
+  body.board-full #sideL,html.board-full #sideL{left:6px}
   /* 서재를 보는 동안에는 감춥니다 — 고를 자료가 아직 없습니다 */
   body.lib-open .sideBar,html.lib-open .sideBar{display:none!important}
-  .sideBar button{width:58px;height:58px;min-height:58px;padding:0;
-    justify-content:center;font-size:26px;opacity:.9;transition:opacity .12s}
+  /* 오른쪽 막대는 쓰지 않습니다 — 아래 도구막대가 오른쪽에 있어 겹칩니다.
+     도구는 '오른쪽 아래(아래 막대)'와 '왼쪽 가운데(이 막대)' 두 곳이면 충분합니다. */
+  #sideR{display:none!important}
+  /* 자료를 처음 열 때 왼쪽 막대가 가운데에서 스르륵 펼쳐집니다 */
+  @keyframes sideUnfold{
+    from{opacity:0;transform:translateY(-50%) scaleY(.5)}
+    to{opacity:1;transform:translateY(-50%) scaleY(1)}
+  }
+  .sideBar.unfold{animation:sideUnfold .28s ease-out}
+  .sideBar button{width:44px;height:44px;min-height:44px;padding:0;
+    justify-content:center;font-size:21px;opacity:.9;transition:opacity .12s}
   .sideBar button:hover{opacity:1}
-  .sideBar button svg{width:34px;height:34px;display:block}
-  .sideBar button.on{opacity:1;box-shadow:0 0 0 3px rgba(245,213,71,.3)}
-  /* 되돌릴 것이 없을 때 — 아주 흐리면 단추가 없는 줄 압니다. 있는 건 보이게 둡니다 */
+  .sideBar button svg{width:27px;height:27px;display:block}
+  /* 도구 틀을 튀는 색(하늘색)으로 둘러 어느 게 도구인지 바로 보이게 합니다 */
+  .sideBar button.tool{border-color:#4aa8ff;border-width:2px}
+  .sideBar button.on{opacity:1;border-color:var(--chalk);
+    box-shadow:0 0 0 3px rgba(245,213,71,.35)}
   .sideBar button[disabled]{opacity:.45}
-  /* 접기·펴기 손잡이 — 도구보다 작고 흐리게 두어 잘못 눌리지 않게 합니다 */
-  .sideBar .sideHide{width:58px;height:22px;min-height:22px;padding:0;font-size:15px;
-    line-height:1;border-radius:9px;background:transparent;border-color:transparent;
-    color:var(--text-dim);opacity:.7}
-  .sideBar .sideHide:hover{opacity:1;background:var(--ink-3);color:var(--text)}
-  /* 접으면 손잡이만 남습니다 — 다시 펼 길이 화면에 늘 보입니다 */
-  .sideBar.hid{padding:4px;gap:0;background:rgba(30,43,56,.55)}
+  /* 접기·펴기 손잡이 / 끌어 옮기는 잡이 — 검정이라 안 보인다고 하여 노랑으로 */
+  .sideBar .sideHide{width:44px;height:22px;min-height:22px;padding:0;font-size:15px;font-weight:800;
+    line-height:1;border-radius:8px;background:var(--chalk);border-color:var(--chalk);
+    color:#1a1a12;opacity:1}
+  .sideBar .sideHide:hover{background:#ffe071}
+  .sideBar .sideGrip{width:44px;height:20px;min-height:20px;padding:0;font-size:13px;font-weight:800;
+    line-height:1;border-radius:8px;background:var(--chalk);border-color:var(--chalk);
+    color:#1a1a12;opacity:1;cursor:move;touch-action:none}
+  .sideBar .sideGrip:hover{background:#ffe071}
+  /* 접으면 손잡이만 남습니다 — 다시 펼 길, 그리고 옮길 길(✥)은 늘 남겨 둡니다.
+     접은 채로도 옮길 수 있어야, 화면 맨 아래까지 끌어 내릴 수 있습니다. */
+  /* 접어도 너비는 펼친 상태와 똑같이 — 손잡이가 작으면 잘 안 눌립니다 */
+  .sideBar.hid{padding:5px;gap:5px;background:rgba(30,43,56,.7);border-color:#4aa8ff}
   .sideBar.hid button{display:none}
-  .sideBar.hid .sideHide{display:flex;width:24px;height:52px;opacity:.8}
-  /* 오른쪽 막대의 지우개는 그림이 안쪽(왼쪽)을 보게 — 양 끝 지우개와 같은 규칙 */
-  #sideR button[data-tool="eraser"] svg{transform:scaleX(-1)}
+  .sideBar.hid .sideHide{display:flex;width:44px;height:40px;min-height:40px;font-size:18px;opacity:.95}
+  .sideBar.hid .sideGrip{display:flex;width:44px;height:32px;min-height:32px;font-size:15px}
   @media (max-width:1180px){
-    .sideBar button{width:48px;height:48px;min-height:48px}
-    .sideBar button svg{width:28px;height:28px}
-    #sideL{left:84px} #sideR{right:6px}
-    html.rail-h #sideL{left:6px}
+    .sideBar button{width:40px;height:40px;min-height:40px}
+    .sideBar button svg{width:25px;height:25px}
+    #sideL{left:6px}
   }
   #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
     contain:layout style;pointer-events:auto;isolation:isolate;
@@ -641,7 +673,6 @@ try{
     <button id="btnBdPrev" class="mini icon" title="칠판 이전 쪽">◀</button>
     <span class="mono" id="bdPageInfo" title="칠판 쪽">1/1</span>
     <button id="btnBdNext" class="mini" title="칠판 다음 쪽">▶</button>
-    <button id="btnBoardBg" class="mini" title="칠판 바탕을 바꿉니다">칠판 바탕</button>
     <button id="btnBdUp" class="mini icon" data-hover="종이를 올려 아래에 이어 씁니다" title="종이 올리기 — 긴 식을 아래로 이어 씁니다">↑</button>
     <button id="btnBdDown" class="mini icon" data-hover="올리기 전으로 되돌아갑니다" title="되돌리기">↓</button>
     <button id="btnBdSave" class="mini primary" data-hover="칠판 쪽만 PDF 로 저장" title="칠판 쪽만 따로 저장합니다">💾 칠판 저장</button>
@@ -664,6 +695,9 @@ try{
     <button class="tool" data-label="이동" id="btnHand" data-tool="hand" title="끌어서 화면 옮기기">✋</button>
   </div>
   <div class="grp" id="tools">
+    <!-- 칠판·칠판바탕은 필기도구와 함께 오른쪽 끝에 둡니다 (자리는 CSS order 로). -->
+    <button id="btnBoardBg" title="칠판 바탕을 바꿉니다" style="display:none">칠판 바탕</button>
+    <button id="btnSplit" title="오른쪽에 칠판을 엽니다">▥ 칠판</button>
     <button class="icon tool" data-label="지우개" id="btnEraser" data-tool="eraser" title="지우개 — 한 번 더 누르면 굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(13 13) scale(.95)" stroke="#5c4526" stroke-width="1" stroke-linejoin="round">
@@ -737,17 +771,17 @@ try{
     <button class="icon" id="btnThin" hidden title="가늘게">−</button>
     <span class="mono" id="sizeNow" hidden>4</span>
     <button class="icon" id="btnThick" hidden title="굵게">＋</button>
-    <button class="icon" id="btnUndo" data-act="undo" disabled data-hover="방금 한 일을 되돌립니다 (Ctrl+Z)" title="되돌리기">↩</button>
+    <button id="btnUndo" data-act="undo" disabled data-hover="방금 한 일을 되돌립니다 (Ctrl+Z)" title="되돌리기">↩ 실행취소</button>
   </div>
 
   <div class="grp" id="rightGrp">
     <span class="mono" id="zoomInfo" hidden>100%</span>
     <button class="icon" id="btnMagIn" title="누를 때마다 확대됩니다">🔍＋</button>
     <button class="icon" id="btnMagOut" title="누를 때마다 축소됩니다">🔍−</button>
-    <button class="icon" id="btnFit" title="폭 맞춤 ↔ 전체 맞춤">⤢</button>
+    <button id="btnFitW" title="화면 폭에 꽉 채웁니다">↔ 폭맞춤</button>
+    <button id="btnFitP" title="쪽 전체가 보이게 맞춥니다">⧉ 쪽맞춤</button>
     <button id="btnRotate" title="누를 때마다 페이지가 90도씩 돌아갑니다">⟳ 회전하기</button>
 
-    <button id="btnSplit" title="오른쪽에 칠판을 엽니다">▥ 칠판</button>
     <button class="icon tool" data-label="지우개" id="btnEraser2" data-tool="eraser"
             title="지우개 — 반대쪽에서도 쓸 수 있게 오른쪽 끝에도 놓았습니다">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
@@ -1829,6 +1863,21 @@ const S={
   fitMode:'width',
   rsig:''
 };
+/* 지난번에 고른 도구·색·굵기를 그대로 이어 씁니다 —
+   빨간 펜을 골랐으면 다음에 켤 때도 빨간 펜입니다.
+   (손바닥·오리기는 잠깐 쓰는 것이라 이어받지 않고, 늘 펜으로 시작합니다) */
+try{
+  const tp=JSON.parse(localStorage.getItem('pn.toolPrefs')||'null');
+  if(tp){
+    if(tp.colors)Object.assign(S.colors,tp.colors);
+    if(tp.sizes)Object.assign(S.sizes,tp.sizes);
+    if(tp.tool&&tp.tool!=='hand'&&tp.tool!=='cut')S.startTool=tp.tool;
+  }
+}catch(e){}
+function saveToolPrefs(){
+  try{localStorage.setItem('pn.toolPrefs',
+    JSON.stringify({tool:S.tool,colors:S.colors,sizes:S.sizes}))}catch(e){}
+}
 function todayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 const noteKey=(f,d,p)=>`${f}|${d}|${p}`;
 const $=id=>document.getElementById(id);
@@ -2020,7 +2069,9 @@ async function loadPdf(bytes,name,id){
   }
   S.fileId=id||(name+'|'+bytes.byteLength);
   $('fileName').textContent=name;
-  const w=$('welcome');w.hidden=true;w.style.display='none';  document.body.classList.remove('lib-open');
+  const w=$('welcome');w.hidden=true;w.style.display='none';
+  /* lib-open 을 여기서 바로 벗기면 왼쪽 도구막대가 먼저 뜨고 PDF 는 한참 뒤에 떴습니다.
+     PDF 첫 그림이 끝난 뒤(아래) 함께 나타나게 합니다. */
   /* 시작하자마자 폴더를 정하라고 묻지 않습니다.
      다운로드·문서 폴더는 크롬이 막아 두어 거기서 오류부터 만나게 됩니다.
      정하지 않으면 다운로드 폴더로 자동 저장되므로 그것으로 충분하고,
@@ -2029,12 +2080,7 @@ async function loadPdf(bytes,name,id){
   S.folder=(prev&&prev.folder!==undefined)?prev.folder:(S.lib||'');
   try{S.rot=+(localStorage.getItem('pn.rot.'+S.fileId)||0)||0}catch(e){S.rot=0}
   if(prev&&prev.lastPage&&prev.lastPage>=1&&prev.lastPage<=S.pages)S.page=prev.lastPage;
-  const thumb=(prev&&prev.thumb)||await makeThumb(S.doc);
-  await Store.putFile({id:S.fileId,name,data:bytes,opened:Date.now(),sig,
-                       pin:prev&&prev.pin?1:0,folder:S.folder,thumb,pages:S.pages,
-                       lastPage:S.page});
   await refreshMarks();
-  buildRail();
   S.fitting=true;
   S.edited=false;                      /* 이번에 손댄 적이 없습니다 */
   AutoDL.dirty=false;AutoDL.lastKey='';
@@ -2055,6 +2101,21 @@ async function loadPdf(bytes,name,id){
   };
   goView();
   if(sheetEl)sheetEl.style.visibility='';
+  /* 이제 PDF 가 화면에 있습니다 — 도구막대도 지금 함께 나타납니다 */
+  document.body.classList.remove('lib-open');
+  if(typeof revealSideL==='function')revealSideL();
+  setTool('hand',$('btnHand'));                       /* 자료를 열면 기본은 '이동' */
+  updFitBtn();                                        /* 폭맞춤·쪽맞춤 중 지금 것을 노랑으로 */
+  buildRail();
+  /* PDF 파일을 서재에 저장하는 것은 화면에 띄운 뒤에 — 큰 파일은 저장이 느려
+     여기서 기다리면 자료가 늦게 떴습니다. 저장은 뒤에서 조용히 합니다. */
+  (async()=>{
+    try{
+      const thumb=(prev&&prev.thumb)||await makeThumb(S.doc);
+      await Store.putFile({id:S.fileId,name,data:bytes,opened:Date.now(),sig,
+        pin:prev&&prev.pin?1:0,folder:S.folder,thumb,pages:S.pages,lastPage:S.page});
+    }catch(e){}
+  })();
   if(S.split){bdResize();await bdLoad()}
   /* 배치가 자리를 잡은 뒤 한 번 더 그립니다. 다만 정말 달라졌을 때만 그립니다 —
      전에는 조건 없이 두 번 더 그려서, 자리가 잡힐 때까지 쪽이 조금씩
@@ -2688,12 +2749,11 @@ function canDraw(type,e){
   return true;                                 /* 펜·손끝·마우스는 필기 */
 }
 const FINGER_KEY='pn.fingerDraws';
-function loadFinger(){try{const v=localStorage.getItem(FINGER_KEY);if(v!==null)S.fingerDraws=(v==='1')}catch(e){}}
-function saveFinger(){try{localStorage.setItem(FINGER_KEY,S.fingerDraws?'1':'0')}catch(e){}}
-function setFinger(v,say){
-  S.fingerDraws=!!v; saveFinger(); updateTouchBtn();
-  if(say)toast(S.fingerDraws?'손가락으로도 필기합니다':'손은 이동·쪽넘김만 합니다 — 필기는 펜으로');
-}
+/* 손끝·펜은 늘 필기입니다 — 손 도구를 ✋ 하나로 합쳤습니다.
+   (예전 '손 ✍' 토글은 없앴습니다) */
+function loadFinger(){S.fingerDraws=true;}
+function saveFinger(){}
+function setFinger(v,say){S.fingerDraws=true;updateTouchBtn();}
 function updateTouchBtn(){
   const b=$('btnHand');if(b)b.title='끌어서 화면 옮기기 · 쪽 넘기기';
   const f=$('btnFinger');
@@ -2797,11 +2857,8 @@ function endStroke(){
   S.drawing=false;S.penErase=false;S.palmErase=false;
   const wasShape=(S.tool==='shape');
   if(S.cur){
-    /* 도형은 크게 끌어 그리므로, 쪽 넘김으로 오해하면 안 됩니다 */
-    if(S.strokeBy==='touch'&&S.tool!=='shape'){
-      const dir=strokeSwipeFlip();
-      if(dir){S.cur=null;S.strokeBy='';flip(dir);return}     /* 선은 버리고 넘깁니다 */
-    }
+    /* 한 손가락 쓸어넘김은 더 쓰지 않습니다 — 끝에서 글씨를 쓰다 넘어가 버렸습니다.
+       쪽 넘김은 두 손가락으로 끝에서 힘차게 밀 때만입니다. */
     /* 그은 것이 동그라미나 곧은 선에 가까우면 다듬어 줍니다 */
     let tidied=false;
     if(S.tool!=='shape')
@@ -3310,11 +3367,9 @@ inkCv.addEventListener('pointerdown',e=>{
   if(!S.doc)return;
   e.preventDefault();
   ghostShow(e);
-  if(e.pointerType==='pen'&&!S.penSeen){          /* 펜을 처음 본 순간 자동 전환 */
-    S.penSeen=true;
-    if(S.fingerDraws){setFinger(false);toast('펜을 인식했습니다 — 이제 손은 화면만 옮깁니다')}
-    else{updateTouchBtn();toast('펜을 인식했습니다');}
-  }
+  if(e.pointerType==='pen'&&!S.penSeen){S.penSeen=true;updateTouchBtn();}
+  /* 손끝·펜은 늘 필기입니다. 화면을 옮길 때만 ✋(이동)을 고릅니다 —
+     손 도구가 둘이라 헷갈린다는 말에, 하나(✋)로 합쳤습니다. */
   if(e.pointerType==='touch'&&penDown())return;   /* 펜을 쥔 손바닥은 무시 */
   if(S.tool==='cut'){                             /* ✂ 오리기 — 둘러서 칠판으로 */
     try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
@@ -3382,9 +3437,12 @@ function release(e){
   if(CUT.on){cutEnd();return}
   if(S.imgDrag){S.imgDrag=null;S.edited=true;scheduleSave();return}
   const dn=S.downAt;S.downAt=null;
+  /* 가장자리 톡 = 쪽 넘김은 ✋(이동) 도구일 때만입니다.
+     펜·손끝은 어디서든 필기이므로, 끝에서 글씨를 써도 넘어가지 않습니다.
+     (쪽 넘김은 두 손가락으로 끝에서 힘차게 밀 때만) */
   if(dn&&ptrs.size===1&&performance.now()-dn.t<300&&
      Math.hypot(e.clientX-dn.x,e.clientY-dn.y)<10&&
-     (S.tool==='hand'||e.pointerType==='touch')&&edgeTap(e)){
+     S.tool==='hand'&&edgeTap(e)){
     ptrs.delete(e.pointerId);S.pan=null;cancelStroke();return;
   }
   if(!ptrs.has(e.pointerId))return;
@@ -3532,7 +3590,17 @@ document.addEventListener('visibilitychange',async()=>{
 /* ══════════════════════════════════════════════════════════
    4-b. 오른쪽 칠판 — PDF와 따로 놉니다
    ══════════════════════════════════════════════════════════ */
-const bdCv=$('bdCv'),bdctx=bdCv.getContext('2d');
+const bdCv=$('bdCv');
+/* alpha:false — 칠판 바탕은 늘 불투명. 투명 합성을 안 하면 더 빨리 그려집니다.
+   desynchronized:true — 그림판을 화면에 곧바로 흘려보내 펜이 늦게 따라오지 않습니다(저지연).
+   전체를 다시 그릴 때 아주 드물게 깜빡일 수 있지만, 쓰는 느낌을 위해 켭니다. */
+const bdctx=(()=>{
+  try{const c=bdCv.getContext('2d',{alpha:false,desynchronized:true});if(c)return c}catch(e){}
+  try{const c=bdCv.getContext('2d',{alpha:false});if(c)return c}catch(e){}
+  return bdCv.getContext('2d');
+})();
+/* 칠판 손떨림 보정은 아주 약하게 — 세게 걸면 펜보다 잉크가 늦게 나갑니다 */
+const BD_STEADY=0.08;
 const BD={strokes:[],imgs:[],sel:null,imgDrag:null,
           cur:null,drawing:false,last:null,w:1,h:1,timer:null,
           page:1,pages:1,vz:1,ox:0,oy:0,pinch:null,drag:null};
@@ -3590,10 +3658,18 @@ function bdResize(){
   bdCv.style.transform='';                  /* 칠판은 이제 그림 자체를 옮깁니다 */
   const r=bdCv.getBoundingClientRect();
   if(!r.width||!r.height)return;
-  let dpr=Math.max(2.5,Math.min(window.devicePixelRatio||1,4));
-  /* 칠판도 예산 안에서만 큽니다 -- 안 그러면 PDF 그림판과 합쳐 메모리가 넘칩니다 */
+  /* 칠판 글씨가 PDF 보다 흐리다는 말에 — PDF 층이 쓰는 배율(S.dpr)을 그대로 따라갑니다.
+     최소 3배는 확보하고, 위 뚜껑은 6배입니다. */
+  let dpr=Math.max(S.dpr||0, window.devicePixelRatio||1, 3);
+  dpr=Math.min(dpr,6);
+  /* 칠판을 쓰는 동안에는 칠판이 주인공이라 예산을 넉넉히 씁니다.
+     칠판만 보는 중(board-full)이면 PDF 는 그려지지도 않으니 더 넉넉하게.
+     예산을 넘을 때만 배율을 낮춥니다(그때는 어쩔 수 없이 부드러워집니다). */
   const bdNeed=r.width*r.height;
-  if(bdNeed*dpr*dpr>PN_BUDGET)dpr=Math.max(1,Math.sqrt(PN_BUDGET/bdNeed));
+  const full=document.documentElement.classList.contains('board-full')
+          || document.body.classList.contains('board-full');
+  const bdBudget=PN_BUDGET*(full?2.4:1.8);
+  if(bdNeed*dpr*dpr>bdBudget)dpr=Math.max(2,Math.sqrt(bdBudget/bdNeed));
   bdCv.width=Math.round(r.width*dpr);bdCv.height=Math.round(r.height*dpr);
   bdctx.setTransform(dpr,0,0,dpr,0,0);
   BD.w=r.width;BD.h=r.height;
@@ -3858,6 +3934,7 @@ bdCv.addEventListener('pointerdown',e=>{
     return;
   }
   const r=bdCv.getBoundingClientRect();
+  BD.rect=r;                                               /* 이 획 동안 재사용 — 매 move 마다 재계산하면 버벅입니다 */
   const x=(e.clientX-r.left)*(BD.w/r.width), y=(e.clientY-r.top)*(BD.h/r.height);
   if(bdIsPalm(e)){                                         /* 손바닥으로 문지르면 지웁니다 */
     if(BD.cur&&performance.now()-(BD.curAt||0)<1200){BD.cur=null;bdRedraw()}  /* 손바닥이 그리던 선은 취소 */
@@ -3906,7 +3983,8 @@ bdCv.addEventListener('pointerdown',e=>{
   BD.cur={u:1,mode:S.tool,color:curColor(),
           w:(S.tool==='hl'?curSize()*2.2:curSize())/bdSc(),pts:[[bdWX(x),bdWY(y)]]};
   BD.curAt=performance.now();
-  bdRedraw();
+  /* 첫 점만으로는 보여 줄 게 없습니다 — 여기서 전체를 다시 그리면
+     칠판에 글씨가 많을수록 획을 시작할 때마다 덜컹거립니다. 첫 move 에서 그립니다. */
 });
 bdCv.addEventListener('pointermove',e=>{
   if(BDCUT.on){
@@ -3944,36 +4022,45 @@ bdCv.addEventListener('pointermove',e=>{
     bdClamp();bdRedraw();return;
   }
   if(!BD.drawing)return;
-  const r=bdCv.getBoundingClientRect();
-  let x=(e.clientX-r.left)*(BD.w/r.width),y=(e.clientY-r.top)*(BD.h/r.height);
+  const r=BD.rect||(BD.rect=bdCv.getBoundingClientRect());
+  const kx=BD.w/r.width, ky=BD.h/r.height;
   if(S.tool==='shape'&&BD.cur&&BD.shapeFrom){
     /* 도형은 손을 따라 그대로 */
+    const x=(e.clientX-r.left)*kx, y=(e.clientY-r.top)*ky;
     BD.last=[x,y];
     BD.cur.pts=shapePts(S.shape,BD.shapeFrom[0],BD.shapeFrom[1],x,y,
                         (sx,sy)=>[bdWX(sx),bdWY(sy)]);
     bdRedraw();return;
   }
-  if(BD.cur){x=BD.last[0]+(x-BD.last[0])*(1-STEADY);y=BD.last[1]+(y-BD.last[1])*(1-STEADY)}
-  if(Math.hypot(x-BD.last[0],y-BD.last[1])<0.35)return;
-  const a=BD.prev, b=[BD.last[0],BD.last[1]], c=[x,y];
-  BD.prev=b; BD.last=[x,y];
-  if(BD.palm||S.tool==='eraser'){bdErase(x,y);return}
-  if(!BD.cur)return;
-  BD.cur.pts.push([bdWX(x),bdWY(y)]);
-  /* 쓰는 동안에도 곧바로 곡선으로 잇습니다 — 세 점의 가운데를 지나는 곡선이라
-     각지지 않으면서도 마지막 조각만 그려서 빠릅니다 */
-  bdctx.save();bdctx.lineCap='round';bdctx.lineJoin='round';
-  bdctx.strokeStyle=BD.cur.color;bdctx.lineWidth=BD.cur.w*bdSc();
-  if(BD.cur.mode==='hl')bdctx.globalAlpha=.42;
-  bdctx.beginPath();
-  if(a){
-    bdctx.moveTo((a[0]+b[0])/2,(a[1]+b[1])/2);
-    bdctx.quadraticCurveTo(b[0],b[1],(b[0]+c[0])/2,(b[1]+c[1])/2);
-  }else{ bdctx.moveTo(b[0],b[1]);bdctx.lineTo(c[0],c[1]) }
-  bdctx.stroke();
-  bdctx.restore();
+  /* 전자칠판은 move 를 뭉쳐서 보냅니다 — 펜으로 그릴 때는 그 사이 점을 모두
+     받아 와야 획이 끊기지 않고 부드럽습니다. 지우개·손바닥은 마지막 점만. */
+  const penDraw=BD.cur&&!BD.palm&&S.tool!=='eraser';
+  const evs=(penDraw&&e.getCoalescedEvents&&e.getCoalescedEvents().length)?e.getCoalescedEvents():[e];
+  for(const ev of evs){
+    let x=(ev.clientX-r.left)*kx, y=(ev.clientY-r.top)*ky;
+    if(BD.cur){x=BD.last[0]+(x-BD.last[0])*(1-BD_STEADY);y=BD.last[1]+(y-BD.last[1])*(1-BD_STEADY)}
+    if(Math.hypot(x-BD.last[0],y-BD.last[1])<0.2)continue;
+    const a=BD.prev, b=[BD.last[0],BD.last[1]], c=[x,y];
+    BD.prev=b; BD.last=[x,y];
+    if(BD.palm||S.tool==='eraser'){bdErase(x,y);continue}
+    if(!BD.cur)continue;
+    BD.cur.pts.push([bdWX(x),bdWY(y)]);
+    /* 쓰는 동안에도 곧바로 곡선으로 잇습니다 — 세 점의 가운데를 지나는 곡선이라
+       각지지 않으면서도 마지막 조각만 그려서 빠릅니다 */
+    bdctx.save();bdctx.lineCap='round';bdctx.lineJoin='round';
+    bdctx.strokeStyle=BD.cur.color;bdctx.lineWidth=BD.cur.w*bdSc();
+    if(BD.cur.mode==='hl')bdctx.globalAlpha=.42;
+    bdctx.beginPath();
+    if(a){
+      bdctx.moveTo((a[0]+b[0])/2,(a[1]+b[1])/2);
+      bdctx.quadraticCurveTo(b[0],b[1],(b[0]+c[0])/2,(b[1]+c[1])/2);
+    }else{ bdctx.moveTo(b[0],b[1]);bdctx.lineTo(c[0],c[1]) }
+    bdctx.stroke();
+    bdctx.restore();
+  }
 });
 function bdEnd(e){
+  BD.rect=null;                       /* 다음 획은 화면 자리를 새로 잽니다 */
   if(BDCUT.on){bdCutEnd();if(e)bdPtrs.delete(e.pointerId);return}
   ghostHide();
   if(e)bdPtrs.delete(e.pointerId);
@@ -4304,6 +4391,12 @@ function setTool(t,btn){
   diag('도구선택 전');
   showSize();
   paintSwatches();showColor();showShapeBtn();
+  saveToolPrefs();                       /* 지난번 고른 도구를 다음에 켤 때도 그대로 */
+  /* 글씨 쓰는 도구(연필·형광펜·도형·오리기)를 고르면 왼쪽 막대를 저절로 접어
+     화면을 넓게 씁니다. 지우개·이동·레이저는 그대로 펴 둡니다 —
+     레이저로 짚은 뒤 곧바로 이동(쪽 넘김)을 많이 쓰기 때문입니다.
+     (임시 접힘이라 손잡이로 직접 정한 상태는 그대로 기억됩니다) */
+  setSideHid('L', t!=='eraser'&&t!=='hand'&&t!=='laser', true);
   if(S.doc)redraw();                     /* 필기만 다시 칠합니다 (PDF는 건드리지 않음) */
   diag('도구선택 후');
   requestAnimationFrame(()=>diag('도구선택 다음틀'));
@@ -4319,7 +4412,7 @@ function paintSwatches(){
     const b=document.createElement('button');
     b.title=nm;b.innerHTML=`<i style="background:${c}"></i>`;
     if(S.colors[key]===c)b.classList.add('on');
-    b.onclick=()=>{S.colors[key]=c;S.barAt=performance.now();paintSwatches();showColor()};
+    b.onclick=()=>{S.colors[key]=c;S.barAt=performance.now();paintSwatches();showColor();saveToolPrefs()};
     box.appendChild(b);
   });
   /* 색은 도구를 고를 때 뚜는 창에서 굵기와 함께 고릅니다 —
@@ -4340,8 +4433,10 @@ function showColor(){
   applyCursor();
   clearTimeout(sharpTimer);                 /* 색을 고르는 동안 다시 그리지 않습니다 */
 }
-$('btnPen').onclick=e=>{const b=e.currentTarget;setTool('pen',b);openPop(b,'pen')};
-/* 색 고르는 작은 창 — 형광펜·레이저 버튼을 누르면 바로 뜹니다 */
+/* 한 번 탭 = 그 도구를 지난 색·굵기 그대로 바로 씁니다 (창이 뜨지 않습니다).
+   색·굵기를 바꾸려면 길게 꾹 누릅니다 — 아래 bindHold 가 답니다. */
+$('btnPen').onclick=e=>setTool('pen',e.currentTarget);
+/* 색 고르는 작은 창 — 도구를 길게 꾹 누르면 뜹니다 */
 const PALETTES={
   pen:  [['#111111','검정'],['#ffffff','흰색'],['#e02424','빨강'],['#1d6fe0','파랑'],['#12a150','초록'],['#f5c400','노랑']],
   hl:   [['#f5c400','노랑'],['#35d07f','초록'],['#2f9bff','파랑'],['#ff7ad9','분홍'],['#ff9f0a','주황']],
@@ -4393,7 +4488,7 @@ function openPop(anchor,tool){
     const b=document.createElement('button');
     b.title=nm;b.innerHTML=`<i style="background:${c}"></i>`;
     if(S.colors[key]===c)b.classList.add('on');
-    b.onclick=()=>{S.colors[key]=c;showColor();showShapeBtn();closePop();
+    b.onclick=()=>{S.colors[key]=c;showColor();showShapeBtn();closePop();saveToolPrefs();
       toast(`${TOOL_NAME[tool]} 색`)};
     colorRow.appendChild(b);
   });
@@ -4409,7 +4504,7 @@ function openPop(anchor,tool){
       const dc=S.colors[key]||'var(--text)';
       b.innerHTML=`<i style="width:${d}px;height:${d}px;background:${dc}"></i>`;
       if(S.sizes[key]===v)b.classList.add('on');
-      b.onclick=()=>{S.sizes[key]=v;showSize();showShapeBtn();closePop();toast(`굵기 ${v}`)};
+      b.onclick=()=>{S.sizes[key]=v;showSize();showShapeBtn();closePop();saveToolPrefs();toast(`굵기 ${v}`)};
       sizeRow.appendChild(b);
     });
     pop.appendChild(sizeRow);
@@ -4442,9 +4537,9 @@ document.addEventListener('pointerdown',e=>{
     closePop();
 },true);
 
-$('btnHl').onclick=e=>{const b=e.currentTarget;setTool('hl',b);openPop(b,'hl')};
-$('btnEraser').onclick=e=>{const b=e.currentTarget;setTool('eraser',b);openPop(b,'eraser')};
-$('btnEraser2').onclick=e=>{const b=e.currentTarget;setTool('eraser',b);openPop(b,'eraser')};
+$('btnHl').onclick=e=>setTool('hl',e.currentTarget);
+$('btnEraser').onclick=e=>setTool('eraser',e.currentTarget);
+$('btnEraser2').onclick=e=>setTool('eraser',e.currentTarget);
 function openEraserPop(anchor){
   const pop=$('pop');pop.innerHTML='';pop.classList.add('wide');
   const mk=(label,fn,primary)=>{
@@ -4465,13 +4560,39 @@ function openEraserPop(anchor){
 $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
 $('btnCut').onclick=e=>{setTool('cut',e.currentTarget);
   if(!CUT.seen){CUT.seen=true;toast('대각선으로 죽 끌면 그 네모만큼 — 둘러서 오려도 됩니다')}};
-/* 도형 — 고른 상태에서 한 번 더 누르면 모양·색·굵기를 고릅니다 */
+/* 도형 — 한 번 탭은 지난 모양 그대로, 길게 꾹 누르면 모양·색·굵기를 고릅니다 */
 $('btnShape')&&($('btnShape').onclick=e=>{
   const b=e.currentTarget;
-  if(S.tool==='shape'){openPop(b,'shape');return}
+  const first=(S.tool!=='shape');
   setTool('shape',b);
-  toast(`${SHAPE_NAME[S.shape]} — 끌어서 그립니다 (한 번 더 누르면 모양 고르기)`);
+  if(first)toast(`${SHAPE_NAME[S.shape]} — 끌어서 그립니다 (길게 꾹 누르면 모양·색 고르기)`);
 });
+/* ── 길게 꾹 = 색·굵기 창 ─────────────────────────────
+   한 번 탭은 '그 도구 바로 쓰기(지난 색 그대로)'로 바뀌었습니다.
+   전자칠판은 우클릭·마우스오버가 없어, 0.5초 꾹 누르기로 창을 엽니다.
+   손을 떼며 딸려 오는 click 은 캡처 단계에서 한 번 삼킵니다. */
+function bindHold(btn,tool){
+  if(!btn||btn._holdBound)return; btn._holdBound=true;
+  let timer=null,sx=0,sy=0,fired=false;
+  const stop=()=>{clearTimeout(timer);timer=null};
+  btn.addEventListener('pointerdown',e=>{
+    fired=false;sx=e.clientX;sy=e.clientY;stop();
+    timer=setTimeout(()=>{
+      fired=true;
+      const t=tool||btn.dataset.tool;if(!t)return;
+      if(S.tool!==t)setTool(t,btn);
+      openPop(btn,t);
+    },500);
+  });
+  btn.addEventListener('pointermove',e=>{
+    if(timer&&Math.hypot(e.clientX-sx,e.clientY-sy)>10)stop();
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>btn.addEventListener(ev,stop));
+  btn.addEventListener('click',e=>{
+    if(fired){e.preventDefault();e.stopImmediatePropagation();fired=false;}
+  },true);
+}
+['btnPen','btnHl','btnLaser','btnEraser','btnEraser2','btnShape'].forEach(id=>bindHold($(id)));
 /* 도형 단추가 지금 고른 모양과 색을 그대로 보여 줍니다 */
 function showShapeBtn(){
   const b=$('btnShape');if(!b)return;
@@ -4492,7 +4613,7 @@ function sideHidden(side){
 /* 접기·펴기 — 왼쪽과 오른쪽을 따로 기억합니다.
    접으면 손잡이만 남습니다. 아주 없애지 않는 것은, 없애 버리면 다시
    불러낼 길이 화면에 안 보이기 때문입니다. */
-function setSideHid(side,hid){
+function setSideHid(side,hid,noSave){
   const box=$('side'+side);if(!box)return;
   box.classList.toggle('hid',!!hid);
   const t=box.querySelector('.sideHide');
@@ -4502,10 +4623,72 @@ function setSideHid(side,hid){
     t.textContent=hid?back:away;
     t.title=hid?'필기도구 펴기':'필기도구 접기';
   }
+  /* noSave=true 는 도구를 고르면 저절로 접히는(임시) 경우입니다 —
+     사용자가 손잡이로 직접 정한 상태만 기억합니다. */
+  if(noSave)return;
   try{localStorage.setItem(sideKey(side),hid?'1':'0')}catch(e){}
 }
+/* 떠 있는 막대를 끌어서 옮긴 자리 — 왼쪽·오른쪽을 따로 기억합니다.
+   두 번 누르면 제자리(화면 가운데 높이)로 돌아갑니다. */
+function sidePosKey(side){return 'pn.sidePos.'+side}
+function applySidePos(side){
+  const box=$('side'+side);if(!box)return;
+  let p=null;try{p=JSON.parse(localStorage.getItem(sidePosKey(side))||'null')}catch(e){}
+  if(p&&typeof p.left==='number'&&typeof p.top==='number'){
+    box.style.left=p.left+'px';box.style.right='auto';
+    box.style.top=p.top+'px';box.style.transform='none';
+  }else{
+    box.style.left='';box.style.right='';box.style.top='';box.style.transform='';
+  }
+}
+function bindSideDrag(box,handle,side){
+  handle.addEventListener('pointerdown',e=>{
+    e.preventDefault();e.stopPropagation();
+    const r=box.getBoundingClientRect();
+    const dx=e.clientX-r.left, dy=e.clientY-r.top;
+    let moved=false;
+    box.style.transform='none';box.style.right='auto';
+    box.style.left=r.left+'px';box.style.top=r.top+'px';
+    try{handle.setPointerCapture(e.pointerId)}catch(err){}
+    const mv=ev=>{
+      moved=true;
+      let L=ev.clientX-dx, T=ev.clientY-dy;
+      L=Math.max(4,Math.min(window.innerWidth-box.offsetWidth-4,L));
+      T=Math.max(4,Math.min(window.innerHeight-box.offsetHeight-4,T));
+      box.style.left=L+'px';box.style.top=T+'px';
+    };
+    const up=()=>{
+      handle.removeEventListener('pointermove',mv);
+      handle.removeEventListener('pointerup',up);
+      handle.removeEventListener('pointercancel',up);
+      if(moved)try{localStorage.setItem(sidePosKey(side),
+        JSON.stringify({left:parseInt(box.style.left),top:parseInt(box.style.top)}))}catch(err){}
+    };
+    handle.addEventListener('pointermove',mv);
+    handle.addEventListener('pointerup',up);
+    handle.addEventListener('pointercancel',up);
+  });
+  /* 두 번 누르면: 제자리(왼쪽 가운데)로 돌아가고, 접혀 있었으면 다시 펼쳐집니다 */
+  handle.addEventListener('dblclick',e=>{
+    e.preventDefault();
+    try{localStorage.removeItem(sidePosKey(side))}catch(err){}
+    applySidePos(side);
+    setSideHid(side,false);               /* 직접 두 번 눌렀으니 펼침을 기억합니다 */
+    box.classList.remove('unfold');void box.offsetWidth;box.classList.add('unfold');
+  });
+}
+/* 자료를 열 때 왼쪽 막대를 가운데에서 펼쳐 보여 줍니다 —
+   접혀 있었거나 딴 데로 옮겨 뒀어도 제자리(가운데)로 돌려놓습니다. */
+function revealSideL(){
+  const box=$('sideL');if(!box)return;
+  try{localStorage.removeItem(sidePosKey('L'))}catch(e){}
+  applySidePos('L');                 /* 저장된 자리 지우고 CSS 기본(가운데)으로 */
+  setSideHid('L',false);             /* 펼침 */
+  box.classList.remove('unfold');void box.offsetWidth;   /* 애니메이션 다시 태우기 */
+  box.classList.add('unfold');
+}
 function buildSideTools(){
-  for(const side of ['L','R']){
+  for(const side of ['L']){
     const box=$('side'+side);if(!box)continue;
     box.dataset.side=side;
     box.innerHTML='';
@@ -4513,6 +4696,13 @@ function buildSideTools(){
     const t=document.createElement('button');
     t.className='sideHide';t.type='button';
     box.appendChild(t);
+    /* 그 아래 잡이 — 끌어서 막대를 옮깁니다 */
+    const g=document.createElement('button');
+    g.className='sideGrip';g.type='button';
+    g.textContent='✥';
+    g.title='끌어서 옮깁니다 (두 번 누르면 제자리)';
+    box.appendChild(g);
+    bindSideDrag(box,g,side);
     /* 도구 — 아래 막대의 단추를 그대로 복제합니다 */
     for(const [srcId,tool] of SIDE_TOOLS){
       const src=$(srcId);if(!src)continue;
@@ -4523,6 +4713,7 @@ function buildSideTools(){
       b.innerHTML=src.innerHTML;
       if(S.tool===tool)b.classList.add('on');
       box.appendChild(b);
+      if(tool!=='hand')bindHold(b,tool);   /* 길게 꾹 = 색·굵기 창 (아래 막대와 같음) */
     }
     /* 되돌리기 — 도구가 아니라 '한 일 무르기' 라 따로 답니다 */
     const u=document.createElement('button');
@@ -4534,22 +4725,27 @@ function buildSideTools(){
 
     box.addEventListener('click',e=>{
       const b=e.target.closest('button');if(!b)return;
+      if(b.classList.contains('sideGrip'))return;   /* 잡이는 끌기 전용 */
       if(b.classList.contains('sideHide')){
         setSideHid(side,!box.classList.contains('hid'));return;
       }
       if(b.dataset.act==='undo'){undoOnce();return}
       const tool=b.dataset.tool;if(!tool)return;
-      if(tool==='hand'){setTool('hand',b);return}
-      setTool(tool,b);openPop(b,tool);    /* 한 번 더 누르면 색·굵기 — 아래 막대와 같습니다 */
+      setTool(tool,b);   /* 한 번 탭 = 그 도구 바로 쓰기. 색·굵기는 길게 꾹 */
     });
     setSideHid(side,sideHidden(side));    /* 기본은 펴진 채, 접어 뒀으면 그대로 */
+    applySidePos(side);                   /* 옮겨 뒀으면 그 자리로 */
   }
   showColor();showSize();updUndo();
 }
 buildSideTools();
 
+/* 아래 도구막대 배치(칠판·필기도구를 오른쪽 끝으로, 연필이 가장 바깥)는
+   이제 HTML 순서와 CSS order 로 정합니다 — 켤 때 DOM 을 안 건드려 깜빡임이 없습니다.
+   칠판바탕은 칠판이 켜졌을 때만 보입니다(syncBoardCtl). */
+
 $('btnFinger').onclick=()=>setFinger(!S.fingerDraws,true);
-$('btnLaser').onclick=e=>{const b=e.currentTarget;setTool('laser',b);openPop(b,'laser')};
+$('btnLaser').onclick=e=>setTool('laser',e.currentTarget);
 /* 전체화면 유지 — 한 번 켜 두면 다음에 열 때도, 중간에 풀려도 다시 들어갑니다.
    브라우저 규칙상 화면을 한 번 눌러야(사용자 동작) 다시 전체화면이 됩니다. */
 const FULL_KEY='pn.keepFull';
@@ -4718,26 +4914,27 @@ $('stage').addEventListener('wheel',e=>{
     diag('휠 스크롤');
   }
 },{passive:false});
-/* ⤢ — 폭 맞춤 ↔ 전체 맞춤 을 오갑니다. 고른 방식은 다음에도 그대로 씁니다. */
-/* 어느 맞춤인지 단추에 드러내야, 작게 열렸을 때 어디를 누를지 알 수 있습니다 */
+/* 폭맞춤·쪽맞춤을 각각 단추로 둡니다 — 하나에 숨기지 않고 둘 다 보이게.
+   지금 쓰는 쪽이 노랑으로 켜집니다. */
 function updFitBtn(){
-  const b=$('btnFit');if(!b)return;
   const w=(S.fitMode!=='page');
-  b.textContent=w?'↔':'⧉';
-  b.title=w?'폭 맞춤 (누르면 전체 맞춤)':'전체 맞춤 (누르면 폭 맞춤)';
-  b.setAttribute('data-hover',w?'지금 폭 맞춤 — 누르면 전체 맞춤':'지금 전체 맞춤 — 누르면 폭 맞춤');
-  b.classList.toggle('on',!w);
+  const bw=$('btnFitW'), bp=$('btnFitP');
+  if(bw)bw.classList.toggle('on',w);
+  if(bp)bp.classList.toggle('on',!w);
 }
-$('btnFit').onclick=()=>{
-  S.fitMode = S.fitMode==='page' ? 'width' : 'page';
+function setFit(mode){
+  if(!S.doc)return;
+  S.fitMode=mode;
   try{localStorage.removeItem('pn.fitMode')}catch(e){}   /* 다음에 켜면 다시 폭 맞춤입니다 */
   updFitBtn();
   S.vz=1;S.fitting=true;S.tx=0;S.ty=0;S.rsig='';
   renderPage().then(()=>{
     viewTop();
-    toast(S.fitMode==='width' ? '폭 맞춤 — 화면 폭에 꽉 채웁니다' : '전체 맞춤 — 쪽 전체가 보입니다');
+    toast(mode==='width' ? '폭 맞춤 — 화면 폭에 꽉 채웁니다' : '쪽 맞춤 — 쪽 전체가 보입니다');
   });
-};
+}
+$('btnFitW')&&($('btnFitW').onclick=()=>setFit('width'));
+$('btnFitP')&&($('btnFitP').onclick=()=>setFit('page'));
 $('btnMagIn').onclick=()=>{ if(S.doc)quickZoom(1.3) };     /* 누를 때마다 한 단계 확대 */
 $('btnMagOut').onclick=()=>{ if(S.doc)quickZoom(1/1.3) };   /* 누를 때마다 한 단계 축소 */
 $('btnPrev2').onclick=()=>flip(-1);
@@ -4753,6 +4950,8 @@ $('btnRotate').onclick=async()=>{
 function syncBoardCtl(){
   const bc=$('boardCtl');if(bc){bc.hidden=!S.split;bc.style.display=S.split?'flex':'none'}
   const sb=$('splitBar');if(sb){const on=S.split&&S.splitMode!==2;sb.hidden=!on;sb.style.display=on?'flex':'none'}
+  /* 아래 도구막대의 '칠판 바탕'은 칠판이 켜졌을 때만 (칠판 단추 바로 왼쪽) */
+  const bg=$('btnBoardBg');if(bg)bg.style.display=S.split?'':'none';
 }
 /* 경계선을 끌어 칠판 폭을 조절합니다 (화면의 20%~75%) */
 (()=>{
@@ -4811,6 +5010,8 @@ async function applySplitMode(mode,quiet){
     /* 칠판은 PDF 위에 떠 있을 뿐입니다 — PDF의 크기도 보던 자리도 건드리지 않습니다 */
     await renderPage();
   }
+  /* 칠판을 켜는 순간 바로 쓸 수 있게 연필을 골라 둡니다 */
+  if(!quiet&&mode===1&&S.tool!=='pen')setTool('pen',$('btnPen'));
   if(!quiet)toast(mode===1?'칠판을 켰습니다 — 한 번 더 누르면 칠판만 봅니다'
                  :mode===2?'칠판만 봅니다 — 한 번 더 누르면 닫힙니다'
                  :'칠판을 닫았습니다');
@@ -5537,7 +5738,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.17';
+const APP_VER='25.18';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -5877,7 +6078,9 @@ $('jsonInput').onchange=async e=>{
   $('verLabel2').textContent=APP_VER;
   setTimeout(autoCheckUpdate,2500);
   setTimeout(()=>showGuide(true),900);       /* 켤 때마다 손동작 안내 — 잠깐만 */
-  setTool('pen',$('btnPen'));
+  /* 기본은 '이동(✋)' 입니다 — 자료를 열자마자 실수로 그려지지 않게.
+     펜은 골라서 씁니다. (색·굵기는 지난번 고른 것을 그대로 이어 씁니다) */
+  setTool('hand',$('btnHand'));
   paintSwatches();showColor();updateTouchBtn();
   markSaved();
   let t,lastW=0,lastH=0;
