@@ -4305,7 +4305,7 @@ function buildRail(){
     if(on)cur=el;
   });
   /* 지금 쪽을 줄 한가운데에 둡니다 — 도구막대는 이제 줄 오른쪽 바깥에 있어
-     가리지 않습니다 (위 #sideL{left:88px}). */
+     가리지 않습니다 (위 #sideL{left:84px}). */
   if(cur){
     const go=()=>cur.scrollIntoView({block:'center',inline:'center'});
     go(); requestAnimationFrame(go);
