@@ -221,14 +221,15 @@ try{
      크기는 그대로라 도구를 바꿔도 막대가 흔들리지 않습니다. */
   #tools .tool.on,.sideBar button.tool.on{opacity:1;background:#fff;border-color:#fff;
     box-shadow:0 3px 10px rgba(0,0,0,.40),0 0 0 3px rgba(255,255,255,.28)}
-  /* 도구마다 제 색을 줍니다 — 전부 잿빛이라 어느 것이 연필인지 알 수 없었습니다.
-     고른 뒤(흰 알약 위)에도 같은 색이라 눈이 헷갈리지 않습니다. */
-  button[data-tool="pen"]{color:#f2b33d}       /* 연필 — 노란 나무 */
-  button[data-tool="hl"]{color:#7fd66f}        /* 형광펜 — 연둣빛 */
-  button[data-tool="laser"]{color:#ff5f56}     /* 레이저 — 빨강 */
-  button[data-tool="eraser"]{color:#ff9db4}    /* 지우개 — 분홍 */
-  button[data-tool="shape"]{color:#6fc3ff}     /* 도형 — 파랑 */
-  button[data-tool="cut"],button[data-tool="hand"]{color:#ccd6e0}
+  /* 아이콘은 모두 흰색 한 가지입니다 (굿노트처럼). 색이 여럿이면 오히려
+     어지럽습니다 — 어느 것을 쥐고 있는지는 '흰 알약' 하나로만 말합니다.
+     그림 속에 박혀 있던 잿빛들도 전부 지금 색을 따라오게 합니다. */
+  #tools .tool,.sideBar button{color:#fff}
+  #tools .tool.on,.sideBar button.tool.on{color:#16212c}
+  #tools .tool svg [fill]:not([fill="none"]),
+  .sideBar button svg [fill]:not([fill="none"]){fill:currentColor}
+  #tools .tool svg [stroke]:not([stroke="none"]),
+  .sideBar button svg [stroke]:not([stroke="none"]){stroke:currentColor}
   #btnHand.tool{font-size:20px}
   #btnCut.tool{font-size:20px}
   /* 오른쪽 끝 지우개 — 왼쪽 지우개와 켜진 표시가 같아 보이게 */
@@ -407,6 +408,10 @@ try{
   /* 왼쪽 세로 도구막대 — 화면 왼쪽 끝, 세로 가운데에 뜹니다.
      크면 부담스럽다고 하여 아담하게 줄였습니다. 칠판(z:30)·경계선(z:31) 위입니다 */
   .sideBar{position:fixed;top:50%;transform:translateY(-50%);z-index:34;
+    /* 화면보다 길어지면 위가 잘려 맨 위 도구를 못 눌렀습니다 —
+       화면 안으로 키를 맞추고, 그래도 모자라면 안에서 굴러가게 합니다 */
+    max-height:calc(100vh - 12px);overflow-y:auto;overflow-x:hidden;
+    scrollbar-width:none;-ms-overflow-style:none;
     display:flex;flex-direction:column;gap:5px;padding:5px;
     background:rgba(20,30,42,.96);border:1.5px solid #4aa8ff;border-radius:13px;
     box-shadow:0 0 12px rgba(74,168,255,.28),0 8px 22px rgba(0,0,0,.5)}
@@ -427,32 +432,29 @@ try{
     from{opacity:0;transform:translateY(-50%) scaleY(.5)}
     to{opacity:1;transform:translateY(-50%) scaleY(1)}
   }
+  .sideBar::-webkit-scrollbar{width:0;height:0}
   .sideBar.unfold{animation:sideUnfold .28s ease-out}
   .sideBar button{width:44px;height:44px;min-height:44px;padding:0;
     justify-content:center;font-size:21px;opacity:.9;transition:opacity .12s}
   .sideBar button:hover{opacity:1}
   .sideBar button svg{width:27px;height:27px;display:block}
-  /* 도구 틀을 튀는 색(하늘색)으로 둘러 어느 게 도구인지 바로 보이게 합니다 */
-  .sideBar button.tool{border-color:#4aa8ff;border-width:2px}
-  .sideBar button.on{opacity:1;border-color:var(--chalk);
-    box-shadow:0 0 0 3px rgba(245,213,71,.35)}
+  /* 흰 알약(고른 도구)이 또렷하므로, 나머지 틀은 옅게 둡니다 */
+  .sideBar button.tool{border-color:rgba(255,255,255,.16);border-width:1px}
   .sideBar button[disabled]{opacity:.45}
-  /* 접기·펴기 손잡이 / 끌어 옮기는 잡이 — 검정이라 안 보인다고 하여 노랑으로 */
-  .sideBar .sideHide{width:44px;height:22px;min-height:22px;padding:0;font-size:15px;font-weight:800;
-    line-height:1;border-radius:8px;background:var(--chalk);border-color:var(--chalk);
-    color:#1a1a12;opacity:1}
-  .sideBar .sideHide:hover{background:#ffe071}
-  .sideBar .sideGrip{width:44px;height:20px;min-height:20px;padding:0;font-size:13px;font-weight:800;
-    line-height:1;border-radius:8px;background:var(--chalk);border-color:var(--chalk);
-    color:#1a1a12;opacity:1;cursor:move;touch-action:none}
+  /* 손잡이 하나로 합쳤습니다 — 누르면 접기·펴기, 끌면 막대를 옮깁니다.
+     접기(22px)와 잡이(20px)를 합친 만큼(47px) 키워, 손가락으로 눌러도
+     빗나가지 않습니다. 노랑이라 어디를 잡아야 할지 바로 보입니다. */
+  .sideBar .sideGrip{width:44px;height:47px;min-height:47px;padding:0;
+    font-size:22px;font-weight:800;line-height:1;border-radius:10px;
+    background:var(--chalk);border-color:var(--chalk);color:#1a1a12;opacity:1;
+    cursor:move;touch-action:none}
   .sideBar .sideGrip:hover{background:#ffe071}
   /* 접으면 손잡이만 남습니다 — 다시 펼 길, 그리고 옮길 길(✥)은 늘 남겨 둡니다.
      접은 채로도 옮길 수 있어야, 화면 맨 아래까지 끌어 내릴 수 있습니다. */
   /* 접어도 너비는 펼친 상태와 똑같이 — 손잡이가 작으면 잘 안 눌립니다 */
   .sideBar.hid{padding:5px;gap:5px;background:rgba(30,43,56,.7);border-color:#4aa8ff}
   .sideBar.hid button{display:none}
-  .sideBar.hid .sideHide{display:flex;width:44px;height:40px;min-height:40px;font-size:18px;opacity:.95}
-  .sideBar.hid .sideGrip{display:flex;width:44px;height:32px;min-height:32px;font-size:15px}
+  .sideBar.hid .sideGrip{display:flex;width:44px;height:72px;min-height:72px;font-size:24px}
   @media (max-width:1180px){
     .sideBar button{width:40px;height:40px;min-height:40px}
     .sideBar button svg{width:25px;height:25px}
@@ -2144,7 +2146,7 @@ async function loadPdf(bytes,name,id){
   /* 이제 PDF 가 화면에 있습니다 — 도구막대도 지금 함께 나타납니다 */
   document.body.classList.remove('lib-open');
   if(typeof revealSideL==='function')revealSideL();
-  setTool('hand',$('btnHand'));                       /* 자료를 열면 기본은 '이동' */
+  setTool('pen',$('btnPen'));                         /* 자료를 열면 바로 쓸 수 있게 — 기본은 연필 */
   updFitBtn();                                        /* 폭맞춤·쪽맞춤 중 지금 것을 노랑으로 */
   buildRail();
   /* PDF 파일을 서재에 저장하는 것은 화면에 띄운 뒤에 — 큰 파일은 저장이 느려
@@ -3218,6 +3220,9 @@ function barBusy(){ return performance.now()-(S.barAt||0)<450 ||
 function startPan(e){
   if(barBusy())return;                 /* 버튼을 막 누른 직후에는 밀리지 않게 */
   if(bdBusy())return;                  /* 칠판에 쓰는 동안에는 움직이지 않습니다 */
+  /* 한 손으로 미는 길은 ✋ 를 일부러 골랐을 때뿐입니다 —
+     펜·손끝으로는 어떤 경우에도 화면이 밀리지 않아야 합니다. */
+  if(S.tool!=='hand')return;
   const L=limits();
   S.pan={id:e.pointerId,x:e.clientX,y:e.clientY,tx:S.tx,ty:S.ty,
          t:performance.now(),type:e.pointerType,
@@ -3454,15 +3459,22 @@ inkCv.addEventListener('pointerdown',e=>{
   S.downAt={t:performance.now(),x:e.clientX,y:e.clientY};
   ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType,t:performance.now()});
   try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
-  if(!isWriter(e.pointerType)&&touches()>=2){cancelStroke();undoTouchSmudge();S.pan=null;startPinch();return}
-  if(isPalm(e)){
-    /* 손바닥처럼 넓게 닿으면 늘 화면 이동입니다 — 지우기는 지우개로만 합니다.
-       (전에는 손바닥으로 문지르면 지워졌는데, 글씨를 쓰다 손날이 닿아
-        엉뚱하게 지워진다는 말을 듣고 뺐습니다.) */
-    if(!S.palmSeen){S.palmSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 밀면 화면이 움직입니다')}
-    cancelStroke();undoTouchSmudge();startPan(e);return;
+  /* ── 화면을 옮기는 길은 '두 손가락' 하나뿐입니다 ──────────────
+     한 손가락도, 펜도, 손바닥도 절대 화면을 밀지 않습니다.
+     글씨를 쓰려는데 자료가 밀려 버리던 일이 이것으로 사라집니다.
+     (✋ 를 일부러 골랐을 때만 한 손으로도 밀 수 있습니다.) */
+  if(e.pointerType==='touch'&&touchCount(e.pointerId)>=1){
+    /* undoTouchSmudge() 는 부르지 않습니다 — 손끝으로 방금 쓴 글씨를
+       지워 버렸습니다. 손바닥은 위에서 아예 못 본 척하므로 필요 없습니다. */
+    cancelStroke();S.lastTouch=null;S.pan=null;startPinch();
+    if(!S.twoSeen){S.twoSeen=true;toast('두 손가락으로 밀면 화면이 움직입니다')}
+    return;
   }
-  if(canDraw(e.pointerType,e))startStroke(e);else startPan(e);
+  if(S.tool==='hand'){startPan(e);return}       /* ✋ 를 일부러 고른 때만 */
+  /* 넓게 닿은 손바닥은 못 본 척합니다 — 밀지도, 그리지도 않습니다.
+     쓰는 손의 손날이 종이에 닿는 것은 아주 흔한 일입니다. */
+  if(isPalm(e))return;
+  startStroke(e);
 });
 inkCv.addEventListener('pointermove',e=>{
   ghostMove(e);
@@ -4717,8 +4729,10 @@ function showShapeBtn(){
 /* ══ 양옆 세로 도구막대 ══
    아래 막대의 단추를 그대로 복제합니다 — 그림(SVG)을 또 베껴 두면
    한쪽만 고쳤을 때 서로 달라집니다. 셋만 세웁니다: 지우개·펜·✋이동. */
-const SIDE_TOOLS=[['btnEraser','eraser'],['btnPen','pen'],
-                  ['btnLaser','laser'],['btnHand','hand']];
+/* 위에서부터 연필 · 레이저 · 지우개 · ✋이동 —
+   가장 많이 쓰는 연필을 맨 위에, 지우개는 손바닥 바로 위에 둡니다 */
+const SIDE_TOOLS=[['btnPen','pen'],['btnLaser','laser'],
+                  ['btnEraser','eraser'],['btnHand','hand']];
 function sideKey(side){return 'pn.sideHid.'+side}
 function sideHidden(side){
   try{return localStorage.getItem(sideKey(side))==='1'}catch(e){return false}
@@ -4729,7 +4743,7 @@ function sideHidden(side){
 function setSideHid(side,hid,noSave){
   const box=$('side'+side);if(!box)return;
   box.classList.toggle('hid',!!hid);
-  const t=box.querySelector('.sideHide');
+  const t=box.querySelector('.sideGrip');
   if(t){
     const away=(side==='L')?'‹':'›';   /* 바깥쪽으로 접기 */
     const back=(side==='L')?'›':'‹';   /* 안쪽으로 펴기 */
@@ -4748,8 +4762,12 @@ function applySidePos(side){
   const box=$('side'+side);if(!box)return;
   let p=null;try{p=JSON.parse(localStorage.getItem(sidePosKey(side))||'null')}catch(e){}
   if(p&&typeof p.left==='number'&&typeof p.top==='number'){
-    box.style.left=p.left+'px';box.style.right='auto';
-    box.style.top=p.top+'px';box.style.transform='none';
+    /* 창 크기가 바뀌면 적어 둔 자리가 화면 밖일 수 있습니다 — 안으로 당깁니다 */
+    const w=box.offsetWidth||54, h=box.offsetHeight||300;
+    const L=Math.max(4,Math.min(Math.max(4,window.innerWidth-w-4),p.left));
+    const T=Math.max(4,Math.min(Math.max(4,window.innerHeight-h-4),p.top));
+    box.style.left=L+'px';box.style.right='auto';
+    box.style.top=T+'px';box.style.transform='none';
   }else{
     box.style.left='';box.style.right='';box.style.top='';box.style.transform='';
   }
@@ -4764,6 +4782,8 @@ function bindSideDrag(box,handle,side){
     box.style.left=r.left+'px';box.style.top=r.top+'px';
     try{handle.setPointerCapture(e.pointerId)}catch(err){}
     const mv=ev=>{
+      /* 손가락은 누를 때도 조금 흔들립니다 — 12px 넘게 가야 '끈 것' 입니다 */
+      if(!moved&&Math.hypot(ev.clientX-e.clientX,ev.clientY-e.clientY)<12)return;
       moved=true;
       let L=ev.clientX-dx, T=ev.clientY-dy;
       L=Math.max(4,Math.min(window.innerWidth-box.offsetWidth-4,L));
@@ -4776,6 +4796,8 @@ function bindSideDrag(box,handle,side){
       handle.removeEventListener('pointercancel',up);
       if(moved)try{localStorage.setItem(sidePosKey(side),
         JSON.stringify({left:parseInt(box.style.left),top:parseInt(box.style.top)}))}catch(err){}
+      /* 끌지 않고 그냥 눌렀으면 = 접기·펴기 */
+      else setSideHid(side,!box.classList.contains('hid'));
     };
     handle.addEventListener('pointermove',mv);
     handle.addEventListener('pointerup',up);
@@ -4805,15 +4827,10 @@ function buildSideTools(){
     const box=$('side'+side);if(!box)continue;
     box.dataset.side=side;
     box.innerHTML='';
-    /* 맨 위 작은 손잡이 — 접기·펴기 */
-    const t=document.createElement('button');
-    t.className='sideHide';t.type='button';
-    box.appendChild(t);
-    /* 그 아래 잡이 — 끌어서 막대를 옮깁니다 */
+    /* 맨 위 손잡이 하나 — 누르면 접기·펴기, 끌면 옮기기 */
     const g=document.createElement('button');
     g.className='sideGrip';g.type='button';
-    g.textContent='✥';
-    g.title='끌어서 옮깁니다 (두 번 누르면 제자리)';
+    g.title='누르면 접기·펴기, 끌면 옮깁니다 (두 번 누르면 제자리)';
     box.appendChild(g);
     bindSideDrag(box,g,side);
     /* 도구 — 아래 막대의 단추를 그대로 복제합니다 */
@@ -4838,10 +4855,7 @@ function buildSideTools(){
 
     box.addEventListener('click',e=>{
       const b=e.target.closest('button');if(!b)return;
-      if(b.classList.contains('sideGrip'))return;   /* 잡이는 끌기 전용 */
-      if(b.classList.contains('sideHide')){
-        setSideHid(side,!box.classList.contains('hid'));return;
-      }
+      if(b.classList.contains('sideGrip'))return;   /* 손잡이는 제가 알아서 합니다 */
       if(b.dataset.act==='undo'){undoOnce();return}
       const tool=b.dataset.tool;if(!tool)return;
       setTool(tool,b);   /* 한 번 탭 = 그 도구 바로 쓰기. 색·굵기는 길게 꾹 */
@@ -5854,7 +5868,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.24';
+const APP_VER='25.25';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -6206,9 +6220,10 @@ $('jsonInput').onchange=async e=>{
   }catch(e){}
   setTimeout(autoCheckUpdate,2500);
   setTimeout(()=>showGuide(true),900);       /* 켤 때마다 손동작 안내 — 잠깐만 */
-  /* 기본은 '이동(✋)' 입니다 — 자료를 열자마자 실수로 그려지지 않게.
-     펜은 골라서 씁니다. (색·굵기는 지난번 고른 것을 그대로 이어 씁니다) */
-  setTool('hand',$('btnHand'));
+  /* 기본은 '연필' 입니다 — 켜자마자 바로 쓸 수 있어야 합니다.
+     화면을 옮기는 것은 두 손가락이니, 실수로 밀릴 걱정이 없습니다.
+     (색·굵기는 지난번 고른 것을 그대로 이어 씁니다) */
+  setTool('pen',$('btnPen'));
   paintSwatches();showColor();updateTouchBtn();
   markSaved();
   let t,lastW=0,lastH=0;
