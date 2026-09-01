@@ -4151,11 +4151,12 @@ bdCv.addEventListener('pointerdown',e=>{
   const r=bdCv.getBoundingClientRect();
   BD.rect=r;                                               /* 이 획 동안 재사용 — 매 move 마다 재계산하면 버벅입니다 */
   const x=(e.clientX-r.left)*(BD.w/r.width), y=(e.clientY-r.top)*(BD.h/r.height);
-  if(bdIsPalm(e)){                                         /* 손바닥처럼 넓게 닿으면 — 그리기만 멈춥니다 (지우기는 지우개로만) */
-    if(BD.cur&&!bdPenActive()&&performance.now()-(BD.curAt||0)<1200){BD.cur=null;bdRedraw()}  /* 손바닥이 그리던 선은 취소 */
+  if(bdIsPalm(e)){
+    /* 넓게 닿은 손바닥은 못 본 척합니다 — 자료 쪽과 똑같이 다룹니다.
+       긋고 있던 획은 끊지 않고 그대로 이어집니다. 전에는 손날이 닿으면
+       방금 쓰던 획을 지워 버려서, 글씨가 사라졌습니다. */
     bdPtrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
     try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
-    BD.drawing=false;BD.palm=false;
     return;
   }
   /* 고른 도형의 손잡이는 어느 도구로든 먼저 봅니다 (지우개는 빼고) */
@@ -5979,7 +5980,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.32';
+const APP_VER='25.33';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
