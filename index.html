@@ -4517,7 +4517,11 @@ function railJump(label,toPage){
   d.onclick=()=>goto(toPage);
   return d;
 }
-window.addEventListener('resize',()=>{ if(S.doc)buildRail() });
+window.addEventListener('resize',()=>{
+  if(S.doc)buildRail();
+  /* 창 크기가 바뀌면 쪽 번호 줄의 자리도 바뀝니다 — 도구상자를 다시 세웁니다 */
+  if(typeof applySidePos==='function')applySidePos('L');
+});
 async function goto(p){
   if(p<1||p>S.pages||p===S.page||S.busy)return;
   const keep=!S.fitting||((S.vz||1)>1.02);
@@ -4896,13 +4900,25 @@ function setSideHid(side,hid,noSave){
 /* 떠 있는 막대를 끌어서 옮긴 자리 — 왼쪽·오른쪽을 따로 기억합니다.
    두 번 누르면 제자리(화면 가운데 높이)로 돌아갑니다. */
 function sidePosKey(side){return 'pn.sidePos.'+side}
+/* 도구상자가 왼쪽으로 갈 수 있는 한계 — 쪽 번호 줄의 오른쪽 끝입니다.
+   여기를 넘어가면 쪽 번호를 덮어 '보였다 안 보였다' 합니다.
+   쪽 번호가 가로로 눕거나(rail-h) 줄이 없을 때는 한계가 없습니다. */
+function sideMinLeft(){
+  if(document.documentElement.classList.contains('rail-h'))return 4;
+  const a=document.getElementById('rail');
+  if(!a)return 4;
+  const r=a.getBoundingClientRect();
+  if(!r.width||!r.height)return 4;          /* 줄이 감춰져 있으면 마음대로 */
+  return Math.round(r.right)+6;
+}
 function applySidePos(side){
   const box=$('side'+side);if(!box)return;
   let p=null;try{p=JSON.parse(localStorage.getItem(sidePosKey(side))||'null')}catch(e){}
   if(p&&typeof p.left==='number'&&typeof p.top==='number'){
     /* 창 크기가 바뀌면 적어 둔 자리가 화면 밖일 수 있습니다 — 안으로 당깁니다 */
     const w=box.offsetWidth||54, h=box.offsetHeight||300;
-    const L=Math.max(4,Math.min(Math.max(4,window.innerWidth-w-4),p.left));
+    const lo=sideMinLeft();
+    const L=Math.max(lo,Math.min(Math.max(lo,window.innerWidth-w-4),p.left));
     const T=Math.max(4,Math.min(Math.max(4,window.innerHeight-h-4),p.top));
     box.style.left=L+'px';box.style.right='auto';
     box.style.top=T+'px';box.style.transform='none';
@@ -4924,7 +4940,8 @@ function bindSideDrag(box,handle,side){
       if(!moved&&Math.hypot(ev.clientX-e.clientX,ev.clientY-e.clientY)<12)return;
       moved=true;
       let L=ev.clientX-dx, T=ev.clientY-dy;
-      L=Math.max(4,Math.min(window.innerWidth-box.offsetWidth-4,L));
+      /* 쪽 번호 줄 위로는 못 넘어갑니다 — 넘어가면 번호가 가려집니다 */
+      L=Math.max(sideMinLeft(),Math.min(window.innerWidth-box.offsetWidth-4,L));
       T=Math.max(4,Math.min(window.innerHeight-box.offsetHeight-4,T));
       box.style.left=L+'px';box.style.top=T+'px';
     };
@@ -6008,7 +6025,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.37';
+const APP_VER='25.38';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
