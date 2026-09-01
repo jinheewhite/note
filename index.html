@@ -2898,7 +2898,7 @@ function startStroke(e){
 /* 보정은 거의 걸지 않습니다 — 조금만 걸어도 글씨가 펜보다 늦게 따라옵니다.
    수식을 빨리 쓰는 분들에게는 그 늦음이 '안 써진다' 로 느껴집니다.
    필기노트처럼 손끝에 딱 붙어 나오는 것이 먼저입니다. */
-const STEADY=0.05;                       /* 손떨림 보정 세기 (0=없음, 커질수록 차분) */
+const STEADY=0;                          /* 손떨림 보정 세기 (0=없음, 커질수록 차분) */
 function moveStroke(e){
   if(S.shDrag&&S.shSel){
     const q=pos(e), d=S.shDrag;
@@ -2916,7 +2916,7 @@ function moveStroke(e){
   }
   /* 새 점을 직전 점 쪽으로 살짝 당깁니다 — 잔떨림이 걸러져 글씨가 차분해집니다 */
   if(S.cur){x=S.last[0]+(x-S.last[0])*(1-STEADY);y=S.last[1]+(y-S.last[1])*(1-STEADY)}
-  if(Math.hypot(x-S.last[0],y-S.last[1])<0.35)return;   /* 너무 겹치는 점만 솎아냅니다 */
+  if(Math.hypot(x-S.last[0],y-S.last[1])<0.12)return;   /* 거의 같은 자리에 겹친 점만 솎아냅니다 */
   S.last=[x,y];
   if(S.tool==='laser'){laserPoint(x,y,false);return}
   if(S.penErase||S.tool==='eraser'){erase(x,y);return}
@@ -3531,7 +3531,15 @@ inkCv.addEventListener('pointermove',e=>{
   p.x=e.clientX;p.y=e.clientY;p.t=performance.now();
   if(S.pinch)return movePinch();
   if(S.pan)return movePan(e);
-  if(S.drawing)moveStroke(e);
+  if(!S.drawing)return;
+  /* 손이 빠르면 브라우저는 그 사이의 점들을 한 번에 묶어서 보냅니다.
+     지금까지는 맨 마지막 하나만 쓰고 나머지를 버렸습니다 — 그래서 빨리
+     쓰면 획이 각지고, 손보다 늦게 따라오는 것처럼 보였습니다.
+     묶인 점을 전부 꺼내 쓰면 필기노트처럼 손끝에 붙어 나옵니다. */
+  let cs=null;
+  try{ cs=e.getCoalescedEvents?e.getCoalescedEvents():null }catch(err){}
+  if(cs&&cs.length>1){ for(const ce of cs)moveStroke(ce) }
+  else moveStroke(e);
 });
 /* 두 번 톡톡 확대는 쓰지 않습니다 — 펜으로 쓸 때 점 두 개가 가까이 찍히면
    확대로 잘못 알아들어서, 글씨 쓰는 도중에 갑자기 화면이 커졌습니다 */
@@ -3675,7 +3683,9 @@ async function loadStrokes(){
    글씨가 손을 못 따라옵니다 ("한참 쓰다 보면 안 써져"). */
 function scheduleSave(){
   clearTimeout(S.saveTimer);
-  S.saveTimer=setTimeout(()=>{ if(S.drawing)scheduleSave(); else saveNow() },900);
+  /* 2초 — 획 하나마다 저장하면 수시로 손을 붙잡습니다. 쪽을 넘길 때와
+     자료를 닫을 때는 따로 곧바로 저장하므로 잃을 것이 없습니다. */
+  S.saveTimer=setTimeout(()=>{ if(S.drawing)scheduleSave(); else saveNow() },2000);
 }
 async function saveNow(){
   if(!S.fileId)return;
@@ -3684,11 +3694,12 @@ async function saveNow(){
   if(has)await Store.putNote({key,file:S.fileId,date:S.date,page:S.page,
                               strokes:S.strokes,imgs:S.imgs||[],at:Date.now()});
   else await Store.delNote(key);
-  const had=S.pageHas.has(S.page);
   if(has)S.pageHas.add(S.page);else S.pageHas.delete(S.page);
-  /* 쪽 목록은 '필기 있음' 표시가 바뀔 때만 다시 만듭니다 —
-     전에는 저장할 때마다 24쪽짜리 목록을 통째로 새로 그렸습니다. */
-  if(had!==!!has)buildRail();
+  /* buildRail() 은 그대로 부릅니다. 안에서 '모양표(railSig)가 바뀔 때만
+     다시 짓는' 검사를 이미 하고 있어 비싸지 않습니다. 밖에서 한 번 더
+     막았더니, 자료를 열 때 쪽 번호가 아예 안 나왔습니다 —
+     처음 지을 때는 쪽 수를 아직 모르고, 여기서 다시 지어야 채워집니다. */
+  buildRail();
   markSaved();Backup.schedule();AutoDL.schedule();
   /* 보던 자리 기억 — 자주 하지 않습니다. Store.getFile 은 PDF 알맹이가
      통째로 든 기록을 읽어 옵니다(수 MB). 그것을 0.6초마다 읽고 다시 쓰느라,
@@ -5940,7 +5951,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.28';
+const APP_VER='25.29';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
