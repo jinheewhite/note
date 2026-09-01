@@ -424,11 +424,11 @@ try{
        화면 안으로 키를 맞추고, 그래도 모자라면 안에서 굴러가게 합니다 */
     max-height:calc(100vh - 12px);overflow-y:auto;overflow-x:hidden;
     scrollbar-width:none;-ms-overflow-style:none;
-    display:flex;flex-direction:column;gap:5px;padding:5px;
-    /* 흰 바탕에 그림만 — 검정 바탕이면 바로 옆 쪽 번호 줄(검정)과 붙어
-       보여서, 어디까지가 도구상자인지 헷갈렸습니다. */
-    background:#fff;border:1px solid rgba(0,0,0,.14);border-radius:13px;
-    box-shadow:0 6px 20px rgba(0,0,0,.38)}
+    display:flex;flex-direction:column;gap:6px;padding:6px;
+    /* 캔바처럼 — 흰 알약 통 하나에 색 있는 그림만 담습니다.
+       테두리는 거의 안 보이게 하고, 그림자로 살짝 떠 있게 합니다. */
+    background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:22px;
+    box-shadow:0 10px 24px rgba(0,0,0,.20), 0 2px 6px rgba(0,0,0,.10)}
   /* 수평은 왼쪽 끝, 수직은 가운데. (쪽번호 줄 위에 살짝 걸칠 수 있지만,
      아담해서 대부분의 쪽번호는 그대로 눌립니다.) */
   /* 세로 쪽 번호 줄(아래 aside, 78px) 바로 오른쪽에 붙여 둡니다 — 전에는 left:8px
@@ -452,30 +452,38 @@ try{
     justify-content:center;font-size:21px;opacity:.9;transition:opacity .12s}
   .sideBar button:hover{opacity:1}
   .sideBar button svg{width:27px;height:27px;display:block}
-  /* 흰 바탕이므로 그림은 짙은 색입니다 */
-  .sideBar button{background:transparent;border-color:transparent;color:#2b3a4a}
-  .sideBar button:hover{background:#eef2f6}
-  .sideBar button.tool{border-color:rgba(0,0,0,.10);border-width:1px}
-  /* 고른 도구 — 흰 바탕에서는 흰 알약이 안 보이므로 분필색으로 뒤집습니다 */
-  .sideBar button.tool.on{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;
-    box-shadow:0 0 0 3px rgba(245,213,71,.35)}
-  /* 도구 옆 ▾ (색·굵기) 도 흰 바탕에 맞춥니다 */
-  .sideBar button.toolMore{background:#eef2f6;border-color:rgba(0,0,0,.10);color:#5a6a7a}
-  .sideBar button.toolMore:hover{background:#e2e8ef;color:#2b3a4a}
+  /* 틀(테두리)은 없앱니다 — 캔바처럼 그림만 떠 있게 */
+  .sideBar button{background:transparent;border-color:transparent;color:#4a5a6b;
+    border-radius:12px;opacity:1}
+  /* 그림에 아주 옅은 그림자를 줘서 살짝 입체로 보이게 합니다 */
+  .sideBar button svg{filter:drop-shadow(0 1px 1.5px rgba(20,30,45,.22))}
+  .sideBar button:hover{background:#f2f4f8}
+  /* 고른 도구 — 옅은 연보라 자리표만. 그림 색은 그대로 둡니다
+     (캔바도 고른 펜이 여전히 빨간 펜입니다) */
+  .sideBar button.tool.on{background:#efeafd;border-color:transparent;box-shadow:none}
+  /* 도구마다 제 색 — 흰 바탕이라 색이 살아납니다.
+     연필·형광펜·레이저는 지금 고른 잉크 색을 그대로 씁니다(showColor). */
+  .sideBar button[data-tool="eraser"]{color:#5b6b7b}
+  .sideBar button[data-tool="hand"]{color:#3b82f6}
+  .sideBar button[data-act="undo"]{color:#7a8797}
+  /* 도구 옆 ▾ (색·굵기) — 있는 듯 없는 듯하게 */
+  .sideBar button.toolMore{background:transparent;border-color:transparent;color:#aab6c2}
+  .sideBar button.toolMore:hover{background:#f2f4f8;color:#5a6a7a}
   .sideBar button[disabled]{opacity:.45}
   /* 손잡이 하나로 합쳤습니다 — 누르면 접기·펴기, 끌면 막대를 옮깁니다.
      접기(22px)와 잡이(20px)를 합친 만큼(47px) 키워, 손가락으로 눌러도
      빗나가지 않습니다. 노랑이라 어디를 잡아야 할지 바로 보입니다. */
-  /* 손잡이는 회색입니다 — 노랑은 '지금 고른 도구' 하나만 씁니다 */
+  /* 손잡이 — 통에 묻히도록 아주 옅게. 누르면 접기·펴기, 끌면 옮기기 */
   .sideBar .sideGrip{width:44px;height:47px;min-height:47px;padding:0;
-    font-size:22px;font-weight:800;line-height:1;border-radius:10px;
-    background:#e9edf2;border-color:#dbe2ea;color:#5a6a7a;opacity:1;
+    font-size:22px;font-weight:800;line-height:1;border-radius:12px;
+    background:#f2f4f8;border-color:transparent;color:#8a97a5;opacity:1;
     cursor:move;touch-action:none}
-  .sideBar .sideGrip:hover{background:#dfe6ee;color:#2b3a4a}
+  .sideBar .sideGrip:hover{background:#e7ebf1;color:#4a5a6b}
+  .sideBar .sideGrip svg{filter:none}
   /* 접으면 손잡이만 남습니다 — 다시 펼 길, 그리고 옮길 길(✥)은 늘 남겨 둡니다.
      접은 채로도 옮길 수 있어야, 화면 맨 아래까지 끌어 내릴 수 있습니다. */
   /* 접어도 너비는 펼친 상태와 똑같이 — 손잡이가 작으면 잘 안 눌립니다 */
-  .sideBar.hid{padding:5px;gap:5px;background:rgba(255,255,255,.92);border-color:rgba(0,0,0,.14)}
+  .sideBar.hid{padding:6px;gap:6px;background:rgba(255,255,255,.94);border-color:rgba(0,0,0,.06)}
   .sideBar.hid button{display:none}
   .sideBar.hid .sideGrip{display:flex;width:44px;height:72px;min-height:72px;font-size:24px}
   @media (max-width:1180px){
@@ -4685,7 +4693,10 @@ function showColor(){
   for(const key of ['pen','hl','laser']){
     document.querySelectorAll(`[data-tool="${key}"]`).forEach(b=>{
       const sv=b.querySelector('svg');
-      if(sv)sv.style.color=b.classList.contains('on')?'#1a1a12':S.colors[key];
+      /* 아래 도구막대는 고르면 흰 알약 위라 짙게 뒤집습니다.
+         왼쪽 도구상자는 캔바처럼, 골라도 제 색(빨간 펜은 빨간 펜) 그대로입니다. */
+      const inSide=!!(b.closest&&b.closest('.sideBar'));
+      if(sv)sv.style.color=(!inSide&&b.classList.contains('on'))?'#1a1a12':S.colors[key];
       /* 자국만은 고른 색 그대로 — 빨간 펜이면 연필 아래도 빨갛습니다 */
       const ink=b.querySelector('.penInk');
       if(ink)ink.setAttribute('stroke',S.colors[key]);
@@ -5991,7 +6002,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.36';
+const APP_VER='25.37';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
