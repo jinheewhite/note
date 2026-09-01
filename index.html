@@ -3617,10 +3617,9 @@ document.addEventListener('visibilitychange',async()=>{
    ══════════════════════════════════════════════════════════ */
 const bdCv=$('bdCv');
 /* alpha:false — 칠판 바탕은 늘 불투명. 투명 합성을 안 하면 더 빨리 그려집니다.
-   desynchronized:true — 그림판을 화면에 곧바로 흘려보내 펜이 늦게 따라오지 않습니다(저지연).
-   전체를 다시 그릴 때 아주 드물게 깜빡일 수 있지만, 쓰는 느낌을 위해 켭니다. */
+   desynchronized 는 끕니다 — 25.18에서 켰더니 전자칠판에서 오히려 글씨가 끊기고
+   한참 늦게 나왔습니다. 25.17 처럼 평범한 2D 캔버스로 되돌립니다. */
 const bdctx=(()=>{
-  try{const c=bdCv.getContext('2d',{alpha:false,desynchronized:true});if(c)return c}catch(e){}
   try{const c=bdCv.getContext('2d',{alpha:false});if(c)return c}catch(e){}
   return bdCv.getContext('2d');
 })();
@@ -5797,7 +5796,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.22';
+const APP_VER='25.23';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
