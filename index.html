@@ -207,7 +207,7 @@ try{
     font-size:12.5px;white-space:nowrap;color:var(--text)}
   #pop.wide .tidyRow button.on{color:var(--chalk);font-weight:700}
   button:focus{outline:none}
-  #tools .tool{width:54px;opacity:.82;transition:opacity .12s;position:relative}
+  #tools .tool{width:54px;opacity:.92;transition:opacity .12s;position:relative}
   #tools .tool:hover{opacity:1}
   #tools .tool:hover::before{
     content:attr(data-label);position:absolute;left:50%;transform:translateX(-50%);
@@ -216,9 +216,19 @@ try{
     padding:5px 10px;border-radius:8px;font-size:13px;font-weight:600;pointer-events:none;z-index:30}
   body.bar-top #tools .tool:hover::before,html.bar-top #tools .tool:hover::before{bottom:auto;top:calc(100% + 8px)}
   #tools .tool.on:hover::before{display:none}
-  /* 고른 도구는 색만 바뀝니다 — 크기가 변하지 않아 화면이 흔들리지 않습니다 */
-  #tools .tool.on{opacity:1;background:var(--chalk);border-color:var(--chalk);color:#1a1a12;
-    box-shadow:0 0 0 3px rgba(245,213,71,.3)}
+  /* 고른 도구는 흰 알약 위에 올라앉습니다 (굿노트처럼) —
+     지금 무엇을 쥐고 있는지 교실 뒤에서도 한눈에 보입니다.
+     크기는 그대로라 도구를 바꿔도 막대가 흔들리지 않습니다. */
+  #tools .tool.on,.sideBar button.tool.on{opacity:1;background:#fff;border-color:#fff;
+    box-shadow:0 3px 10px rgba(0,0,0,.40),0 0 0 3px rgba(255,255,255,.28)}
+  /* 도구마다 제 색을 줍니다 — 전부 잿빛이라 어느 것이 연필인지 알 수 없었습니다.
+     고른 뒤(흰 알약 위)에도 같은 색이라 눈이 헷갈리지 않습니다. */
+  button[data-tool="pen"]{color:#f2b33d}       /* 연필 — 노란 나무 */
+  button[data-tool="hl"]{color:#7fd66f}        /* 형광펜 — 연둣빛 */
+  button[data-tool="laser"]{color:#ff5f56}     /* 레이저 — 빨강 */
+  button[data-tool="eraser"]{color:#ff9db4}    /* 지우개 — 분홍 */
+  button[data-tool="shape"]{color:#6fc3ff}     /* 도형 — 파랑 */
+  button[data-tool="cut"],button[data-tool="hand"]{color:#ccd6e0}
   #btnHand.tool{font-size:20px}
   #btnCut.tool{font-size:20px}
   /* 오른쪽 끝 지우개 — 왼쪽 지우개와 켜진 표시가 같아 보이게 */
@@ -2796,11 +2806,24 @@ function updateTouchBtn(){
 }
 /* 손가락으로 그릴 수 있게 켜고 끕니다 (EJ Pen 같은 칠판 프로그램이 켜져 있을 때 필요) */
 document.addEventListener('DOMContentLoaded',()=>{},{once:true});
-function cancelStroke(){if(S.shDrag){S.shDrag=null;scheduleSave()}if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=null;S.penErase=false;S.palmErase=false;S.pinch=null}
+/* 지금 정말로 획을 긋고 있는가 —
+   글씨를 쓰는 도중에 손날·소매·반대쪽 손이 화면에 닿아도 자료가 밀리거나
+   확대되지 않게, '긋는 중' 을 뚜렷하게 봅니다. 뗌 신호를 놓친 채 굳어
+   버리면 아무것도 못 하게 되므로, 긋던 손이 아직 살아 있을 때만 참입니다. */
+function strokeLive(){
+  if(!S.drawing||S.drawId==null)return false;
+  const p=ptrs.get(S.drawId);
+  return !!p&&performance.now()-(p.t||0)<4000;
+}
+function cancelStroke(){S.drawId=null;if(S.shDrag){S.shDrag=null;scheduleSave()}if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=null;S.penErase=false;S.palmErase=false;S.pinch=null}
 
 /* 펜 ─ 획 그리기 */
 function startStroke(e){
   const [x,y]=pos(e);
+  /* 글씨를 쓰기 시작하면 밀기·확대는 그 자리에서 멈춥니다 —
+     손바닥을 먼저 대고 펜을 대던 버릇에서 화면이 따라 밀렸습니다 */
+  S.pan=null;S.pinch=null;
+  S.drawId=e.pointerId;
   S.drawing=true;S.last=[x,y];S.strokeBy=e.pointerType;S.strokeAt=performance.now();
   if(S.palmErase){snap('pdf');erase(x,y);return}   /* 손바닥 — 어느 도구를 골라 뒀든 지웁니다 */
   if(S.tool==='laser'){laserPoint(x,y,true);return}
@@ -2882,6 +2905,7 @@ function strokeSwipeFlip(){
   return dir;
 }
 function endStroke(){
+  S.drawId=null;
   if(S.shDrag){S.shDrag=null;S.drawing=false;S.edited=true;redraw();scheduleSave();return}
   if(!S.drawing)return;
   S.drawing=false;S.penErase=false;S.palmErase=false;
@@ -3193,6 +3217,7 @@ function barBusy(){ return performance.now()-(S.barAt||0)<450 ||
                           performance.now()-(S.flipAt||0)<500 }
 function startPan(e){
   if(barBusy())return;                 /* 버튼을 막 누른 직후에는 밀리지 않게 */
+  if(bdBusy())return;                  /* 칠판에 쓰는 동안에는 움직이지 않습니다 */
   const L=limits();
   S.pan={id:e.pointerId,x:e.clientX,y:e.clientY,tx:S.tx,ty:S.ty,
          t:performance.now(),type:e.pointerType,
@@ -3245,6 +3270,7 @@ function gestUnit(){
 }
 const ZOOM_SPREAD_MIN=30, PAN_MOVE_MIN=14;
 function startPinch(){
+  if(bdBusy())return;                  /* 칠판에 쓰는 동안에는 움직이지 않습니다 */
   const [a,b]=two();if(!a||!b)return;
   const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
   const L=limits();
@@ -3396,11 +3422,16 @@ inkCv.addEventListener('pointerdown',e=>{
   if($('pop').classList.contains('open')){e.preventDefault();closePop();return}
   if(!S.doc)return;
   e.preventDefault();
+  /* 칠판에 쓰는 중 — PDF 에 닿은 것은 반대쪽 손이나 소매입니다 */
+  if(e.pointerType==='touch'&&bdBusy())return;
   ghostShow(e);
   if(e.pointerType==='pen'&&!S.penSeen){S.penSeen=true;updateTouchBtn();}
   /* 손끝·펜은 늘 필기입니다. 화면을 옮길 때만 ✋(이동)을 고릅니다 —
      손 도구가 둘이라 헷갈린다는 말에, 하나(✋)로 합쳤습니다. */
   if(e.pointerType==='touch'&&penDown())return;   /* 펜을 쥔 손바닥은 무시 */
+  /* 이미 긋고 있는 획이 있으면, 뒤늦게 닿은 것은 손날·소매·반대쪽 손입니다.
+     없는 셈 치고 넘어갑니다 — 긋던 획은 끊기지 않고 그대로 이어집니다. */
+  if(strokeLive())return;
   if(S.tool==='cut'){                             /* ✂ 오리기 — 둘러서 칠판으로 */
     try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
     cutStart(e);return;
@@ -3471,6 +3502,9 @@ function release(e){
     ptrs.delete(e.pointerId);S.pan=null;cancelStroke();return;
   }
   if(!ptrs.has(e.pointerId))return;
+  /* 긋던 손이 아니라 다른 것(손날·소매)이 떨어졌을 뿐이면 —
+     쓰던 획을 끝내지 않고 그대로 둡니다 */
+  if(strokeLive()&&e.pointerId!==S.drawId){ptrs.delete(e.pointerId);return}
   ptrs.delete(e.pointerId);
   if(S.pinch){if(touches()<2)endPinch();return}
   if(S.pan){
@@ -3915,8 +3949,27 @@ function bdMovePinch(){
   BD.pinch.mx=mx;BD.pinch.my=my;
   bdClamp();bdRedraw();
 }
+/* ── 칠판에 쓰는 동안에는 PDF 가 움직이지 않습니다 ────────────
+   전자칠판 앞에서는 칠판에 글씨를 쓰다가 반대쪽 손·손목·소매가 PDF 쪽에
+   닿기 쉽습니다. 그 닿음이 '미는 손' 으로 읽혀서, 쓰기만 했는데 보고 있던
+   쪽이 슬쩍 밀려 버렸습니다. 칠판에 손이 닿아 있는 동안(그리고 뗀 뒤
+   잠깐 0.7초)에는 PDF 쪽의 밀기·확대·휠을 모두 무시합니다. */
+function bdWriting(){
+  return !!(BD.drawing||BD.drag||BD.imgDrag||BD.shDrag||BD.pinch||BDCUT.on);
+}
+function bdBusy(){
+  return bdWriting()||performance.now()-(BD.writeAt||0)<700;
+}
+/* 칠판에 손이 닿은 순간, PDF 쪽에서 하던 밀기·확대는 그 자리에서 끊습니다 */
+function bdHoldPdf(){
+  BD.writeAt=performance.now();
+  /* ptrs 는 건드리지 않습니다 — 자료 쪽에 긋던 획이 끊기면 안 됩니다.
+     밀기·확대만 끊으면 화면은 그 자리에 섭니다. */
+  S.pan=null;S.pinch=null;
+}
 bdCv.addEventListener('pointerdown',e=>{
   if($('pop').classList.contains('open')){e.preventDefault();closePop();return}
+  bdHoldPdf();
   if(S.tool==='laser')return;
   if(S.tool==='cut'){                                      /* 가위 — 둘러서 오립니다 */
     const rr=bdCv.getBoundingClientRect();
@@ -4011,6 +4064,7 @@ bdCv.addEventListener('pointerdown',e=>{
      칠판에 글씨가 많을수록 획을 시작할 때마다 덜컹거립니다. 첫 move 에서 그립니다. */
 });
 bdCv.addEventListener('pointermove',e=>{
+  if(bdWriting())BD.writeAt=performance.now();
   if(BDCUT.on){
     const rr=bdCv.getBoundingClientRect();
     bdCutMove((e.clientX-rr.left)*(BD.w/rr.width),(e.clientY-rr.top)*(BD.h/rr.height));
@@ -4086,6 +4140,7 @@ bdCv.addEventListener('pointermove',e=>{
   }
 });
 function bdEnd(e){
+  BD.writeAt=performance.now();       /* 뗀 뒤 잠깐도 PDF 는 가만히 있습니다 */
   /* 그리던 손가락/펜이 아니라 다른 포인터(손등 등)가 뗐을 뿐이면 —
      화면 자리·그리던 획을 그대로 두고 아무 일도 하지 않습니다. */
   if(e&&BD.drawing&&BD.drawId!=null&&e.pointerId!==BD.drawId){bdPtrs.delete(e.pointerId);return}
@@ -4957,6 +5012,7 @@ document.querySelector('header')?.addEventListener('wheel',e=>{e.stopPropagation
 $('stage').addEventListener('wheel',e=>{
   if(!S.doc)return;
   e.preventDefault();
+  if(bdBusy())return;                  /* 칠판에 쓰는 동안에는 움직이지 않습니다 */
   if(e.ctrlKey)zoom(e.deltaY<0?1.12:1/1.12,e.clientX,e.clientY);   /* Ctrl + 휠 */
   else{                                               /* 휠: 위아래 이동, 끝에서 더 굴리면 페이지 넘김 */
     if(e.shiftKey||Math.abs(e.deltaX)>Math.abs(e.deltaY)){
@@ -5422,6 +5478,8 @@ if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
           const once=sessionStorage.getItem('pn.selfHeal');
           if(!once){
             sessionStorage.setItem('pn.selfHeal','1');
+            /* 떠나기 전 판을 적어 둡니다 — 돌아왔을 때 정말 바뀌었는지 알려 주려고요 */
+            try{localStorage.setItem('pn.updFrom',APP_VER)}catch(e){}
             for(const reg of await navigator.serviceWorker.getRegistrations())await reg.unregister();
             if(window.caches)for(const k of await caches.keys())await caches.delete(k);
             const u=new URL(location.href);
@@ -5796,7 +5854,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.23';
+const APP_VER='25.24';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -5851,6 +5909,7 @@ async function autoCheckUpdate(){
     try{tries=+sessionStorage.getItem('pn.updTries')||0}catch(e){}
     if(tries>=4)return;                 /* 계속 안 되면 그만 — 다음에 열 때 다시 봅니다 */
     try{sessionStorage.setItem('pn.updTries',String(tries+1))}catch(e){}
+    try{localStorage.setItem('pn.updFrom',APP_VER)}catch(e){}
     location.reload();
   }catch(e){}
 }
@@ -5869,6 +5928,7 @@ async function hardUpdate(){
       }
     }
   }catch(e){toast('인터넷 연결을 확인해 주세요');return false}
+  try{localStorage.setItem('pn.updFrom',APP_VER)}catch(e){}
   try{
     if('serviceWorker' in navigator){
       const regs=await navigator.serviceWorker.getRegistrations();
@@ -6134,6 +6194,16 @@ $('jsonInput').onchange=async e=>{
   await step(()=>renderRecent());
   await step(()=>renderWhere());
   $('verLabel2').textContent=APP_VER;
+  /* 새 판으로 바뀌었으면 그 자리에서 알려 줍니다 — 이미 설치된 곳이 많아
+     '정말 새것으로 바뀌었나' 를 눈으로 확인할 수 있어야 합니다. */
+  try{
+    const from=localStorage.getItem('pn.updFrom');
+    if(from){
+      localStorage.removeItem('pn.updFrom');
+      if(from!==APP_VER)setTimeout(()=>toast(`새 판 ${APP_VER} 으로 바뀌었습니다 (전 ${from})`),1400);
+      else setTimeout(()=>toast(`아직 ${APP_VER} 입니다 — 잠시 뒤 다시 확인합니다`),1400);
+    }
+  }catch(e){}
   setTimeout(autoCheckUpdate,2500);
   setTimeout(()=>showGuide(true),900);       /* 켤 때마다 손동작 안내 — 잠깐만 */
   /* 기본은 '이동(✋)' 입니다 — 자료를 열자마자 실수로 그려지지 않게.
