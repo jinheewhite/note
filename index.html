@@ -221,15 +221,16 @@ try{
   /* 고른 도구는 흰 알약 위에 올라앉습니다 (굿노트처럼) —
      지금 무엇을 쥐고 있는지 교실 뒤에서도 한눈에 보입니다.
      크기는 그대로라 도구를 바꿔도 막대가 흔들리지 않습니다. */
-  /* '#tools 안' 으로 좁혀 두었더니, 딴 묶음에 있는 ✋(이동)만 노란 알약이
-     되어 혼자 튀었습니다. 도구는 어디에 있든 같은 흰 알약입니다. */
-  .tool.on{opacity:1;background:#fff;border-color:#fff;
-    box-shadow:0 3px 10px rgba(0,0,0,.40),0 0 0 3px rgba(255,255,255,.28)}
+  /* '지금 이것' 을 말하는 색은 앱 전체에서 노랑 하나입니다 —
+     지금 쪽 번호도, 폭맞춤·쪽맞춤도 노랑입니다. 도구만 흰 알약이라
+     같은 뜻인데 색이 둘이었고, 그래서 도구모음이 계속 어수선했습니다. */
+  .tool.on{opacity:1;background:var(--chalk);border-color:var(--chalk);color:#1a1a12;
+    box-shadow:0 0 0 3px rgba(245,213,71,.32)}
   /* 아이콘은 모두 흰색 한 가지입니다 (굿노트처럼). 색이 여럿이면 오히려
      어지럽습니다 — 어느 것을 쥐고 있는지는 '흰 알약' 하나로만 말합니다.
      그림 속에 박혀 있던 잿빛들도 전부 지금 색을 따라오게 합니다. */
-  .tool,.sideBar button{color:#fff}
-  .tool.on{color:#16212c}
+  .tool{color:#fff}
+  .tool.on{color:#1a1a12}
   .tool svg [fill]:not([fill="none"]),
   .sideBar button svg [fill]:not([fill="none"]){fill:currentColor}
   .tool svg [stroke]:not([stroke="none"]),
@@ -243,7 +244,9 @@ try{
   .size-wrap{display:flex;align-items:center;gap:3px;padding:0;border-right:0;margin-right:0}
   .size-wrap .mono{min-width:34px;text-align:center;font-size:16px}
   .size-wrap button{font-size:22px;font-weight:700}
-  #btnUndo{font-size:13.5px;font-weight:600;padding:0 12px}   /* 글자 라벨이라 굵기 버튼처럼 크지 않게 */
+  /* 글자 라벨이라 굵기 버튼처럼 크지 않게. 줄바꿈은 막습니다 —
+     좁은 화면(아이패드)에서 글자가 두 줄로 접혀 단추가 뚱뚱해졌습니다 */
+  #btnUndo{font-size:13.5px;font-weight:600;padding:0 12px;white-space:nowrap}
 
   .status{display:flex;align-items:center;gap:12px;flex:0 0 auto;padding-left:14px}
   .saved{color:var(--text-dim);font-size:12.5px;white-space:nowrap}
@@ -846,7 +849,8 @@ try{
     <button class="icon" id="btnThin" hidden title="가늘게">−</button>
     <span class="mono" id="sizeNow" hidden>4</span>
     <button class="icon" id="btnThick" hidden title="굵게">＋</button>
-    <button id="btnUndo" data-act="undo" disabled data-hover="방금 한 일을 되돌립니다 (Ctrl+Z)" title="되돌리기">↩ 실행취소</button>
+    <!-- '실행취소' 는 아이패드에서 두 줄로 접혔습니다 — 짧게 '취소' 로 -->
+    <button id="btnUndo" data-act="undo" disabled data-hover="방금 한 일을 되돌립니다 (Ctrl+Z)" title="되돌리기 (Ctrl+Z)">↩ 취소</button>
   </div>
 
   <div class="grp" id="rightGrp">
@@ -5988,7 +5992,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.34';
+const APP_VER='25.35';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
