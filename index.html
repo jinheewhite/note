@@ -221,16 +221,15 @@ try{
   /* 고른 도구는 흰 알약 위에 올라앉습니다 (굿노트처럼) —
      지금 무엇을 쥐고 있는지 교실 뒤에서도 한눈에 보입니다.
      크기는 그대로라 도구를 바꿔도 막대가 흔들리지 않습니다. */
-  /* '지금 이것' 을 말하는 색은 앱 전체에서 노랑 하나입니다 —
-     지금 쪽 번호도, 폭맞춤·쪽맞춤도 노랑입니다. 도구만 흰 알약이라
-     같은 뜻인데 색이 둘이었고, 그래서 도구모음이 계속 어수선했습니다. */
-  .tool.on{opacity:1;background:var(--chalk);border-color:var(--chalk);color:#1a1a12;
-    box-shadow:0 0 0 3px rgba(245,213,71,.32)}
+  /* 아래 도구막대의 '고른 도구 = 흰 알약' 은 그대로 둡니다 — 이건 괜찮습니다.
+     (왼쪽 세로 도구상자는 아래 .sideBar 규칙이 따로 정합니다) */
+  .tool.on{opacity:1;background:#fff;border-color:#fff;
+    box-shadow:0 3px 10px rgba(0,0,0,.40),0 0 0 3px rgba(255,255,255,.28)}
   /* 아이콘은 모두 흰색 한 가지입니다 (굿노트처럼). 색이 여럿이면 오히려
      어지럽습니다 — 어느 것을 쥐고 있는지는 '흰 알약' 하나로만 말합니다.
      그림 속에 박혀 있던 잿빛들도 전부 지금 색을 따라오게 합니다. */
   .tool{color:#fff}
-  .tool.on{color:#1a1a12}
+  .tool.on{color:#16212c}
   .tool svg [fill]:not([fill="none"]),
   .sideBar button svg [fill]:not([fill="none"]){fill:currentColor}
   .tool svg [stroke]:not([stroke="none"]),
@@ -5992,7 +5991,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.35';
+const APP_VER='25.36';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
