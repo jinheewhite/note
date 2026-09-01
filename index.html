@@ -170,6 +170,14 @@ try{
   button[disabled]{opacity:.35;pointer-events:none}
   button.on{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700}
   button.icon{padding:0;width:50px;justify-content:center;font-size:19px}
+  /* 도구 옆 ▾ — 색·굵기 창을 여는 작은 단추 (전에는 '길게 꾹').
+     도구 단추에 딱 붙여, 한 벌처럼 보이게 합니다. */
+  button.toolMore{min-height:50px;width:22px;padding:0;margin-left:-1px;
+    justify-content:center;font-size:12px;line-height:1;color:var(--text-dim);
+    background:var(--ink-2);border-radius:0 var(--radius) var(--radius) 0}
+  button.toolMore:hover{background:var(--slate);color:var(--text)}
+  .sideBar button.toolMore{width:44px;height:20px;min-height:20px;margin:-3px 0 0;
+    border-radius:0 0 8px 8px;font-size:12px}
   button.primary{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700}
   button.primary:hover{background:#ffe071}
   button.ghost{background:transparent}
@@ -225,6 +233,11 @@ try{
   .status{display:flex;align-items:center;gap:12px;flex:0 0 auto;padding-left:14px}
   .saved{color:var(--text-dim);font-size:12.5px;white-space:nowrap}
   .saved b{color:var(--chalk);font-weight:600}
+  /* 헤더의 '쪽 23 / 40' — 왼쪽 줄에서 도구막대에 가려도 여기서는 늘 보이게
+     분필색 알약으로 크게. */
+  .saved.pageChip{background:var(--chalk);color:#1a1a12;border-radius:8px;
+    padding:3px 10px;font-size:13px;font-weight:700}
+  .saved.pageChip b{color:#1a1a12;font-size:16px;font-variant-numeric:tabular-nums}
   .datechip{background:var(--ink);border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px}
   .datechip label{color:var(--text-dim);font-size:11px;display:block;letter-spacing:.4px}
   .datechip input{background:transparent;border:0;color:var(--text);font:inherit;font-size:15px;
@@ -243,10 +256,25 @@ try{
   aside .p{margin:5px 11px;height:46px;border-radius:8px;border:1px solid transparent;
     display:flex;align-items:center;justify-content:center;gap:6px;color:var(--text-dim);cursor:pointer;font-size:14px}
   aside .p:hover{background:var(--ink-3);color:var(--text)}
-  aside .p.cur{background:var(--slate);color:#fff;border-color:var(--chalk)}
+  /* 지금 보고 있는 쪽 — 도구 켜진 것과 같은 분필색으로 크게 도드라지게 */
+  aside .p.cur{background:var(--chalk);color:#1a1a12;border-color:var(--chalk);
+    font-weight:800;font-size:16px;box-shadow:0 0 0 3px rgba(245,213,71,.28)}
+  aside .p.cur .mark{display:none}
   aside .p .mark{width:7px;height:7px;border-radius:50%;background:transparent}
   aside .p.jump{color:var(--chalk);font-weight:700;border:1px solid var(--line)}
   aside .p.has .mark{background:var(--chalk)}
+  /* 쪽 번호 줄 맨 위·맨 아래에 붙어 따라다니는 ▲▼ — 30쪽 넘는 자료에서
+     번호를 굴려 찾지 않고 바로 앞/뒤 쪽으로 넘깁니다. */
+  aside .railNav{position:sticky;z-index:3;flex:0 0 auto;margin:0 11px;height:34px;min-height:0;
+    display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;
+    color:#1a1a12;background:var(--chalk);border:1px solid var(--chalk);border-radius:8px;cursor:pointer}
+  aside .railNav.up{top:0;margin-bottom:5px}
+  aside .railNav.down{bottom:0;margin-top:5px}
+  aside .railNav:hover{background:#ffe071}
+  aside .railNav.off{opacity:.28;pointer-events:none}
+  html.rail-h aside .railNav{margin:0;height:36px;min-width:38px}
+  html.rail-h aside .railNav.up{left:0;top:auto}
+  html.rail-h aside .railNav.down{right:0;bottom:auto}
 
   #stage{flex:1;overflow:hidden;background:#26333f;position:relative;touch-action:none;
     display:flex;align-items:center;justify-content:center}
@@ -661,7 +689,7 @@ try{
   <button id="btnPdf" class="primary" hidden title="판서한 쪽 전체를 PDF 한 개로 저장합니다">PDF로 저장</button>
   <button id="btnOpen" hidden>PDF 열기</button>
   <span class="tstat">
-    <span class="saved">쪽 <b id="pageInfo">– / –</b></span>
+    <span class="saved pageChip" title="지금 보고 있는 쪽">쪽 <b id="pageInfo">– / –</b></span>
     <button class="icon" id="btnGuide" data-hover="사용법 — 손동작과 기능" title="사용법">🖐</button>
   </span>
   <div class="datechip" id="dateChip" hidden>
@@ -698,7 +726,7 @@ try{
     <!-- 칠판·칠판바탕은 필기도구와 함께 오른쪽 끝에 둡니다 (자리는 CSS order 로). -->
     <button id="btnBoardBg" title="칠판 바탕을 바꿉니다" style="display:none">칠판 바탕</button>
     <button id="btnSplit" title="오른쪽에 칠판을 엽니다">▥ 칠판</button>
-    <button class="icon tool" data-label="지우개" id="btnEraser" data-tool="eraser" title="지우개 — 한 번 더 누르면 굵기">
+    <button class="icon tool" data-label="지우개" id="btnEraser" data-tool="eraser" title="지우개 — 옆 ▾ 를 누르면 굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(13 13) scale(.95)" stroke="#5c4526" stroke-width="1" stroke-linejoin="round">
     <path d="M-12.7 -2.8 L2.3 2.8 L2.3 7 L-12.7 1.4 Z" fill="#b58a52"/>
@@ -713,7 +741,7 @@ try{
       </svg>
     </button>
     <span class="swatches" id="swatches"></span>
-    <button class="icon tool" data-label="펜" id="btnPen" data-tool="pen" title="펜 — 한 번 더 누르면 색·굵기">
+    <button class="icon tool" data-label="펜" id="btnPen" data-tool="pen" title="펜 — 옆 ▾ 를 누르면 색·굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(3.6 21.6) rotate(-45)">
     <path d="M0 0 L2.6 -2.6 L2.6 2.6 Z" fill="currentColor"/>
@@ -725,7 +753,7 @@ try{
         stroke="currentColor" stroke-linecap="round"/>
       </svg>
     </button>
-    <button class="icon tool" data-label="형광펜" id="btnHl" data-tool="hl" title="형광펜 — 한 번 더 누르면 색·굵기">
+    <button class="icon tool" data-label="형광펜" id="btnHl" data-tool="hl" title="형광펜 — 옆 ▾ 를 누르면 색·굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(3.2 21.8) rotate(-45)">
     <rect x="0" y="-3.4" width="4.6" height="6.8" rx="1" fill="currentColor"/>
@@ -737,7 +765,7 @@ try{
         stroke="currentColor" stroke-linecap="round"/>
       </svg>
     </button>
-    <button class="icon tool" data-label="레이저" id="btnLaser" data-tool="laser" title="레이저 — 한 번 더 누르면 색·굵기">
+    <button class="icon tool" data-label="레이저" id="btnLaser" data-tool="laser" title="레이저 — 옆 ▾ 를 누르면 색·굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
   <g transform="translate(3.4 21.4) rotate(-42)">
     <rect x="0" y="-2.4" width="10.6" height="4.8" rx="2.4" fill="#9aa6b4"/>
@@ -755,7 +783,7 @@ try{
       </svg>
     </button>
     <button class="icon tool" data-label="도형" id="btnShape" data-tool="shape"
-            title="도형 — 한 번 더 누르면 모양·색·굵기">
+            title="도형 — 옆 ▾ 를 누르면 모양·색·굵기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
         <rect x="3.5" y="8.5" width="12" height="12" rx="1.4" fill="none"
               stroke="currentColor" stroke-width="2"/>
@@ -946,11 +974,11 @@ try{
       <div><b>☝ 한 손가락으로 밀기</b><span>화면을 옮깁니다 — 쪽 끝에 닿아도 그 자리에 멈춥니다</span></div>
       <div><b>✌ 두 손가락 밀기</b><span>화면을 옆으로 옮깁니다 — 쪽 끝에서 힘차게 밀면 다음/이전 쪽으로 넘어갑니다</span></div>
       <div><b>🙌 양손 벌리기</b><span>확대 · 오므리면 축소</span></div>
-      <div><b>🧽 손바닥으로 문지르기</b><span>펜은 글씨를 쓰고, 손바닥은 지웁니다 — 칠판·자료 모두</span></div>
+      <div><b>🖐 손바닥으로 밀기</b><span>화면을 옮깁니다 — 지우기는 지우개로만 합니다</span></div>
     </div>
     <h4 class="guideH">펜 · 색 · 굵기</h4>
     <div class="guideRows">
-      <div><b>고른 펜을 한 번 더</b><span>색과 굵기를 고르는 창이 열립니다 (형광펜·레이저·지우개도)</span></div>
+      <div><b>펜 옆 ▾ 단추</b><span>색과 굵기를 고르는 창이 열립니다 (형광펜·레이저·지우개·도형도)</span></div>
       <div><b>펜 아래 자국</b><span>지금 고른 색과 굵기가 그대로 보입니다</span></div>
       <div><b>지우개</b><span>닿은 곳만 지웁니다 — 획 전체가 사라지지 않습니다</span></div>
       <div><b>↩ 되돌리기</b><span>방금 한 일을 되돌립니다 (Ctrl+Z) — 지운 것도 되살아납니다</span></div>
@@ -958,7 +986,7 @@ try{
     <h4 class="guideH">도형</h4>
     <div class="guideRows">
       <div><b>도형 단추를 누르고 끓기</b><span>네모·세모·동그라미·직선</span></div>
-      <div><b>한 번 더 누르면</b><span>모양과 색·굵기를 고릅니다</span></div>
+      <div><b>도형 옆 ▾ 단추</b><span>모양과 색·굵기를 고릅니다</span></div>
       <div><b>그린 뒤 바로</b><span>✥ 로 옮기고, ↘ 로 크기를 바꿉니다 (✕ 는 그 도형만 지우기)</span></div>
       <div><b>펜으로 슥 그린 도형도</b><span>다듬어져 도형이 되면 똑같이 옮기고 늘릴 수 있습니다</span></div>
       <div><b>그냥 그려도 됩니다</b><span>동그라미를 슐 그리면 동그랑게, 선은 곱게 다듬어 줍니다</span></div>
@@ -2420,6 +2448,26 @@ function smoothPath(cx,P,sharp){
   cx.lineTo(P[P.length-1][0],P[P.length-1][1]);
   cx.stroke();
 }
+/* Chaikin 코너 커팅 — 전자칠판처럼 move 를 듬성듬성 주는 기기에서도
+   획을 뗀 순간 점 사이를 잘라 부드러운 곡선으로 만듭니다. 양 끝점은 그대로.
+   필압(3번째 값)이 있으면 그것도 같이 사이값을 넣습니다. */
+function chaikin(pts,iter){
+  if(!pts||pts.length<3)return pts;
+  let P=pts;
+  for(let k=0;k<(iter||1);k++){
+    const Q=[P[0]];
+    for(let i=0;i<P.length-1;i++){
+      const a=P[i], b=P[i+1];
+      const q=[a[0]*0.75+b[0]*0.25, a[1]*0.75+b[1]*0.25];
+      const r=[a[0]*0.25+b[0]*0.75, a[1]*0.25+b[1]*0.75];
+      if(a.length>2&&b.length>2){ q.push(a[2]*0.75+b[2]*0.25); r.push(a[2]*0.25+b[2]*0.75); }
+      Q.push(q,r);
+    }
+    Q.push(P[P.length-1]);
+    P=Q;
+  }
+  return P;
+}
 function paintStroke(st){
   const pts=st.pts;if(!pts.length)return;
   ictx.save();
@@ -2863,6 +2911,11 @@ function endStroke(){
     let tidied=false;
     if(S.tool!=='shape')
       tidied=tidyCur(S.cur, p=>toP(p[0],p[1]), q=>toN(q[0],q[1]));
+    /* 도형으로 다듬어지지 않은 펜·형광펜 획은 한 번 매끈하게 — 쓴 대로 부드럽게.
+       (필압이 기록된 획은 그대로 둡니다 — 굵기 변화가 흐트러지지 않게) */
+    if(!tidied&&(S.cur.mode==='pen'||S.cur.mode==='hl')&&S.cur.pts.length>=3
+       &&!S.cur.pts.some(p=>p.length>2))
+      S.cur.pts=chaikin(S.cur.pts,1);
     snap('pdf');
     S.strokes.push(S.cur);
     /* 도형 도구로 그린 것도, 펜으로 슥 그려 도형이 된 것도 고른 채로 둡니다 */
@@ -3395,16 +3448,11 @@ inkCv.addEventListener('pointerdown',e=>{
   try{inkCv.setPointerCapture(e.pointerId)}catch(err){}
   if(!isWriter(e.pointerType)&&touches()>=2){cancelStroke();undoTouchSmudge();S.pan=null;startPinch();return}
   if(isPalm(e)){
-    if(S.tool==='hand'){                    /* ✋ 를 일부러 골랐으면 손바닥도 이동입니다 */
-      if(!S.palmSeen){S.palmSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 밀면 화면이 움직입니다')}
-      cancelStroke();undoTouchSmudge();startPan(e);return;
-    }
-    /* 전자칠판처럼 — 펜은 글씨를 쓰고, 손바닥은 지웁니다 */
-    if(!S.palmEraseSeen){S.palmEraseSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 문지르면 지워집니다')}
-    cancelStroke();undoTouchSmudge();
-    S.palmErase=true;
-    ghostShow(e);
-    startStroke(e);return;
+    /* 손바닥처럼 넓게 닿으면 늘 화면 이동입니다 — 지우기는 지우개로만 합니다.
+       (전에는 손바닥으로 문지르면 지워졌는데, 글씨를 쓰다 손날이 닿아
+        엉뚱하게 지워진다는 말을 듣고 뺐습니다.) */
+    if(!S.palmSeen){S.palmSeen=true;toast('손바닥을 인식했습니다 — 손바닥으로 밀면 화면이 움직입니다')}
+    cancelStroke();undoTouchSmudge();startPan(e);return;
   }
   if(canDraw(e.pointerType,e))startStroke(e);else startPan(e);
 });
@@ -3599,10 +3647,11 @@ const bdctx=(()=>{
   try{const c=bdCv.getContext('2d',{alpha:false});if(c)return c}catch(e){}
   return bdCv.getContext('2d');
 })();
-/* 칠판 손떨림 보정은 아주 약하게 — 세게 걸면 펜보다 잉크가 늦게 나갑니다 */
-const BD_STEADY=0.08;
+/* 칠판 손떨림 보정 — 전자칠판은 move 가 듬성해 0.08 은 각져 보였습니다.
+   0.14 로 조금 올리고, 뗄 때 Chaikin 으로 한 번 더 매끈하게 잡습니다. */
+const BD_STEADY=0.14;
 const BD={strokes:[],imgs:[],sel:null,imgDrag:null,
-          cur:null,drawing:false,last:null,w:1,h:1,timer:null,
+          cur:null,drawing:false,last:null,w:1,h:1,timer:null,drawId:null,penAt:0,
           page:1,pages:1,vz:1,ox:0,oy:0,pinch:null,drag:null};
 const bdImgCache=new Map();
 function bdImgEl(it){                        /* 오려온 그림을 한 번만 읽어 둡니다 */
@@ -3870,6 +3919,9 @@ function bdIsPalm(e){
   if(bdPtrs.size===0)return ((e.width||0)>=22||(e.height||0)>=22);
   return false;
 }
+/* 펜이 방금(0.7초 안) 칠판에 닿아 그리고 있었는지 — 이 동안 손·손등이 닿아도 무시합니다.
+   기기가 펜 뗌 신호를 놓쳐도 0.7초면 저절로 풀립니다. */
+function bdPenActive(){ return (BD.penAt||0)>0 && performance.now()-BD.penAt<700 }
 function bdStartPinch(e){
   const a=[...bdPtrs.values()][0];
   BD.pinch={d:Math.max(1,Math.hypot(e.clientX-a.x,e.clientY-a.y)),
@@ -3933,22 +3985,21 @@ bdCv.addEventListener('pointerdown',e=>{
     if(!BD.zoomSeen){BD.zoomSeen=true;toast('두 손가락으로 밀면 칠판이 위아래로 움직입니다 — 벌리면 확대')}
     return;
   }
+  /* 펜으로 쓰는 중에 손·손등이 칠판에 닿아도 아무 일도 하지 않습니다 —
+     그리던 획을 지우지도, 화면을 옮기지도, 절대로 지우지도 않습니다. */
+  if(e.pointerType==='touch'&&(bdPenActive()||(BD.drawing&&BD.drawId!=null&&BD.drawId!==e.pointerId))){
+    try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
+    return;
+  }
   const r=bdCv.getBoundingClientRect();
   BD.rect=r;                                               /* 이 획 동안 재사용 — 매 move 마다 재계산하면 버벅입니다 */
   const x=(e.clientX-r.left)*(BD.w/r.width), y=(e.clientY-r.top)*(BD.h/r.height);
-  if(bdIsPalm(e)){                                         /* 손바닥으로 문지르면 지웁니다 */
-    if(BD.cur&&performance.now()-(BD.curAt||0)<1200){BD.cur=null;bdRedraw()}  /* 손바닥이 그리던 선은 취소 */
-    else if(BD.lastTouch&&performance.now()-BD.lastTouch.at<1200){            /* 방금 손이 그은 선도 취소 */
-      const i=BD.strokes.indexOf(BD.lastTouch.s);
-      if(i>=0){BD.strokes.splice(i,1);bdRedraw()}
-      BD.lastTouch=null;
-    }
+  if(bdIsPalm(e)){                                         /* 손바닥처럼 넓게 닿으면 — 그리기만 멈춥니다 (지우기는 지우개로만) */
+    if(BD.cur&&!bdPenActive()&&performance.now()-(BD.curAt||0)<1200){BD.cur=null;bdRedraw()}  /* 손바닥이 그리던 선은 취소 */
     bdPtrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
     try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
-    BD.drawing=true;BD.palm=true;BD.last=[x,y];
-    if(!BD.palmSeen){BD.palmSeen=true;toast('칠판: 손바닥으로 문지르면 지워집니다')}
-    snap('bd');
-    bdErase(x,y);return;
+    BD.drawing=false;BD.palm=false;
+    return;
   }
   /* 고른 도형의 손잡이는 어느 도구로든 먼저 봅니다 (지우개는 빼고) */
   if(S.tool!=='eraser'&&BD.shSel&&BD.strokes.indexOf(BD.shSel)>=0){
@@ -3971,6 +4022,8 @@ bdCv.addEventListener('pointerdown',e=>{
   ghostShow(e);
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
   BD.drawing=true;BD.palm=false;BD.last=[x,y];BD.prev=null;
+  BD.drawId=e.pointerId;                                     /* 이 획을 그리는 손가락/펜 — 다른 포인터의 움직임은 무시 */
+  if(e.pointerType!=='touch')BD.penAt=performance.now();     /* 펜이 지금 칠판에 닿아 있음 (손등 무시용) */
   snap('bd');
   if(S.tool==='eraser'){bdErase(x,y);return}
   const bdConv=(sx,sy)=>[bdWX(sx),bdWY(sy)];
@@ -4022,6 +4075,8 @@ bdCv.addEventListener('pointermove',e=>{
     bdClamp();bdRedraw();return;
   }
   if(!BD.drawing)return;
+  if(BD.drawId!=null&&e.pointerId!==BD.drawId)return;        /* 이 획을 시작한 손가락/펜만 그립니다 — 손등이 닿아도 획이 흐트러지지 않게 */
+  if(e.pointerType!=='touch')BD.penAt=performance.now();     /* 펜이 아직 닿아 움직이는 중 */
   const r=BD.rect||(BD.rect=bdCv.getBoundingClientRect());
   const kx=BD.w/r.width, ky=BD.h/r.height;
   if(S.tool==='shape'&&BD.cur&&BD.shapeFrom){
@@ -4060,6 +4115,9 @@ bdCv.addEventListener('pointermove',e=>{
   }
 });
 function bdEnd(e){
+  /* 그리던 손가락/펜이 아니라 다른 포인터(손등 등)가 뗐을 뿐이면 —
+     화면 자리·그리던 획을 그대로 두고 아무 일도 하지 않습니다. */
+  if(e&&BD.drawing&&BD.drawId!=null&&e.pointerId!==BD.drawId){bdPtrs.delete(e.pointerId);return}
   BD.rect=null;                       /* 다음 획은 화면 자리를 새로 잽니다 */
   if(BDCUT.on){bdCutEnd();if(e)bdPtrs.delete(e.pointerId);return}
   ghostHide();
@@ -4069,11 +4127,14 @@ function bdEnd(e){
   if(BD.drag){BD.drag=null;return}
   if(BD.pinch){ if(bdPtrs.size<2){BD.pinch=null;BD.drawing=false;BD.palm=false} return }
   if(!BD.drawing)return;
-  BD.drawing=false;BD.palm=false;
+  BD.drawing=false;BD.palm=false;BD.drawId=null;BD.penAt=0;
   if(BD.cur){
     let tidied=false;
     if(S.tool!=='shape')
       tidied=tidyCur(BD.cur, q=>bdPt(BD.cur,q), s=>[bdWX(s[0]),bdWY(s[1])]);
+    /* 도형으로 다듬어지지 않은 펜·형광펜 획은 한 번 매끈하게 — 쓴 대로 부드럽게 */
+    if(!tidied&&(BD.cur.mode==='pen'||BD.cur.mode==='hl')&&BD.cur.pts.length>=3)
+      BD.cur.pts=chaikin(BD.cur.pts,1);
     snap('bd');
     BD.strokes.push(BD.cur);
     /* 도형 도구로 그린 것도, 펜으로 슥 그려 도형이 된 것도 고른 채로 둡니다 */
@@ -4205,31 +4266,68 @@ function railFits(){
   if(!document.documentElement.classList.contains('rail-h'))return true;
   return S.pages*52+120<=window.innerWidth;
 }
+/* 지금 그려야 할 쪽 번호 줄의 '모양표' — 이게 바뀔 때만 다시 짓습니다.
+   가로/세로 방향까지 넣어, 돌렸을 때 ▲▼ 방향도 바로잡습니다. */
+function railSig(){
+  const h=document.documentElement.classList.contains('rail-h')?'h':'v';
+  if(railFits())return `${h}|all|${S.pages}`;
+  const per=Math.max(5,Math.floor((window.innerWidth-260)/52));
+  const g=Math.floor((S.page-1)/per), from=g*per+1, to=Math.min(S.pages,(g+1)*per);
+  return `${h}|${from}-${to}|${S.pages}`;
+}
 function buildRail(){
   const rail=$('rail');
-  if(railFits()){
-    if(rail.dataset.group){rail.dataset.group='';rail.innerHTML=''}
-    if(rail.childElementCount!==S.pages){
-      rail.innerHTML='';
+  const sig=railSig();
+  if(rail.dataset.sig!==sig){
+    rail.dataset.sig=sig;rail.innerHTML='';
+    rail.appendChild(railNav(-1));
+    if(railFits()){
       for(let i=1;i<=S.pages;i++)rail.appendChild(railBtn(i));
-    }
-  }else{
-    /* 지금 쪽이 속한 묶음만 보여주고, « » 로 묶음을 넘깁니다 */
-    const per=Math.max(5,Math.floor((window.innerWidth-260)/52));
-    const g=Math.floor((S.page-1)/per), from=g*per+1, to=Math.min(S.pages,(g+1)*per);
-    const key=`${from}-${to}`;
-    if(rail.dataset.group!==key){
-      rail.dataset.group=key;rail.innerHTML='';
+    }else{
+      /* 지금 쪽이 속한 묶음만 보여주고, « » 로 묶음을 넘깁니다 */
+      const per=Math.max(5,Math.floor((window.innerWidth-260)/52));
+      const g=Math.floor((S.page-1)/per), from=g*per+1, to=Math.min(S.pages,(g+1)*per);
       if(from>1)rail.appendChild(railJump('«',from-1));
       for(let i=from;i<=to;i++)rail.appendChild(railBtn(i));
       if(to<S.pages)rail.appendChild(railJump('»',to+1));
     }
+    rail.appendChild(railNav(1));
   }
+  let cur=null;
   [...rail.children].forEach(el=>{
     const p=+el.dataset.p;
-    el.classList.toggle('cur',p===S.page);
+    if(!p)return;
+    const on=(p===S.page);
+    el.classList.toggle('cur',on);
     el.classList.toggle('has',S.pageHas.has(p));
+    if(on)cur=el;
   });
+  /* 세로 줄에서는 현재 쪽을 '가운데'가 아니라 '위쪽' 에 둡니다 — 화면 세로
+     한가운데에 떠 있는 도구막대(.sideBar)가 바로 그 자리를 가리기 때문입니다.
+     가로 줄(위쪽 가로 배치)은 도구막대와 안 겹치므로 그대로 가운데로 옮깁니다. */
+  if(cur){
+    const horiz=document.documentElement.classList.contains('rail-h');
+    const go=()=>{
+      if(horiz){ cur.scrollIntoView({block:'nearest',inline:'center'}); return; }
+      const rr=rail.getBoundingClientRect(), cr=cur.getBoundingClientRect();
+      rail.scrollTop += (cr.top - rr.top) - Math.max(48, rr.height*0.16);
+    };
+    go(); requestAnimationFrame(go);
+  }
+  const up=rail.querySelector('.railNav.up'), dn=rail.querySelector('.railNav.down');
+  if(up)up.classList.toggle('off',S.page<=1);
+  if(dn)dn.classList.toggle('off',S.page>=S.pages);
+}
+/* 쪽 번호 줄 맨 위·맨 아래의 ▲▼ (가로 자료면 ◀▶) — 앞/뒤 쪽으로 */
+function railNav(dir){
+  const horiz=document.documentElement.classList.contains('rail-h');
+  const d=document.createElement('button');
+  d.type='button';
+  d.className='railNav '+(dir<0?'up':'down');
+  d.textContent=horiz?(dir<0?'◀':'▶'):(dir<0?'▲':'▼');
+  d.title=dir<0?'이전 쪽':'다음 쪽';
+  d.onclick=()=>goto(S.page+dir);
+  return d;
 }
 function railBtn(i){
   const d=document.createElement('div');
@@ -4434,7 +4532,7 @@ function showColor(){
   clearTimeout(sharpTimer);                 /* 색을 고르는 동안 다시 그리지 않습니다 */
 }
 /* 한 번 탭 = 그 도구를 지난 색·굵기 그대로 바로 씁니다 (창이 뜨지 않습니다).
-   색·굵기를 바꾸려면 길게 꾹 누릅니다 — 아래 bindHold 가 답니다. */
+   색·굵기를 바꾸려면 도구 옆 ▾ 단추를 한 번 누릅니다 — 아래 addCaret 가 답니다. */
 $('btnPen').onclick=e=>setTool('pen',e.currentTarget);
 /* 색 고르는 작은 창 — 도구를 길게 꾹 누르면 뜹니다 */
 const PALETTES={
@@ -4533,7 +4631,7 @@ document.addEventListener('pointerdown',e=>{
      !e.target.closest('#btnPen')&&!e.target.closest('#btnHl')&&
      !e.target.closest('#btnLaser')&&!e.target.closest('#btnEraser')&&
      !e.target.closest('#btnEraser2')&&!e.target.closest('#btnBoardBg')&&
-     !e.target.closest('.sideBar'))
+     !e.target.closest('.toolMore')&&!e.target.closest('.sideBar'))
     closePop();
 },true);
 
@@ -4560,46 +4658,44 @@ function openEraserPop(anchor){
 $('btnHand').onclick=e=>setTool('hand',e.currentTarget);
 $('btnCut').onclick=e=>{setTool('cut',e.currentTarget);
   if(!CUT.seen){CUT.seen=true;toast('대각선으로 죽 끌면 그 네모만큼 — 둘러서 오려도 됩니다')}};
-/* 도형 — 한 번 탭은 지난 모양 그대로, 길게 꾹 누르면 모양·색·굵기를 고릅니다 */
+/* 도형 — 한 번 탭은 지난 모양 그대로, 옆 ▾ 를 누르면 모양·색·굵기를 고릅니다 */
 $('btnShape')&&($('btnShape').onclick=e=>{
   const b=e.currentTarget;
   const first=(S.tool!=='shape');
   setTool('shape',b);
-  if(first)toast(`${SHAPE_NAME[S.shape]} — 끌어서 그립니다 (길게 꾹 누르면 모양·색 고르기)`);
+  if(first)toast(`${SHAPE_NAME[S.shape]} — 끌어서 그립니다 (옆 ▾ 를 누르면 모양·색 고르기)`);
 });
-/* ── 길게 꾹 = 색·굵기 창 ─────────────────────────────
-   한 번 탭은 '그 도구 바로 쓰기(지난 색 그대로)'로 바뀌었습니다.
-   전자칠판은 우클릭·마우스오버가 없어, 0.5초 꾹 누르기로 창을 엽니다.
-   손을 떼며 딸려 오는 click 은 캡처 단계에서 한 번 삼킵니다. */
-function bindHold(btn,tool){
-  if(!btn||btn._holdBound)return; btn._holdBound=true;
-  let timer=null,sx=0,sy=0,fired=false;
-  const stop=()=>{clearTimeout(timer);timer=null};
-  btn.addEventListener('pointerdown',e=>{
-    fired=false;sx=e.clientX;sy=e.clientY;stop();
-    timer=setTimeout(()=>{
-      fired=true;
-      const t=tool||btn.dataset.tool;if(!t)return;
-      if(S.tool!==t)setTool(t,btn);
-      openPop(btn,t);
-    },500);
+/* ── 도구 옆 ▾ = 색·굵기 창 ───────────────────────────
+   전에는 0.5초 '길게 꾹' 이었는데, 전자칠판에서는 길게 누르기가
+   우클릭(브라우저 팝업 메뉴)으로 잡혀 색·굵기 창이 뜨지 않았습니다.
+   이제 도구 단추 옆에 작은 ▾ 를 붙이고, 한 번 탭하면 같은 창이 뜹니다.
+   ▾ 는 그 도구를 고른 뒤 openPop 을 부릅니다 (아래 막대·옆 막대 공통). */
+function addCaret(btn,tool){
+  if(!btn||btn._caret)return null;
+  const t=tool||btn.dataset.tool;if(!t){btn._caret=true;return null}
+  btn._caret=true;
+  const c=document.createElement('button');
+  c.type='button';c.className='toolMore';
+  c.textContent='▾';
+  c.setAttribute('aria-label',`${TOOL_NAME[t]||''} 색·굵기 고르기`);
+  c.title=`${TOOL_NAME[t]||''} 색·굵기`;
+  try{c.style.order=getComputedStyle(btn).order}catch(e){}
+  c.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    if(S.tool!==t)setTool(t,btn);
+    openPop(c,t);
   });
-  btn.addEventListener('pointermove',e=>{
-    if(timer&&Math.hypot(e.clientX-sx,e.clientY-sy)>10)stop();
-  });
-  ['pointerup','pointerleave','pointercancel'].forEach(ev=>btn.addEventListener(ev,stop));
-  btn.addEventListener('click',e=>{
-    if(fired){e.preventDefault();e.stopImmediatePropagation();fired=false;}
-  },true);
+  btn.insertAdjacentElement('afterend',c);
+  return c;
 }
-['btnPen','btnHl','btnLaser','btnEraser','btnEraser2','btnShape'].forEach(id=>bindHold($(id)));
+['btnPen','btnHl','btnLaser','btnEraser','btnShape'].forEach(id=>addCaret($(id)));
 /* 도형 단추가 지금 고른 모양과 색을 그대로 보여 줍니다 */
 function showShapeBtn(){
   const b=$('btnShape');if(!b)return;
   b.innerHTML=SHAPE_ICON[S.shape]||SHAPE_ICON.rect;
   const sv=b.querySelector('svg');
   if(sv)sv.style.color=b.classList.contains('on')?'#1a1a12':S.colors.pen;
-  b.setAttribute('data-hover',`도형 · ${SHAPE_NAME[S.shape]} — 한 번 더 누르면 모양·색·굵기`);
+  b.setAttribute('data-hover',`도형 · ${SHAPE_NAME[S.shape]} — 옆 ▾ 를 누르면 모양·색·굵기`);
 }
 /* ══ 양옆 세로 도구막대 ══
    아래 막대의 단추를 그대로 복제합니다 — 그림(SVG)을 또 베껴 두면
@@ -4713,7 +4809,7 @@ function buildSideTools(){
       b.innerHTML=src.innerHTML;
       if(S.tool===tool)b.classList.add('on');
       box.appendChild(b);
-      if(tool!=='hand')bindHold(b,tool);   /* 길게 꾹 = 색·굵기 창 (아래 막대와 같음) */
+      if(tool!=='hand')addCaret(b,tool);   /* 옆(아래) ▾ = 색·굵기 창 (아래 막대와 같음) */
     }
     /* 되돌리기 — 도구가 아니라 '한 일 무르기' 라 따로 답니다 */
     const u=document.createElement('button');
@@ -5738,7 +5834,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.18';
+const APP_VER='25.19';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
