@@ -3683,18 +3683,14 @@ function bdResize(){
   bdCv.style.transform='';                  /* 칠판은 이제 그림 자체를 옮깁니다 */
   const r=bdCv.getBoundingClientRect();
   if(!r.width||!r.height)return;
-  /* 칠판 글씨가 PDF 보다 흐리다는 말에 — PDF 층이 쓰는 배율(S.dpr)을 그대로 따라갑니다.
-     최소 3배는 확보하고, 위 뚜껑은 6배입니다. */
-  let dpr=Math.max(S.dpr||0, window.devicePixelRatio||1, 3);
-  dpr=Math.min(dpr,6);
-  /* 칠판을 쓰는 동안에는 칠판이 주인공이라 예산을 넉넉히 씁니다.
-     칠판만 보는 중(board-full)이면 PDF 는 그려지지도 않으니 더 넉넉하게.
-     예산을 넘을 때만 배율을 낮춥니다(그때는 어쩔 수 없이 부드러워집니다). */
+  /* 배율은 화면이 실제로 보여 줄 수 있는 만큼(devicePixelRatio)만, 최대 2배.
+     전에는 자료 층 배율(S.dpr, 최대 6)을 따라가 전체화면 칠판이 수천만 화소짜리
+     그림판이 됐고, 전자칠판에서 글씨가 한참 늦게 따라왔습니다. 손글씨엔 2배면 충분. */
+  let dpr=Math.max(1, Math.min(2, window.devicePixelRatio||1));
+  /* 그래도 예산을 넘으면(아주 큰 화면) 조금 더 낮춥니다 */
   const bdNeed=r.width*r.height;
-  const full=document.documentElement.classList.contains('board-full')
-          || document.body.classList.contains('board-full');
-  const bdBudget=PN_BUDGET*(full?2.4:1.8);
-  if(bdNeed*dpr*dpr>bdBudget)dpr=Math.max(2,Math.sqrt(bdBudget/bdNeed));
+  const bdBudget=PN_BUDGET*1.8;
+  if(bdNeed*dpr*dpr>bdBudget)dpr=Math.max(1,Math.sqrt(bdBudget/bdNeed));
   bdCv.width=Math.round(r.width*dpr);bdCv.height=Math.round(r.height*dpr);
   bdctx.setTransform(dpr,0,0,dpr,0,0);
   BD.w=r.width;BD.h=r.height;
@@ -5801,7 +5797,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.21';
+const APP_VER='25.22';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
