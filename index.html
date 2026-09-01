@@ -402,7 +402,9 @@ try{
     box-shadow:0 0 12px rgba(74,168,255,.28),0 8px 22px rgba(0,0,0,.5)}
   /* 수평은 왼쪽 끝, 수직은 가운데. (쪽번호 줄 위에 살짝 걸칠 수 있지만,
      아담해서 대부분의 쪽번호는 그대로 눌립니다.) */
-  #sideL{left:8px}
+  /* 세로 쪽 번호 줄(아래 aside, 78px) 바로 오른쪽에 붙여 둡니다 — 전에는 left:8px
+     라 쪽 번호를 덮어 '지금 몇 쪽'이 안 보였습니다. (도형이 겹치면 노란 손잡이로 끌어 옮길 수 있습니다.) */
+  #sideL{left:84px}
   html.rail-h #sideL{left:6px}
   body.board-full #sideL,html.board-full #sideL{left:6px}
   /* 서재를 보는 동안에는 감춥니다 — 고를 자료가 아직 없습니다 */
@@ -4302,16 +4304,10 @@ function buildRail(){
     el.classList.toggle('has',S.pageHas.has(p));
     if(on)cur=el;
   });
-  /* 세로 줄에서는 현재 쪽을 '가운데'가 아니라 '위쪽' 에 둡니다 — 화면 세로
-     한가운데에 떠 있는 도구막대(.sideBar)가 바로 그 자리를 가리기 때문입니다.
-     가로 줄(위쪽 가로 배치)은 도구막대와 안 겹치므로 그대로 가운데로 옮깁니다. */
+  /* 지금 쪽을 줄 한가운데에 둡니다 — 도구막대는 이제 줄 오른쪽 바깥에 있어
+     가리지 않습니다 (위 #sideL{left:88px}). */
   if(cur){
-    const horiz=document.documentElement.classList.contains('rail-h');
-    const go=()=>{
-      if(horiz){ cur.scrollIntoView({block:'nearest',inline:'center'}); return; }
-      const rr=rail.getBoundingClientRect(), cr=cur.getBoundingClientRect();
-      rail.scrollTop += (cr.top - rr.top) - Math.max(48, rr.height*0.16);
-    };
+    const go=()=>cur.scrollIntoView({block:'center',inline:'center'});
     go(); requestAnimationFrame(go);
   }
   const up=rail.querySelector('.railNav.up'), dn=rail.querySelector('.railNav.down');
@@ -5834,7 +5830,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.19';
+const APP_VER='25.20';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
