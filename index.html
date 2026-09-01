@@ -1651,9 +1651,14 @@ const PDF_OPTS={CMapReaderFactory:InlineCMapReader,StandardFontDataFactory:Inlin
 document.addEventListener('touchstart',e=>{
   if(e.touches.length>1&&e.target.closest('#stage'))e.preventDefault();
 },{passive:false});
-document.addEventListener('touchmove',e=>{
-  if(e.target.closest('#stage'))e.preventDefault();
-},{passive:false});
+/* touchmove 를 여기서 막던 것은 뺐습니다.
+   'passive:false' 로 문서 전체의 touchmove 를 잡고 있으면, 손가락이
+   움직일 때마다 브라우저가 이 자바스크립트를 먼저 기다렸다가(그리고
+   closest('#stage') 로 DOM 을 거슬러 올라간 뒤에야) 다음 일을 합니다.
+   빨리 쓸수록 그 기다림이 쌓여 "속도를 못 받아 적는" 느낌이 됩니다.
+   화면이 밀리는 것은 CSS 의 touch-action:none 이 이미 막고 있어서
+   (html·body·#stage·#inkCv 모두) 이 손잡이는 필요 없었습니다.
+   마우스로는 이 길을 안 지나가므로 컴퓨터에서만 멀쩡했습니다. */
 
 /* ══════════════════════════════════════════════════════════
    1. 저장소 — IndexedDB → localStorage → 메모리 순으로 시도
@@ -2241,10 +2246,19 @@ async function doRender(my){
   if(need*dpr*dpr>BUDGET)dpr=Math.max(1,Math.sqrt(BUDGET/need));
   S.dpr=dpr;
   const cw=Math.round(vp.width*dpr), ch=Math.round(vp.height*dpr);
+  /* ── 필기 그림판은 PDF 만큼 클 필요가 없습니다 ──────────────────
+     PDF 는 한 번만 그리므로 곱게(3~6배) 그려 둡니다. 그런데 필기
+     그림판은 획을 그을 때마다 그 판을 통째로 화면에 다시 올립니다.
+     1,200만 화소짜리를 1초에 백 번 올리는 셈이라, 전자칠판에서는
+     글씨가 손을 못 따라왔습니다. 필기는 화면 화소만큼만 있으면
+     충분합니다 (기기 배율, 넉넉히 2배까지). */
+  const idpr=Math.max(1,Math.min(dpr,window.devicePixelRatio||1,2));
+  S.inkDpr=idpr;
+  const iw=Math.round(vp.width*idpr), ih=Math.round(vp.height*idpr);
   /* 자료를 열면 자리를 잡느라 첫 쪽을 세 번까지 다시 그립니다. 그릴 때마다 화면을
      흰색으로 지웠다가 다시 그리므로, 무거운 자료에서는 그게 깜박임으로 보입니다.
      조건이 하나도 안 바뀌었으면 다시 그리지 않습니다. */
-  const sig=[S.page,rot,cw,ch].join('|');
+  const sig=[S.page,rot,cw,ch,iw,ih].join('|');
   /* 그림판의 '화면 크기'(CSS)는 조건이 같아도 반드시 먼저 맞춰 둡니다.
      배율이 바뀌면 그림판 속 크기(cw·ch)는 그대로여도 화면 크기(vp.width)는
      달라집니다. 아래에서 일찍 빠져나가며 이것을 건너뛰는 바람에,
@@ -2258,11 +2272,11 @@ async function doRender(my){
      그런데 width 를 다시 넣으면 그때마다 큰 메모리를 새로 잡습니다(4K 화면에서는
      한 장에 수십 MB). 그래서 크기가 그대로면 새로 잡지 않고 지우기만 합니다. */
   pnMarkDrawing();            /* 여기서 꺼지면 다음번에 알 수 있게 */
-  for(const cv of [pdfCv,inkCv,fxCv]){
-    if(cv.width!==cw||cv.height!==ch){cv.width=cw;cv.height=ch}
+  for(const [cv,w,h] of [[pdfCv,cw,ch],[inkCv,iw,ih],[fxCv,iw,ih]]){
+    if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}
     else{
       const g=cv.getContext('2d');
-      g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cw,ch);
+      g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,w,h);
     }
     cv.style.width=vp.width+'px';cv.style.height=vp.height+'px';
   }
@@ -2271,8 +2285,8 @@ async function doRender(my){
      칠하면 그 사이 필기가 사라져 보입니다(자료가 클수록 오래). 손에 든
      것이 이미 이 쪽의 필기라면 곧바로 칠해 둡니다 — 필기는 PDF 와
      다른 그림판이라 밑에서 PDF 가 그려지는 동안에도 그대로 보입니다. */
-  ictx.setTransform(dpr,0,0,dpr,0,0);
-  fctx.setTransform(dpr,0,0,dpr,0,0);
+  ictx.setTransform(idpr,0,0,idpr,0,0);
+  fctx.setTransform(idpr,0,0,idpr,0,0);
   for(const cx0 of [ictx,fctx]){cx0.imageSmoothingEnabled=true;try{cx0.imageSmoothingQuality='high'}catch(e){}}
   if(S.inkKey===noteKey(S.fileId,S.date,S.page))redraw();
   pctx.setTransform(1,0,0,1,0,0);
@@ -2288,8 +2302,8 @@ async function doRender(my){
   if(renderTask===task)renderTask=null;
   if(my!==renderSeq)return;
   S.rsig=sig;                          /* 이 조건으로는 이미 그려 두었습니다 */
-  ictx.setTransform(dpr,0,0,dpr,0,0);
-  fctx.setTransform(dpr,0,0,dpr,0,0);
+  ictx.setTransform(idpr,0,0,idpr,0,0);
+  fctx.setTransform(idpr,0,0,idpr,0,0);
   for(const cx of [ictx,fctx]){cx.imageSmoothingEnabled=true;try{cx.imageSmoothingQuality='high'}catch(e){}}
   S.tx=keepTx;S.ty=keepTy;             /* 보고 있던 위치를 그대로 지킵니다 */
   diag('다시그림');
@@ -3445,7 +3459,9 @@ async function cutEnd(){
   try{cx.imageSmoothingQuality='high'}catch(e){}
   /* PDF 그림과 그 위에 쓴 필기를 함께 오려 옵니다 */
   cx.drawImage(pdfCv, x0*dpr,y0*dpr,wc*dpr,hc*dpr, 0,0,out.width,out.height);
-  cx.drawImage(inkCv, x0*dpr,y0*dpr,wc*dpr,hc*dpr, 0,0,out.width,out.height);
+  /* 필기 그림판은 이제 PDF 보다 성글게 잡습니다 — 제 배율로 읽어야 합니다 */
+  const idpr=S.inkDpr||dpr;
+  cx.drawImage(inkCv, x0*idpr,y0*idpr,wc*idpr,hc*idpr, 0,0,out.width,out.height);
   cx.restore();
   const W=S.pdfW;
   const it={id:'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
@@ -5630,7 +5646,9 @@ function flatten(){
   out.width=pdfCv.width;out.height=pdfCv.height;
   const c=out.getContext('2d');
   c.fillStyle='#fff';c.fillRect(0,0,out.width,out.height);
-  c.drawImage(pdfCv,0,0);c.drawImage(inkCv,0,0);
+  c.drawImage(pdfCv,0,0);
+  /* 필기 그림판은 PDF 보다 성글게 잡습니다 — 저장할 때는 PDF 크기로 늘려 얹습니다 */
+  c.drawImage(inkCv,0,0,inkCv.width,inkCv.height,0,0,out.width,out.height);
   return out;
 }
 const baseName=()=>S.fileName.replace(/\.pdf$/i,'');
@@ -5951,7 +5969,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.29';
+const APP_VER='25.30';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
