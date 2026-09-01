@@ -710,7 +710,15 @@ try{
   <button id="btnOpen" hidden>PDF 열기</button>
   <span class="tstat">
     <span class="saved pageChip" title="지금 보고 있는 쪽">쪽 <b id="pageInfo">– / –</b></span>
-    <button class="icon" id="btnGuide" data-hover="사용법 — 손동작과 기능" title="사용법">🖐</button>
+    <!-- 손바닥(🖐)이었는데 '이동' 으로 잘못 읽혔습니다 — 사용법이니 물음표로 -->
+    <button class="icon" id="btnGuide" data-hover="사용법 — 손동작과 기능" title="사용법">
+      <svg viewBox="0 0 26 26" width="26" height="26" aria-hidden="true" fill="none"
+           stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="13" cy="13" r="9.4"/>
+        <path d="M10.2 10.2a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4.2"/>
+        <path d="M13 18.9v.1"/>
+      </svg>
+    </button>
   </span>
   <div class="datechip" id="dateChip" hidden>
     <input type="date" id="dateInput" title="수업 날짜 — 바꾸면 그날 판서를 봅니다">
@@ -2220,6 +2228,7 @@ async function doRender(my){
   const vp=pg.getViewport({scale:S.scale,rotation:rot});
   S.pdfW=vp.width;
   S.rendered={w:vp.width,h:vp.height};
+  S.inkRect=null;                    /* 쪽이 바뀌었으니 화면 자리를 다시 잽니다 */
   /* 화질 — 원본 PDF 해상도(72dpi) 기준으로 최소 3배는 확보해 글자가 뭉개지지 않게 합니다.
      화면에 맞춰 축소된 상태에서도 원본보다 크게 그립니다. */
   const BUDGET=PN_BUDGET;                              /* 기기가 감당하는 만큼만 (위 PN_BUDGET) */
@@ -2236,6 +2245,14 @@ async function doRender(my){
      흰색으로 지웠다가 다시 그리므로, 무거운 자료에서는 그게 깜박임으로 보입니다.
      조건이 하나도 안 바뀌었으면 다시 그리지 않습니다. */
   const sig=[S.page,rot,cw,ch].join('|');
+  /* 그림판의 '화면 크기'(CSS)는 조건이 같아도 반드시 먼저 맞춰 둡니다.
+     배율이 바뀌면 그림판 속 크기(cw·ch)는 그대로여도 화면 크기(vp.width)는
+     달라집니다. 아래에서 일찍 빠져나가며 이것을 건너뛰는 바람에,
+     S.rendered 와 실제 화면 자리가 어긋나 펜이 딴 곳에 써졌습니다. */
+  for(const cv of [pdfCv,inkCv,fxCv]){
+    cv.style.width=vp.width+'px';cv.style.height=vp.height+'px';
+  }
+  $('sheet').style.width=vp.width+'px';$('sheet').style.height=vp.height+'px';
   if(S.rsig===sig){S.tx=keepTx;S.ty=keepTy;return}
   /* 같은 자료라면 쪽을 넘겨도 그림판 크기가 똑같습니다.
      그런데 width 를 다시 넣으면 그때마다 큰 메모리를 새로 잡습니다(4K 화면에서는
@@ -2829,7 +2846,9 @@ document.addEventListener('DOMContentLoaded',()=>{},{once:true});
 function strokeLive(){
   if(!S.drawing||S.drawId==null)return false;
   const p=ptrs.get(S.drawId);
-  return !!p&&performance.now()-(p.t||0)<4000;
+  /* 1.2초 넘게 안 움직인 손은 이미 뗀 것으로 봅니다 — 길게 잡으면
+     뗌 신호를 한 번 놓쳤을 때 그동안 글씨가 안 써집니다 */
+  return !!p&&performance.now()-(p.t||0)<1200;
 }
 function cancelStroke(){S.drawId=null;if(S.shDrag){S.shDrag=null;scheduleSave()}if(S.drawing){S.drawing=false;S.cur=null;redraw()}S.pan=null;S.penErase=false;S.palmErase=false;S.pinch=null}
 
@@ -3521,6 +3540,13 @@ function release(e){
   ghostHide();
   if(CUT.on){cutEnd();return}
   if(S.imgDrag){S.imgDrag=null;S.edited=true;scheduleSave();return}
+  /* 긋던 손이 떨어졌으면 무슨 일이 있어도 여기서 획을 끝냅니다.
+     아래 갈래 중 하나로 빠져나가면 '긋는 중' 이 켜진 채 남고,
+     그러면 그 뒤로 한동안 글씨가 아예 안 써졌습니다
+     ("한참 쓰다 보면 또 안 써져"). */
+  if(S.drawId!=null&&e.pointerId===S.drawId){
+    ptrs.delete(e.pointerId);S.downAt=null;S.pan=null;endStroke();return;
+  }
   const dn=S.downAt;S.downAt=null;
   /* 가장자리 톡 = 쪽 넘김은 ✋(이동) 도구일 때만입니다.
      펜·손끝은 어디서든 필기이므로, 끝에서 글씨를 써도 넘어가지 않습니다.
@@ -3644,7 +3670,13 @@ async function loadStrokes(){
   S.imgs=rec&&rec.imgs?JSON.parse(JSON.stringify(rec.imgs)):[];
   S.sel=null;S.imgDrag=null;S.shSel=null;S.shDrag=null;
 }
-function scheduleSave(){clearTimeout(S.saveTimer);S.saveTimer=setTimeout(saveNow,600)}
+/* 저장은 손이 멈춘 뒤에 합니다 — 긋고 있는 중이면 뒤로 미룹니다.
+   저장은 그 쪽의 필기를 통째로 다루는 일이라, 쓰는 도중에 끼어들면
+   글씨가 손을 못 따라옵니다 ("한참 쓰다 보면 안 써져"). */
+function scheduleSave(){
+  clearTimeout(S.saveTimer);
+  S.saveTimer=setTimeout(()=>{ if(S.drawing)scheduleSave(); else saveNow() },900);
+}
 async function saveNow(){
   if(!S.fileId)return;
   const key=noteKey(S.fileId,S.date,S.page);
@@ -3652,12 +3684,19 @@ async function saveNow(){
   if(has)await Store.putNote({key,file:S.fileId,date:S.date,page:S.page,
                               strokes:S.strokes,imgs:S.imgs||[],at:Date.now()});
   else await Store.delNote(key);
+  const had=S.pageHas.has(S.page);
   if(has)S.pageHas.add(S.page);else S.pageHas.delete(S.page);
-  buildRail();markSaved();Backup.schedule();AutoDL.schedule();
+  /* 쪽 목록은 '필기 있음' 표시가 바뀔 때만 다시 만듭니다 —
+     전에는 저장할 때마다 24쪽짜리 목록을 통째로 새로 그렸습니다. */
+  if(had!==!!has)buildRail();
+  markSaved();Backup.schedule();AutoDL.schedule();
+  /* 보던 자리 기억 — 자주 하지 않습니다. Store.getFile 은 PDF 알맹이가
+     통째로 든 기록을 읽어 옵니다(수 MB). 그것을 0.6초마다 읽고 다시 쓰느라,
+     오래 쓸수록 손이 무거워졌습니다. 10초에 한 번이면 충분합니다. */
+  if(performance.now()-(S.viewSavedAt||0)<10000)return;
+  S.viewSavedAt=performance.now();
   try{const fr=await Store.getFile(S.fileId);
       if(fr){
-        /* 보던 자리도 함께 기억합니다 — 다시 열 때 맨 위로 올려버리면
-           필기가 화면 밖에 있어 저장이 안 된 것처럼 보입니다. */
         const v={tx:S.tx,ty:S.ty,vz:S.vz||1}, o=fr.lastView||{};
         if(fr.lastPage!==S.page||o.tx!==v.tx||o.ty!==v.ty||o.vz!==v.vz){
           fr.lastPage=S.page;fr.lastView=v;await Store.putFile(fr);
@@ -5901,7 +5940,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.27';
+const APP_VER='25.28';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
