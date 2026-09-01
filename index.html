@@ -1651,14 +1651,13 @@ const PDF_OPTS={CMapReaderFactory:InlineCMapReader,StandardFontDataFactory:Inlin
 document.addEventListener('touchstart',e=>{
   if(e.touches.length>1&&e.target.closest('#stage'))e.preventDefault();
 },{passive:false});
-/* touchmove 를 여기서 막던 것은 뺐습니다.
-   'passive:false' 로 문서 전체의 touchmove 를 잡고 있으면, 손가락이
-   움직일 때마다 브라우저가 이 자바스크립트를 먼저 기다렸다가(그리고
-   closest('#stage') 로 DOM 을 거슬러 올라간 뒤에야) 다음 일을 합니다.
-   빨리 쓸수록 그 기다림이 쌓여 "속도를 못 받아 적는" 느낌이 됩니다.
-   화면이 밀리는 것은 CSS 의 touch-action:none 이 이미 막고 있어서
-   (html·body·#stage·#inkCv 모두) 이 손잡이는 필요 없었습니다.
-   마우스로는 이 길을 안 지나가므로 컴퓨터에서만 멀쩡했습니다. */
+/* touchmove 막기는 그대로 둡니다 — 한 번 뺐더니 필기가 아예 끊겼습니다.
+   전자칠판 브라우저는 touch-action:none 만으로는 손가락을 놓아주지 않고,
+   스스로 밀기로 알아들어 필기를 중간에 끊어 버립니다(pointercancel).
+   다만 문서 전체에서 DOM 을 거슬러 올라가며 보던 것(closest)은 그만두고,
+   #stage 에만 붙여 곧바로 막습니다 — 하는 일이 훨씬 가볍습니다. */
+document.getElementById('stage')
+  ?.addEventListener('touchmove',e=>{e.preventDefault()},{passive:false});
 
 /* ══════════════════════════════════════════════════════════
    1. 저장소 — IndexedDB → localStorage → 메모리 순으로 시도
@@ -2913,7 +2912,7 @@ function startStroke(e){
    수식을 빨리 쓰는 분들에게는 그 늦음이 '안 써진다' 로 느껴집니다.
    필기노트처럼 손끝에 딱 붙어 나오는 것이 먼저입니다. */
 const STEADY=0;                          /* 손떨림 보정 세기 (0=없음, 커질수록 차분) */
-function moveStroke(e){
+function moveStroke(e,quiet){
   if(S.shDrag&&S.shSel){
     const q=pos(e), d=S.shDrag;
     shApply(S.shSel,d,q[0]-d.sx,q[1]-d.sy,a=>toP(a[0],a[1]),a=>toN(a[0],a[1]));
@@ -2930,12 +2929,29 @@ function moveStroke(e){
   }
   /* 새 점을 직전 점 쪽으로 살짝 당깁니다 — 잔떨림이 걸러져 글씨가 차분해집니다 */
   if(S.cur){x=S.last[0]+(x-S.last[0])*(1-STEADY);y=S.last[1]+(y-S.last[1])*(1-STEADY)}
-  if(Math.hypot(x-S.last[0],y-S.last[1])<0.12)return;   /* 거의 같은 자리에 겹친 점만 솎아냅니다 */
+  if(Math.hypot(x-S.last[0],y-S.last[1])<0.3)return;    /* 거의 같은 자리에 겹친 점은 솎아냅니다 */
   S.last=[x,y];
   if(S.tool==='laser'){laserPoint(x,y,false);return}
   if(S.penErase||S.tool==='eraser'){erase(x,y);return}
   if(!S.cur)return;
-  S.cur.pts.push(toN(x,y));drawLast();
+  S.cur.pts.push(toN(x,y));
+  if(!quiet)drawLast();
+}
+/* 묶여 온 점들을 한 번에 잇습니다 — 점마다 따로 그리면(save/restore/stroke)
+   빨리 쓸수록 오히려 더 무거워져서, 손이 더 밀렸습니다. */
+function drawTail(from){
+  const st=S.cur;if(!st)return;
+  const P=st.pts, n=P.length;
+  const i0=Math.max(1,from);
+  if(n<2||i0>=n)return;
+  ictx.save();ictx.lineCap='round';ictx.lineJoin='round';
+  ictx.strokeStyle=st.color;ictx.lineWidth=st.w*S.pdfW;
+  if(st.mode==='hl'){ictx.globalAlpha=.32;ictx.lineCap='butt'}
+  ictx.beginPath();
+  const a=toP(P[i0-1][0],P[i0-1][1]);
+  ictx.moveTo(a[0],a[1]);
+  for(let i=i0;i<n;i++){const q=toP(P[i][0],P[i][1]);ictx.lineTo(q[0],q[1])}
+  ictx.stroke();ictx.restore();
 }
 /* 손가락으로 빠르고 길게, 거의 직선으로 그으면 필기가 아니라 쪽 넘김으로 봅니다.
    그어진 선은 지우고 넘깁니다. 짧거나 느리거나 구불구불하면 그대로 필기입니다 */
@@ -3554,7 +3570,11 @@ inkCv.addEventListener('pointermove',e=>{
      묶인 점을 전부 꺼내 쓰면 필기노트처럼 손끝에 붙어 나옵니다. */
   let cs=null;
   try{ cs=e.getCoalescedEvents?e.getCoalescedEvents():null }catch(err){}
-  if(cs&&cs.length>1){ for(const ce of cs)moveStroke(ce) }
+  if(cs&&cs.length>1&&S.cur){
+    const from=S.cur.pts.length;
+    for(const ce of cs)moveStroke(ce,true);   /* 점만 모으고 */
+    if(S.cur)drawTail(from);                  /* 한 번에 잇습니다 */
+  }
   else moveStroke(e);
 });
 /* 두 번 톡톡 확대는 쓰지 않습니다 — 펜으로 쓸 때 점 두 개가 가까이 찍히면
@@ -4618,11 +4638,9 @@ function setTool(t,btn){
   showSize();
   paintSwatches();showColor();showShapeBtn();
   saveToolPrefs();                       /* 지난번 고른 도구를 다음에 켤 때도 그대로 */
-  /* 글씨 쓰는 도구(연필·형광펜·도형·오리기)를 고르면 왼쪽 막대를 저절로 접어
-     화면을 넓게 씁니다. 지우개·이동·레이저는 그대로 펴 둡니다 —
-     레이저로 짚은 뒤 곧바로 이동(쪽 넘김)을 많이 쓰기 때문입니다.
-     (임시 접힘이라 손잡이로 직접 정한 상태는 그대로 기억됩니다) */
-  setSideHid('L', t!=='eraser'&&t!=='hand'&&t!=='laser', true);
+  /* 도구를 고르면 왼쪽 막대가 저절로 접히던 것은 없앴습니다 —
+     연필을 고를 때마다 도구상자가 사라져 더 헷갈렸습니다.
+     접고 펴는 것은 손잡이로 직접 정합니다. */
   if(S.doc)redraw();                     /* 필기만 다시 칠합니다 (PDF는 건드리지 않음) */
   diag('도구선택 후');
   requestAnimationFrame(()=>diag('도구선택 다음틀'));
@@ -5969,7 +5987,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.30';
+const APP_VER='25.31';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
