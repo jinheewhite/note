@@ -2450,26 +2450,6 @@ function smoothPath(cx,P,sharp){
   cx.lineTo(P[P.length-1][0],P[P.length-1][1]);
   cx.stroke();
 }
-/* Chaikin 코너 커팅 — 전자칠판처럼 move 를 듬성듬성 주는 기기에서도
-   획을 뗀 순간 점 사이를 잘라 부드러운 곡선으로 만듭니다. 양 끝점은 그대로.
-   필압(3번째 값)이 있으면 그것도 같이 사이값을 넣습니다. */
-function chaikin(pts,iter){
-  if(!pts||pts.length<3)return pts;
-  let P=pts;
-  for(let k=0;k<(iter||1);k++){
-    const Q=[P[0]];
-    for(let i=0;i<P.length-1;i++){
-      const a=P[i], b=P[i+1];
-      const q=[a[0]*0.75+b[0]*0.25, a[1]*0.75+b[1]*0.25];
-      const r=[a[0]*0.25+b[0]*0.75, a[1]*0.25+b[1]*0.75];
-      if(a.length>2&&b.length>2){ q.push(a[2]*0.75+b[2]*0.25); r.push(a[2]*0.25+b[2]*0.75); }
-      Q.push(q,r);
-    }
-    Q.push(P[P.length-1]);
-    P=Q;
-  }
-  return P;
-}
 function paintStroke(st){
   const pts=st.pts;if(!pts.length)return;
   ictx.save();
@@ -2913,11 +2893,6 @@ function endStroke(){
     let tidied=false;
     if(S.tool!=='shape')
       tidied=tidyCur(S.cur, p=>toP(p[0],p[1]), q=>toN(q[0],q[1]));
-    /* 도형으로 다듬어지지 않은 펜·형광펜 획은 한 번 매끈하게 — 쓴 대로 부드럽게.
-       (필압이 기록된 획은 그대로 둡니다 — 굵기 변화가 흐트러지지 않게) */
-    if(!tidied&&(S.cur.mode==='pen'||S.cur.mode==='hl')&&S.cur.pts.length>=3
-       &&!S.cur.pts.some(p=>p.length>2))
-      S.cur.pts=chaikin(S.cur.pts,1);
     snap('pdf');
     S.strokes.push(S.cur);
     /* 도형 도구로 그린 것도, 펜으로 슥 그려 도형이 된 것도 고른 채로 둡니다 */
@@ -3649,9 +3624,8 @@ const bdctx=(()=>{
   try{const c=bdCv.getContext('2d',{alpha:false});if(c)return c}catch(e){}
   return bdCv.getContext('2d');
 })();
-/* 칠판 손떨림 보정 — 전자칠판은 move 가 듬성해 0.08 은 각져 보였습니다.
-   0.14 로 조금 올리고, 뗄 때 Chaikin 으로 한 번 더 매끈하게 잡습니다. */
-const BD_STEADY=0.14;
+/* 칠판 손떨림 보정은 아주 약하게 — 세게 걸면 펜보다 잉크가 늦게 나갑니다 (25.18 값) */
+const BD_STEADY=0.08;
 const BD={strokes:[],imgs:[],sel:null,imgDrag:null,
           cur:null,drawing:false,last:null,w:1,h:1,timer:null,drawId:null,penAt:0,
           page:1,pages:1,vz:1,ox:0,oy:0,pinch:null,drag:null};
@@ -4134,9 +4108,6 @@ function bdEnd(e){
     let tidied=false;
     if(S.tool!=='shape')
       tidied=tidyCur(BD.cur, q=>bdPt(BD.cur,q), s=>[bdWX(s[0]),bdWY(s[1])]);
-    /* 도형으로 다듬어지지 않은 펜·형광펜 획은 한 번 매끈하게 — 쓴 대로 부드럽게 */
-    if(!tidied&&(BD.cur.mode==='pen'||BD.cur.mode==='hl')&&BD.cur.pts.length>=3)
-      BD.cur.pts=chaikin(BD.cur.pts,1);
     snap('bd');
     BD.strokes.push(BD.cur);
     /* 도형 도구로 그린 것도, 펜으로 슥 그려 도형이 된 것도 고른 채로 둡니다 */
@@ -5830,7 +5801,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.20';
+const APP_VER='25.21';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
