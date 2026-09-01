@@ -489,8 +489,14 @@ try{
   @media (max-width:1180px){
     .sideBar button{width:40px;height:40px;min-height:40px}
     .sideBar button svg{width:25px;height:25px}
-    #sideL{left:6px}
+    /* 여기서 left:6px 로 당기고 있었습니다 — 쪽 번호 줄(왼쪽 0~78px) 위에
+       도구상자가 그대로 올라앉아 번호를 가렸습니다. 창을 조금만 좁게
+       (1180px 이하) 열면 늘 이랬습니다. 쪽 번호 줄 바깥에 세웁니다.
+       쪽 번호가 가로로 눕거나(rail-h) 칠판만 볼 때는 줄이 없으므로,
+       그때만 6px 로 붙입니다 (아래 규칙이 이깁니다). */
+    #sideL{left:84px}
   }
+  html.rail-h #sideL,body.board-full #sideL,html.board-full #sideL{left:6px}
   #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
     contain:layout style;pointer-events:auto;isolation:isolate;
     background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
