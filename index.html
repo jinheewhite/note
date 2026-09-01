@@ -417,10 +417,10 @@ try{
     max-height:calc(100vh - 12px);overflow-y:auto;overflow-x:hidden;
     scrollbar-width:none;-ms-overflow-style:none;
     display:flex;flex-direction:column;gap:5px;padding:5px;
-    /* 파란 테두리는 뺐습니다 — 노란 손잡이·흰 아이콘과 색이 제각각이라
-       어수선했습니다. 옅은 흰 선 하나로 통일합니다. */
-    background:rgba(20,30,42,.96);border:1px solid rgba(255,255,255,.18);border-radius:13px;
-    box-shadow:0 8px 22px rgba(0,0,0,.5)}
+    /* 흰 바탕에 그림만 — 검정 바탕이면 바로 옆 쪽 번호 줄(검정)과 붙어
+       보여서, 어디까지가 도구상자인지 헷갈렸습니다. */
+    background:#fff;border:1px solid rgba(0,0,0,.14);border-radius:13px;
+    box-shadow:0 6px 20px rgba(0,0,0,.38)}
   /* 수평은 왼쪽 끝, 수직은 가운데. (쪽번호 줄 위에 살짝 걸칠 수 있지만,
      아담해서 대부분의 쪽번호는 그대로 눌립니다.) */
   /* 세로 쪽 번호 줄(아래 aside, 78px) 바로 오른쪽에 붙여 둡니다 — 전에는 left:8px
@@ -444,21 +444,30 @@ try{
     justify-content:center;font-size:21px;opacity:.9;transition:opacity .12s}
   .sideBar button:hover{opacity:1}
   .sideBar button svg{width:27px;height:27px;display:block}
-  /* 흰 알약(고른 도구)이 또렷하므로, 나머지 틀은 옅게 둡니다 */
-  .sideBar button.tool{border-color:rgba(255,255,255,.16);border-width:1px}
+  /* 흰 바탕이므로 그림은 짙은 색입니다 */
+  .sideBar button{background:transparent;border-color:transparent;color:#2b3a4a}
+  .sideBar button:hover{background:#eef2f6}
+  .sideBar button.tool{border-color:rgba(0,0,0,.10);border-width:1px}
+  /* 고른 도구 — 흰 바탕에서는 흰 알약이 안 보이므로 분필색으로 뒤집습니다 */
+  .sideBar button.tool.on{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;
+    box-shadow:0 0 0 3px rgba(245,213,71,.35)}
+  /* 도구 옆 ▾ (색·굵기) 도 흰 바탕에 맞춥니다 */
+  .sideBar button.toolMore{background:#eef2f6;border-color:rgba(0,0,0,.10);color:#5a6a7a}
+  .sideBar button.toolMore:hover{background:#e2e8ef;color:#2b3a4a}
   .sideBar button[disabled]{opacity:.45}
   /* 손잡이 하나로 합쳤습니다 — 누르면 접기·펴기, 끌면 막대를 옮깁니다.
      접기(22px)와 잡이(20px)를 합친 만큼(47px) 키워, 손가락으로 눌러도
      빗나가지 않습니다. 노랑이라 어디를 잡아야 할지 바로 보입니다. */
+  /* 손잡이는 회색입니다 — 노랑은 '지금 고른 도구' 하나만 씁니다 */
   .sideBar .sideGrip{width:44px;height:47px;min-height:47px;padding:0;
     font-size:22px;font-weight:800;line-height:1;border-radius:10px;
-    background:var(--chalk);border-color:var(--chalk);color:#1a1a12;opacity:1;
+    background:#e9edf2;border-color:#dbe2ea;color:#5a6a7a;opacity:1;
     cursor:move;touch-action:none}
-  .sideBar .sideGrip:hover{background:#ffe071}
+  .sideBar .sideGrip:hover{background:#dfe6ee;color:#2b3a4a}
   /* 접으면 손잡이만 남습니다 — 다시 펼 길, 그리고 옮길 길(✥)은 늘 남겨 둡니다.
      접은 채로도 옮길 수 있어야, 화면 맨 아래까지 끌어 내릴 수 있습니다. */
   /* 접어도 너비는 펼친 상태와 똑같이 — 손잡이가 작으면 잘 안 눌립니다 */
-  .sideBar.hid{padding:5px;gap:5px;background:rgba(30,43,56,.7);border-color:rgba(255,255,255,.18)}
+  .sideBar.hid{padding:5px;gap:5px;background:rgba(255,255,255,.92);border-color:rgba(0,0,0,.14)}
   .sideBar.hid button{display:none}
   .sideBar.hid .sideGrip{display:flex;width:44px;height:72px;min-height:72px;font-size:24px}
   @media (max-width:1180px){
@@ -1014,9 +1023,7 @@ try{
       <div><b>도형 단추를 누르고 끓기</b><span>네모·세모·동그라미·직선</span></div>
       <div><b>도형 옆 ▾ 단추</b><span>모양과 색·굵기를 고릅니다</span></div>
       <div><b>그린 뒤 바로</b><span>✥ 로 옮기고, ↘ 로 크기를 바꿉니다 (✕ 는 그 도형만 지우기)</span></div>
-      <div><b>펜으로 슥 그린 도형도</b><span>다듬어져 도형이 되면 똑같이 옮기고 늘릴 수 있습니다</span></div>
-      <div><b>그냥 그려도 됩니다</b><span>동그라미를 슐 그리면 동그랑게, 선은 곱게 다듬어 줍니다</span></div>
-      <div><b>다듬기 끕기</b><span>펜 창 맨 아래에서 켜고 끕니다 — 그린 대로 두고 싶을 때</span></div>
+      <div><b>필기는 쓴 그대로</b><span>동그라미·선을 바로잡던 기능은 없앴습니다 — 수식이 도형으로 바뀌었습니다</span></div>
     </div>
     <h4 class="guideH">칠판</h4>
     <div class="guideRows">
@@ -4281,13 +4288,11 @@ function bdEnd(e){
   if(!BD.drawing)return;
   BD.drawing=false;BD.palm=false;BD.drawId=null;BD.penAt=0;
   if(BD.cur){
-    let tidied=false;
-    if(S.tool!=='shape')
-      tidied=tidyCur(BD.cur, q=>bdPt(BD.cur,q), s=>[bdWX(s[0]),bdWY(s[1])]);
+    /* 칠판에서도 '동그라미·선 바로잡기' 는 없앴습니다 — 자료 쪽과 같습니다.
+       빨리 쓰는 획이 도형으로 바뀌어 버렸습니다. */
     snap('bd');
     BD.strokes.push(BD.cur);
-    /* 도형 도구로 그린 것도, 펜으로 슥 그려 도형이 된 것도 고른 채로 둡니다 */
-    BD.shSel=(S.tool==='shape'||tidied)?BD.cur:null;
+    BD.shSel=(S.tool==='shape')?BD.cur:null;
     if(BD.shSel&&!S.shSeen){S.shSeen=true;toast('✥ 로 옮기고, ↘ 로 크기를 바꿉니다 (✕ 는 지우기)')}
     if(e&&e.pointerType==='touch')BD.lastTouch={s:BD.cur,at:performance.now()};
     BD.cur=null;S.edited=true;bdRedraw();   /* 뗀 순간 매끈하게 정리 */
@@ -4753,21 +4758,8 @@ function openPop(anchor,tool){
     });
     pop.appendChild(sizeRow);
   }
-  if(tool==='pen'){
-    /* 동그라미를 슐 그리면 동그랑게, 선을 그으면 곱게 — 끕고 싶을 때를 위해 둥다 */
-    const tRow=document.createElement('div');tRow.className='popRow tidyRow';
-    lab(tRow,'다듬기');
-    const tb=document.createElement('button');
-    const paint=()=>{
-      const on=tidyOn();
-      tb.classList.toggle('on',on);
-      tb.textContent=on?'켜짐 — 동그라미·선을 바로잡음':'꺼짐 — 그린 대로';
-    };
-    paint();
-    tb.onclick=()=>{setTidy(!tidyOn());paint();
-      toast(tidyOn()?'동그라미·선을 바로잡습니다':'그린 대로 둡니다')};
-    tRow.appendChild(tb);pop.appendChild(tRow);
-  }
+  /* '다듬기' 스위치는 뺐습니다 — 기능 자체를 없앴으므로, 켜 두어도
+     아무 일도 일어나지 않아 오히려 헷갈렸습니다. 필기는 쓴 그대로입니다. */
   pop.classList.add('open');showMask(true);
   placePop(anchor);
 }
@@ -5987,7 +5979,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.31';
+const APP_VER='25.32';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
