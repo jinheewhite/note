@@ -135,7 +135,9 @@ try{
      형광펜·연필. 칠판이 화면 오른쪽에 서 있어, 자주 쓰는 필기도구를
      오른쪽 끝으로 모읍니다 — 연필이 가장 바깥입니다.
      #tools 안의 좌→우 차례는 아래 order 로 정합니다 (DOM 을 안 건드려 깜빡임이 없습니다). */
-  #grpHand{order:0}
+  /* ✋(이동)은 필기도구와 한 덩어리로 오른쪽 끝에 세웁니다 —
+     혼자 왼쪽 끝에 떨어져 있어 '도구에 이동이 없다' 고 하셨습니다 */
+  #grpHand{order:4;border-right:0;padding-right:0;margin-right:0}
   .size-wrap{order:1}
   #rightGrp{order:2;border-right:1px solid var(--line)}
   /* 필기도구 묶음은 자투리 공간을 전부 왼쪽으로 밀어 화면 오른쪽 끝에 딱 붙입니다 */
@@ -219,16 +221,18 @@ try{
   /* 고른 도구는 흰 알약 위에 올라앉습니다 (굿노트처럼) —
      지금 무엇을 쥐고 있는지 교실 뒤에서도 한눈에 보입니다.
      크기는 그대로라 도구를 바꿔도 막대가 흔들리지 않습니다. */
-  #tools .tool.on,.sideBar button.tool.on{opacity:1;background:#fff;border-color:#fff;
+  /* '#tools 안' 으로 좁혀 두었더니, 딴 묶음에 있는 ✋(이동)만 노란 알약이
+     되어 혼자 튀었습니다. 도구는 어디에 있든 같은 흰 알약입니다. */
+  .tool.on{opacity:1;background:#fff;border-color:#fff;
     box-shadow:0 3px 10px rgba(0,0,0,.40),0 0 0 3px rgba(255,255,255,.28)}
   /* 아이콘은 모두 흰색 한 가지입니다 (굿노트처럼). 색이 여럿이면 오히려
      어지럽습니다 — 어느 것을 쥐고 있는지는 '흰 알약' 하나로만 말합니다.
      그림 속에 박혀 있던 잿빛들도 전부 지금 색을 따라오게 합니다. */
-  #tools .tool,.sideBar button{color:#fff}
-  #tools .tool.on,.sideBar button.tool.on{color:#16212c}
-  #tools .tool svg [fill]:not([fill="none"]),
+  .tool,.sideBar button{color:#fff}
+  .tool.on{color:#16212c}
+  .tool svg [fill]:not([fill="none"]),
   .sideBar button svg [fill]:not([fill="none"]){fill:currentColor}
-  #tools .tool svg [stroke]:not([stroke="none"]),
+  .tool svg [stroke]:not([stroke="none"]),
   .sideBar button svg [stroke]:not([stroke="none"]){stroke:currentColor}
   #btnHand.tool{font-size:20px}
   #btnCut.tool{font-size:20px}
@@ -413,8 +417,10 @@ try{
     max-height:calc(100vh - 12px);overflow-y:auto;overflow-x:hidden;
     scrollbar-width:none;-ms-overflow-style:none;
     display:flex;flex-direction:column;gap:5px;padding:5px;
-    background:rgba(20,30,42,.96);border:1.5px solid #4aa8ff;border-radius:13px;
-    box-shadow:0 0 12px rgba(74,168,255,.28),0 8px 22px rgba(0,0,0,.5)}
+    /* 파란 테두리는 뺐습니다 — 노란 손잡이·흰 아이콘과 색이 제각각이라
+       어수선했습니다. 옅은 흰 선 하나로 통일합니다. */
+    background:rgba(20,30,42,.96);border:1px solid rgba(255,255,255,.18);border-radius:13px;
+    box-shadow:0 8px 22px rgba(0,0,0,.5)}
   /* 수평은 왼쪽 끝, 수직은 가운데. (쪽번호 줄 위에 살짝 걸칠 수 있지만,
      아담해서 대부분의 쪽번호는 그대로 눌립니다.) */
   /* 세로 쪽 번호 줄(아래 aside, 78px) 바로 오른쪽에 붙여 둡니다 — 전에는 left:8px
@@ -452,7 +458,7 @@ try{
   /* 접으면 손잡이만 남습니다 — 다시 펼 길, 그리고 옮길 길(✥)은 늘 남겨 둡니다.
      접은 채로도 옮길 수 있어야, 화면 맨 아래까지 끌어 내릴 수 있습니다. */
   /* 접어도 너비는 펼친 상태와 똑같이 — 손잡이가 작으면 잘 안 눌립니다 */
-  .sideBar.hid{padding:5px;gap:5px;background:rgba(30,43,56,.7);border-color:#4aa8ff}
+  .sideBar.hid{padding:5px;gap:5px;background:rgba(30,43,56,.7);border-color:rgba(255,255,255,.18)}
   .sideBar.hid button{display:none}
   .sideBar.hid .sideGrip{display:flex;width:44px;height:72px;min-height:72px;font-size:24px}
   @media (max-width:1180px){
@@ -2411,8 +2417,11 @@ function tidyShape(Q){
   }
   return null;
 }
-/* 다듬을지 말지 — 켜고 끌 수 있습니다 (기본은 켬) */
-function tidyOn(){try{return localStorage.getItem('pn.tidy')!=='0'}catch(e){return true}}
+/* 다듬을지 말지 — 기본은 '끔' 입니다.
+   수학 선생님이 수식을 빨리 쓰면 획 하나하나가 동그라미·직선으로 바뀌어
+   버렸습니다. 필기는 쓴 그대로 남아야 합니다. 도형이 필요하면 도형 도구를
+   쓰면 됩니다. (설정에서 켤 수는 있습니다) */
+function tidyOn(){try{return localStorage.getItem('pn.tidy')==='1'}catch(e){return false}}
 function setTidy(v){try{localStorage.setItem('pn.tidy',v?'1':'0')}catch(e){}}
 /* 방금 그은 획을 다듬어 봅니다. 다듬었으면 참을 돌려줍니다. */
 function tidyCur(st,toScreen,fromScreen){
@@ -2756,8 +2765,15 @@ function laserTick(){
    입력 — 펜은 필기, 손가락은 화면 이동, 두 손가락은 확대·축소
    ══════════════════════════════════════════════════════════ */
 const ptrs=new Map();
+/* 획 하나를 긋는 동안에는 화면 자리를 한 번만 잽니다.
+   getBoundingClientRect() 는 브라우저에게 '지금 배치를 다시 계산해라' 라고
+   시키는 일이라, 손이 움직일 때마다(1초에 120번까지) 부르면 글씨가 손보다
+   늦게 따라옵니다. 획을 시작할 때 재 두고, 뗄 때 버립니다. */
+function inkRect(){
+  return S.inkRect || (S.inkRect = inkCv.getBoundingClientRect());
+}
 function pos(e){
-  const r=inkCv.getBoundingClientRect();
+  const r=inkRect();
   const sx=r.width?S.rendered.w/r.width:1, sy=r.height?S.rendered.h/r.height:1;
   return [(e.clientX-r.left)*sx,(e.clientY-r.top)*sy];
 }
@@ -2819,6 +2835,7 @@ function cancelStroke(){S.drawId=null;if(S.shDrag){S.shDrag=null;scheduleSave()}
 
 /* 펜 ─ 획 그리기 */
 function startStroke(e){
+  S.inkRect=null;                   /* 이 획을 그을 자리를 여기서 한 번 잽니다 */
   const [x,y]=pos(e);
   /* 글씨를 쓰기 시작하면 밀기·확대는 그 자리에서 멈춥니다 —
      손바닥을 먼저 대고 펜을 대던 버릇에서 화면이 따라 밀렸습니다 */
@@ -2859,9 +2876,10 @@ function startStroke(e){
   S.cur={mode:S.tool,color:curColor(),w:(S.tool==='hl'?curSize()*2.2:curSize())/S.pdfW,pts:[toN(x,y)]};
   paintStroke(S.cur);
 }
-/* 곡선으로 이어 그리게 되면서 보정을 세게 걸 필요가 없어졌습니다.
-   세게 걸면 글씨가 펜보다 늦게 따라와 답답합니다 */
-const STEADY=0.22;                       /* 손떨림 보정 세기 (0=없음, 커질수록 차분) */
+/* 보정은 거의 걸지 않습니다 — 조금만 걸어도 글씨가 펜보다 늦게 따라옵니다.
+   수식을 빨리 쓰는 분들에게는 그 늦음이 '안 써진다' 로 느껴집니다.
+   필기노트처럼 손끝에 딱 붙어 나오는 것이 먼저입니다. */
+const STEADY=0.05;                       /* 손떨림 보정 세기 (0=없음, 커질수록 차분) */
 function moveStroke(e){
   if(S.shDrag&&S.shSel){
     const q=pos(e), d=S.shDrag;
@@ -2911,20 +2929,20 @@ function endStroke(){
   S.drawing=false;S.penErase=false;S.palmErase=false;
   const wasShape=(S.tool==='shape');
   if(S.cur){
-    /* 한 손가락 쓸어넘김은 더 쓰지 않습니다 — 끝에서 글씨를 쓰다 넘어가 버렸습니다.
-       쪽 넘김은 두 손가락으로 끝에서 힘차게 밀 때만입니다. */
-    /* 그은 것이 동그라미나 곧은 선에 가까우면 다듬어 줍니다 */
-    let tidied=false;
-    if(S.tool!=='shape')
-      tidied=tidyCur(S.cur, p=>toP(p[0],p[1]), q=>toN(q[0],q[1]));
+    /* 그은 것을 동그라미·곧은 선으로 '다듬던' 것은 없앴습니다 —
+       수식을 빨리 쓰면 획 하나하나가 도형으로 바뀌어 버렸습니다.
+       필기는 쓴 그대로 남습니다. 도형은 도형 도구로 그립니다. */
     snap('pdf');
     S.strokes.push(S.cur);
-    /* 도형 도구로 그린 것도, 펜으로 슥 그려 도형이 된 것도 고른 채로 둡니다 */
-    S.shSel=(wasShape||tidied)?S.cur:null;
+    S.shSel=wasShape?S.cur:null;
     if(S.shSel&&!S.shSeen){S.shSeen=true;toast('✥ 로 옮기고, ↘ 로 크기를 바꿉니다 (✕ 는 지우기)')}
     if(S.strokeBy==='touch')S.lastTouch={s:S.cur,at:performance.now()};
+    const done=S.cur;
     S.cur=null;S.edited=true;
-    redraw();                               /* 뗀 순간 곡선으로 매끈하게 정리 */
+    /* 뗄 때마다 쌓인 필기를 전부 다시 그리던 것을 없앴습니다 —
+       한 쪽에 수식이 쌓이면 글자 하나 쓸 때마다 눈에 띄게 걸렸습니다.
+       방금 그은 획만 마지막으로 한 번 곱게 얹습니다. */
+    if(wasShape)redraw(); else paintStroke(done);
   }
   S.strokeBy='';
   scheduleSave();
@@ -3048,6 +3066,7 @@ function pnWire(){
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',pnWire);
 else pnWire();
 function applyView(k){
+  S.inkRect=null;                    /* 자리가 바뀌었으니 다시 재야 합니다 */
   const z=(k||1)*(S.vz||1);
   const s=z!==1?` scale(${z})`:'';
   const sh=$('sheet');
@@ -3535,13 +3554,23 @@ inkCv.addEventListener('lostpointercapture',release);
 /* 되돌리기 — 무엇을 하기 직전의 모습을 적어 둡니다.
    획 하나만 되돌리던 예전 방식으로는 지운 것을 되살릴 수 없었습니다. */
 const HIST={list:[],max:40};
+/* 예전에는 되돌리기 자리를 JSON 으로 통째 베꼈습니다. 필기가 쌓일수록
+   글자 하나 뗄 때마다 그만큼 걸려서, 수식을 빨리 쓰면 글씨가 늦게
+   따라오고 획이 빠지기까지 했습니다.
+   획은 한 번 그으면 그대로 있고(지우개·되돌리기는 배열을 새로 만듭니다),
+   자리에서 바뀌는 것은 '고른 도형' 하나뿐입니다. 그래서 목록만 얕게
+   베끼고, 그 도형 하나만 따로 베껴 둡니다 — 훨씬 빠릅니다. */
 function snap(where){
-  const d=(where==='bd')
-    ? JSON.stringify({s:BD.strokes||[],i:BD.imgs||[]})
-    : JSON.stringify({s:S.strokes||[],i:S.imgs||[]});
-  const L=HIST.list;
-  if(L.length&&L[L.length-1].w===where&&L[L.length-1].d===d)return;  /* 바뀐 게 없으면 */
-  L.push({w:where,d});
+  const bd=(where==='bd');
+  const src=(bd?BD.strokes:S.strokes)||[];
+  const sel=bd?BD.shSel:S.shSel;
+  const s=src.map(st=>st===sel?Object.assign({},st,{pts:st.pts.map(p=>p.slice())}):st);
+  const i=((bd?BD.imgs:S.imgs)||[]).map(o=>Object.assign({},o));
+  const L=HIST.list, last=L[L.length-1];
+  /* 바뀐 게 없으면 또 쌓지 않습니다 (길이와 마지막 획만 봅니다) */
+  if(last&&last.w===where&&last.s.length===s.length&&
+     last.i.length===i.length&&last.s[s.length-1]===s[s.length-1])return;
+  L.push({w:where,s,i});
   if(L.length>HIST.max)L.shift();
   updUndo();
 }
@@ -3553,12 +3582,13 @@ function updUndo(){
 function undoOnce(){
   const e=HIST.list.pop();
   if(!e){toast('되돌릴 것이 없습니다');return}
-  const o=JSON.parse(e.d);
   if(e.w==='bd'){
-    BD.strokes=o.s;BD.imgs=o.i;BD.sel=null;BD.cur=null;BD.shSel=null;BD.shDrag=null;
+    BD.strokes=e.s.slice();BD.imgs=e.i.map(o=>Object.assign({},o));
+    BD.sel=null;BD.cur=null;BD.shSel=null;BD.shDrag=null;
     bdRedraw();bdSaveSoon();
   }else{
-    S.strokes=o.s;S.imgs=o.i;S.sel=null;S.cur=null;S.shSel=null;S.shDrag=null;
+    S.strokes=e.s.slice();S.imgs=e.i.map(o=>Object.assign({},o));
+    S.sel=null;S.cur=null;S.shSel=null;S.shDrag=null;
     redraw();scheduleSave();
   }
   S.edited=true;updUndo();
@@ -5871,7 +5901,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.26';
+const APP_VER='25.27';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
