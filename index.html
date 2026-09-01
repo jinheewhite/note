@@ -253,6 +253,12 @@ try{
   .saved.pageChip{background:var(--chalk);color:#1a1a12;border-radius:8px;
     padding:3px 10px;font-size:13px;font-weight:700}
   .saved.pageChip b{color:#1a1a12;font-size:16px;font-variant-numeric:tabular-nums}
+  /* 새 판 알림 — 눈에 띄어야 하지만 필기를 가리면 안 되므로 위 막대에.
+     천천히 깜박여, 지나가다가도 보이게 합니다. */
+  #updChip{background:#ff8a4c;border-color:#ff8a4c;color:#2a1405;font-weight:800;
+    padding:0 12px;min-height:34px;white-space:nowrap;animation:updBlink 1.6s ease-in-out infinite}
+  #updChip:hover{background:#ffa06a}
+  @keyframes updBlink{0%,100%{box-shadow:0 0 0 0 rgba(255,138,76,.7)}50%{box-shadow:0 0 0 6px rgba(255,138,76,0)}}
   .datechip{background:var(--ink);border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px}
   .datechip label{color:var(--text-dim);font-size:11px;display:block;letter-spacing:.4px}
   .datechip input{background:transparent;border:0;color:var(--text);font:inherit;font-size:15px;
@@ -733,6 +739,8 @@ try{
     <input type="date" id="dateInput" title="수업 날짜 — 바꾸면 그날 판서를 봅니다">
   </div>
   <span class="saved" id="saved" hidden>—</span>
+  <!-- 새 판이 나오면 여기에 뜹니다 — 설정에 들어가야만 알 수 있어 답답했습니다 -->
+  <button id="updChip" class="mini" hidden title="새 판이 나왔습니다 — 누르면 지금 받습니다">⬆ 새 판</button>
   <span id="boardCtl" hidden style="display:flex;align-items:center;gap:6px">
     <button id="btnBoardSwap" class="mini" data-hover="칠판과 PDF 자리 바꿈" title="칠판과 PDF 자리를 바꿉니다"><b class="swapIcon">⇄</b> 자리 바꾸기</button>
     <button id="btnBdPrev" class="mini icon" title="칠판 이전 쪽">◀</button>
@@ -5980,7 +5988,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.33';
+const APP_VER='25.34';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -6014,10 +6022,38 @@ function renderUpdBox(){
     '<button id="btnUpd" class="primary">최신 버전 확인</button></div>';
   $('btnUpd').onclick=checkUpdate;
 }
+/* ── 새 판 알림 ────────────────────────────────────────────
+   설정에 들어가야만 새 판이 나왔는지 알 수 있어 답답했습니다.
+   이제 위 막대에 주황색 '⬆ 새 판' 이 떠서, 지나가다가도 보입니다.
+   누르면 그 자리에서 받습니다. 수업 중에는 저절로 바꾸지 않습니다 —
+   판서 중에 화면이 새로 열리면 안 되니, 고르는 것은 선생님입니다. */
+function showUpdChip(latest){
+  const b=$('updChip');if(!b)return;
+  b.hidden=false;
+  b.textContent=`⬆ 새 판 ${latest}`;
+  b.title=`새 판 ${latest} 이 나왔습니다 — 누르면 지금 받습니다 (지금 ${APP_VER})`;
+  b.onclick=async()=>{
+    if(S.doc&&S.edited)await saveNow();      /* 쓰던 판서를 먼저 저장합니다 */
+    b.textContent='받는 중…';b.disabled=true;
+    await hardUpdate();
+  };
+  fitBarsSoon&&fitBarsSoon();
+}
+/* 자료를 열어 둔 채로도 10분마다 조용히 확인합니다 */
+async function pollUpdate(){
+  try{
+    if(!navigator.onLine)return;
+    const r=await fetch(VERSION_URL+'?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok)return;
+    const latest=(await r.json()).version;
+    if(latest&&verNewer(latest,APP_VER))showUpdChip(latest);
+  }catch(e){}
+}
+setInterval(pollUpdate,600000);
 /* 앱을 열 때 조용히 새 버전을 확인하고, 있으면 알려줍니다 */
 async function autoCheckUpdate(){
   if(!navigator.onLine)return;
-  if(S.doc)return;                     /* 수업 중에는 바꾸지 않습니다 */
+  if(S.doc){pollUpdate();return}        /* 수업 중에는 알리기만 하고 바꾸지 않습니다 */
   try{
     const r=await fetch(VERSION_URL,{cache:'no-store'});
     if(!r.ok)return;
@@ -6033,7 +6069,9 @@ async function autoCheckUpdate(){
        를 매번 새로 받는 방식은 느려서 쓰지 않습니다. */
     let tries=0;
     try{tries=+sessionStorage.getItem('pn.updTries')||0}catch(e){}
-    if(tries>=4)return;                 /* 계속 안 되면 그만 — 다음에 열 때 다시 봅니다 */
+    /* 몇 번 다시 열어도 안 바뀌면, 이제 조용히 있지 않고 알려 줍니다 —
+       그래야 '새 판이 있는데 안 받아지는' 상태를 눈으로 알 수 있습니다 */
+    if(tries>=4){showUpdChip(latest);return}
     try{sessionStorage.setItem('pn.updTries',String(tries+1))}catch(e){}
     try{localStorage.setItem('pn.updFrom',APP_VER)}catch(e){}
     location.reload();
