@@ -325,11 +325,14 @@ try{
   body.ui-min #rail,html.ui-min #rail,
   body.ui-min #dock,html.ui-min #dock,
   body.ui-min .sideBar,html.ui-min .sideBar{display:none!important}
-  #btnChromeToggle{position:fixed;top:8px;left:8px;z-index:9995;height:34px;padding:0 14px;
-    border-radius:17px;display:none;align-items:center;justify-content:center;
-    background:rgba(20,29,38,.55);color:#fff;border:1px solid rgba(255,255,255,.3);
-    font-size:14px;font-weight:600;line-height:1;backdrop-filter:blur(2px)}
-  body:not(.lib-open) #btnChromeToggle{display:flex}       /* 자료·칠판을 보는 동안에만 */
+  #quickBar{position:fixed;top:8px;left:8px;z-index:9995;display:none;gap:8px}
+  body:not(.lib-open) #quickBar{display:flex}       /* 자료·칠판을 보는 동안에만 */
+  #quickBar button{height:34px;padding:0 14px;border-radius:17px;display:flex;
+    align-items:center;justify-content:center;background:rgba(20,29,38,.55);color:#fff;
+    border:1px solid rgba(255,255,255,.3);font-size:14px;font-weight:600;line-height:1;
+    backdrop-filter:blur(2px)}
+  /* 전체화면에서 도구줄까지 숨겼을 때만 — 평소엔 아래·옆 막대로 이미 바꿀 수 있습니다 */
+  body:not(.ui-min) #btnQuickTool{display:none}
   #sheet{position:relative;box-shadow:0 10px 34px rgba(0,0,0,.45);background:#fff;flex:0 0 auto;
     will-change:transform;transform-origin:center center;backface-visibility:hidden}
   #pdfCv,#inkCv{display:block;position:relative}
@@ -912,9 +915,14 @@ try{
      맨 위 작은 단추로 접어 둘 수 있고, 접어 둔 것은 기억합니다. -->
 <div id="sideL" class="sideBar"></div>
 <div id="sideR" class="sideBar"></div>
-<!-- 전체화면에서 모든 도구를 숨긴 동안에도 늘 떠 있는 손잡이 —
-     누르면 펜 도구와 위·아래 막대가 다시 나오고, 한 번 더 누르면 치워집니다. -->
-<button id="btnChromeToggle" title="도구 보이기/숨기기">도구</button>
+<!-- 전체화면에서 모든 도구를 숨긴 동안에도 늘 떠 있는 손잡이들.
+     "도구" 는 누르면 펜 도구와 위·아래 막대가 다시 나오고, 한 번 더 누르면 치워집니다.
+     그 옆 단추는 지금 도구의 반대쪽(펜↔이동)으로 한 번에 바로 바꿉니다 —
+     기본은 '이동' 이니 "펜" 이라고 뜨고, 펜으로 바뀌면 "이동" 이라고 뜹니다. -->
+<div id="quickBar">
+  <button id="btnChromeToggle" title="도구 보이기/숨기기">도구</button>
+  <button id="btnQuickTool" title="펜·이동 바꾸기">펜</button>
+</div>
 
 <div id="dock">
   <button class="icon pageBtn" id="btnPrev2" title="이전 쪽">◀</button>
@@ -4687,6 +4695,7 @@ function setTool(t,btn){
   applyCursor();
   const el=$('toolNow');
   if(el)el.textContent=TOOL_NAME[t]||'펜';
+  if(typeof syncQuickTool==='function')syncQuickTool();
   diag('도구선택 전');
   showSize();
   paintSwatches();showColor();showShapeBtn();
@@ -5147,6 +5156,16 @@ function setUiMin(on,noSave){
   try{localStorage.setItem('pn.uiMin',on?'1':'0')}catch(e){}
 }
 $('btnChromeToggle').onclick=()=>setUiMin(!document.body.classList.contains('ui-min'));
+/* 바뀔 도구(지금 도구의 반대쪽)를 보여 줍니다 — 기본이 '이동' 이니 처음엔 "펜",
+   펜을 고르면 "이동" 으로 바뀌어 한 번 누르면 바로 서로 바뀝니다. */
+function syncQuickTool(){
+  const b=$('btnQuickTool');if(!b)return;
+  const next=S.tool==='hand'?'pen':'hand';
+  b.textContent=TOOL_NAME[next];
+  b.dataset.next=next;
+}
+$('btnQuickTool').onclick=()=>setTool($('btnQuickTool').dataset.next||'pen');
+syncQuickTool();
 $('btnFull').onclick=async()=>{
   if(isFull()){
     setWantFull(false);
@@ -6144,7 +6163,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.43';
+const APP_VER='25.44';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
