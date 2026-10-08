@@ -1022,7 +1022,7 @@ try{
   </div>
 </div>
 
-<input type="file" id="fileInput" accept=".pdf,application/pdf,.png,.jpg,.jpeg,image/png,image/jpeg" class="offscreen">
+<input type="file" id="fileInput" accept=".pdf,application/pdf,image/*" class="offscreen">
 <input type="file" id="jsonInput" accept=".json,application/json" class="offscreen">
 <div id="toast"></div>
 <div id="edgeTag" class="edgeTag"></div>
@@ -5749,10 +5749,10 @@ $('fileInput').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   S.pickedOnce=true;
   if(S.doc){await saveNow();if(S.edited)await AutoDL.run(true)}   /* 손댄 경우에만 저장 */
-  const isImg=/^image\//.test(f.type)||/\.(png|jpe?g)$/i.test(f.name);
+  const isImg=/^image\//.test(f.type)||/\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(f.name);
   let bytes,name=f.name;
   if(isImg){
-    try{ bytes=await imageToPdfBytes(f); name=f.name.replace(/\.(png|jpe?g)$/i,'')+'.pdf' }
+    try{ bytes=await imageToPdfBytes(f); name=f.name.replace(/\.\w+$/,'')+'.pdf' }
     catch(err){ toast('그림을 열지 못했습니다: '+err.message); e.target.value=''; return }
   }else bytes=await f.arrayBuffer();
   await loadPdf(bytes,name);
@@ -6103,7 +6103,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.40';
+const APP_VER='25.41';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
