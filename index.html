@@ -317,6 +317,19 @@ try{
      칠판을 켜 둔 것은 그대로 기억되므로, 자료를 열면 다시 나옵니다. */
   body.lib-open #board,html.lib-open #board,
   body.lib-open #splitBar,html.lib-open #splitBar{display:none!important}
+  /* 전체화면으로 열면 위·아래 막대·쪽 번호 줄·왼쪽 필기도구까지 모두 치워
+     그림·PDF(또는 칠판)만 남깁니다. 왼쪽 위 "도구" 손잡이만 늘 떠 있다가,
+     누르면 전부 다시 나오고, 한 번 더 누르면 도로 치워집니다. */
+  body.ui-min #topbar,html.ui-min #topbar,
+  body.ui-min header,html.ui-min header,
+  body.ui-min #rail,html.ui-min #rail,
+  body.ui-min #dock,html.ui-min #dock,
+  body.ui-min .sideBar,html.ui-min .sideBar{display:none!important}
+  #btnChromeToggle{position:fixed;top:8px;left:8px;z-index:9995;height:34px;padding:0 14px;
+    border-radius:17px;display:none;align-items:center;justify-content:center;
+    background:rgba(20,29,38,.55);color:#fff;border:1px solid rgba(255,255,255,.3);
+    font-size:14px;font-weight:600;line-height:1;backdrop-filter:blur(2px)}
+  body:not(.lib-open) #btnChromeToggle{display:flex}       /* 자료·칠판을 보는 동안에만 */
   #sheet{position:relative;box-shadow:0 10px 34px rgba(0,0,0,.45);background:#fff;flex:0 0 auto;
     will-change:transform;transform-origin:center center;backface-visibility:hidden}
   #pdfCv,#inkCv{display:block;position:relative}
@@ -899,6 +912,9 @@ try{
      맨 위 작은 단추로 접어 둘 수 있고, 접어 둔 것은 기억합니다. -->
 <div id="sideL" class="sideBar"></div>
 <div id="sideR" class="sideBar"></div>
+<!-- 전체화면에서 모든 도구를 숨긴 동안에도 늘 떠 있는 손잡이 —
+     누르면 펜 도구와 위·아래 막대가 다시 나오고, 한 번 더 누르면 치워집니다. -->
+<button id="btnChromeToggle" title="도구 보이기/숨기기">도구</button>
 
 <div id="dock">
   <button class="icon pageBtn" id="btnPrev2" title="이전 쪽">◀</button>
@@ -2194,7 +2210,8 @@ async function loadPdf(bytes,name,id){
   /* 이제 PDF 가 화면에 있습니다 — 도구막대도 지금 함께 나타납니다 */
   document.body.classList.remove('lib-open');
   if(typeof revealSideL==='function')revealSideL();
-  if(typeof autoGoFull==='function')autoGoFull();      /* 화면을 크게 — 도구는 왼쪽 띠에 그대로 떠 있습니다 */
+  if(typeof autoGoFull==='function')autoGoFull();      /* 화면을 크게 */
+  if(typeof setUiMin==='function')setUiMin(wantUiMin()); /* 도구까지 치우고, 왼쪽 위 "도구" 손잡이만 남깁니다 */
   setTool('hand',$('btnHand'));                       /* 자료를 열면 기본은 '이동' — 열자마자 그어지지 않게 */
   updFitBtn();                                        /* 폭맞춤·쪽맞춤 중 지금 것을 노랑으로 */
   buildRail();
@@ -5089,6 +5106,7 @@ $('btnClose').onclick=async()=>{
   $('rail').innerHTML='';
   $('pageInfo').textContent='– / –';
   const w=$('welcome');w.hidden=false;w.style.display='';  document.body.classList.add('lib-open');
+  if(typeof setUiMin==='function')setUiMin(false,true);   /* 서재에서는 늘 위·아래 막대가 보입니다 */
   await renderFolders();await renderRecent();
   btn.textContent=label;btn.disabled=false;
   if(!hasInk)toast('자료를 닫았습니다');
@@ -5118,6 +5136,17 @@ function autoGoFull(){
     setWantFull(true);updFullBtn();
   }).catch(()=>{});
 }
+/* 위·아래 막대·쪽 번호 줄·펜 도구까지 숨겨, PDF·그림·칠판만 보이게 합니다.
+   왼쪽 위 "도구" 손잡이로 언제든 다시 꺼낼 수 있고, 고른 상태는 기억해 둡니다. */
+function wantUiMin(){try{return localStorage.getItem('pn.uiMin')!=='0'}catch(e){return true}}
+function setUiMin(on,noSave){
+  document.body.classList.toggle('ui-min',!!on);
+  document.documentElement.classList.toggle('ui-min',!!on);
+  const b=$('btnChromeToggle');if(b)b.title=on?'도구 다시 보기':'도구 숨기기';
+  if(noSave)return;
+  try{localStorage.setItem('pn.uiMin',on?'1':'0')}catch(e){}
+}
+$('btnChromeToggle').onclick=()=>setUiMin(!document.body.classList.contains('ui-min'));
 $('btnFull').onclick=async()=>{
   if(isFull()){
     setWantFull(false);
@@ -5323,6 +5352,7 @@ function openBoardOnly(){
   document.body.classList.remove('lib-open');
   if(typeof revealSideL==='function')revealSideL();
   if(typeof autoGoFull==='function')autoGoFull();
+  if(typeof setUiMin==='function')setUiMin(wantUiMin());
   applySplitMode(2);
 }
 
@@ -6114,7 +6144,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.42';
+const APP_VER='25.43';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
