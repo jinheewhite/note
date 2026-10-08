@@ -2194,6 +2194,7 @@ async function loadPdf(bytes,name,id){
   /* 이제 PDF 가 화면에 있습니다 — 도구막대도 지금 함께 나타납니다 */
   document.body.classList.remove('lib-open');
   if(typeof revealSideL==='function')revealSideL();
+  if(typeof autoGoFull==='function')autoGoFull();      /* 화면을 크게 — 도구는 왼쪽 띠에 그대로 떠 있습니다 */
   setTool('hand',$('btnHand'));                       /* 자료를 열면 기본은 '이동' — 열자마자 그어지지 않게 */
   updFitBtn();                                        /* 폭맞춤·쪽맞춤 중 지금 것을 노랑으로 */
   buildRail();
@@ -5108,6 +5109,15 @@ function updFullBtn(){
   $('btnFull').textContent=on?'⛶ 전체화면 끄기':'⛶ 전체화면';
   $('btnFull').classList.toggle('on',on);
 }
+/* 자료(PDF·그림·칠판)를 열면 화면을 꽉 채웁니다 — 직접 고른 동작 바로 다음이라야
+   브라우저가 전체화면을 허락합니다. 공유·파일연결으로 열렸을 때처럼 그 틈이
+   없으면 조용히 건너뛰고, F11 안내 토스트도 띄우지 않습니다. */
+function autoGoFull(){
+  if(isFull())return;
+  document.documentElement.requestFullscreen({navigationUI:'hide'}).then(()=>{
+    setWantFull(true);updFullBtn();
+  }).catch(()=>{});
+}
 $('btnFull').onclick=async()=>{
   if(isFull()){
     setWantFull(false);
@@ -5312,6 +5322,7 @@ function openBoardOnly(){
   $('welcome').hidden=true;$('welcome').style.display='none';
   document.body.classList.remove('lib-open');
   if(typeof revealSideL==='function')revealSideL();
+  if(typeof autoGoFull==='function')autoGoFull();
   applySplitMode(2);
 }
 
@@ -6103,7 +6114,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.41';
+const APP_VER='25.42';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
