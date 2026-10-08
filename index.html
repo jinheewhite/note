@@ -3949,7 +3949,7 @@ async function bdLoad(){
 }
 function bdSaveSoon(){clearTimeout(BD.timer);BD.timer=setTimeout(bdSave,600)}
 async function bdSave(){
-  if(!S.fileId)return;
+  /* PDF 없이 칠판만 쓸 때도 저장합니다 — boardKey() 가 그때는 파일 자리에 '-' 를 씁니다 */
   const key=boardKey();
   const tag='BOARD'+((BD.page||1)>1?BD.page:'');
   if(BD.strokes.length||(BD.imgs&&BD.imgs.length))
@@ -5045,9 +5045,9 @@ function goFull(){
 }
 /* 자료만 닫고 서재로 — 앱은 그대로 열려 있습니다 */
 $('btnClose2').onclick=()=>$('btnClose').click();
-$('brandHome').onclick=()=>{ if(S.doc)$('btnClose').click(); };   /* 로고를 누르면 서재로 */
+$('brandHome').onclick=()=>{ if(S.doc||S.split)$('btnClose').click(); };   /* 로고를 누르면 서재로 */
 $('btnClose').onclick=async()=>{
-  if(!S.doc){toast('열려 있는 자료가 없습니다');return}
+  if(!S.doc&&!S.split){toast('열려 있는 자료가 없습니다');return}
   const btn=$('btnClose2'),label=btn.textContent;
   await saveNow();
   const hasInk=S.edited&&(S.pageHas.size>0||BD.strokes.length>0||(BD.imgs||[]).length>0);   /* 이번에 손댔을 때만 저장합니다 */
@@ -5055,7 +5055,7 @@ $('btnClose').onclick=async()=>{
   if(hasInk){
     btn.textContent='저장 중…';btn.disabled=true;
     await Backup.write(true);
-    await Backup.writePdf();
+    if(S.doc)await Backup.writePdf();   /* PDF가 없으면(칠판만 모드) 합칠 PDF가 없습니다 */
     saved=await AutoDL.run(true);
   }
   S.doc=null;S.fileId=null;S.fileName='';S.folder='';
@@ -5294,12 +5294,26 @@ async function applySplitMode(mode,quiet){
     await renderPage();
   }
   /* 칠판을 켜는 순간 바로 쓸 수 있게 연필을 골라 둡니다 */
-  if(!quiet&&mode===1&&S.tool!=='pen')setTool('pen',$('btnPen'));
+  if(!quiet&&(mode===1||(mode===2&&!S.doc))&&S.tool!=='pen')setTool('pen',$('btnPen'));
   if(!quiet)toast(mode===1?'칠판을 켰습니다 — 한 번 더 누르면 칠판만 봅니다'
                  :mode===2?'칠판만 봅니다 — 한 번 더 누르면 닫힙니다'
                  :'칠판을 닫았습니다');
 }
-$('btnSplit').onclick=()=>applySplitMode(((S.splitMode||0)+1)%3);
+$('btnSplit').onclick=()=>{
+  const next=((S.splitMode||0)+1)%3;
+  /* PDF 없이 칠판만 보던 중이었다면, 끄는 것은 '서재로 돌아가기' 와 같습니다 —
+     그냥 끄면 PDF도 칠판도 없는 빈 화면만 남습니다. */
+  if(next===0&&!S.doc){$('btnClose').click();return}
+  applySplitMode(next);
+};
+/* 서재에서 PDF 없이 칠판만 바로 엽니다 */
+function openBoardOnly(){
+  S.fileName='칠판';$('fileName').textContent='칠판';
+  $('welcome').hidden=true;$('welcome').style.display='none';
+  document.body.classList.remove('lib-open');
+  if(typeof revealSideL==='function')revealSideL();
+  applySplitMode(2);
+}
 
 $('dateInput').value=S.date;
 $('dateInput').onchange=async e=>{
@@ -5482,6 +5496,13 @@ async function renderRecent(){
     c.querySelector('.cover').onclick=openPicker;
     return c;
   };
+  /* PDF 없이도 칠판만 열 수 있게 — 수업 자료가 아직 없을 때도 바로 쓸 수 있습니다 */
+  const boardCard=()=>{
+    const c=document.createElement('div');c.className='card newcard';
+    c.innerHTML='<button class="cover"><span class="plus">▥</span></button><span class="nm">칠판만 쓰기</span>';
+    c.querySelector('.cover').onclick=openBoardOnly;
+    return c;
+  };
   list.className='shelf'+(S.view==='list'?' list':'');
   list.innerHTML='';grid.innerHTML='';
   let count=0;
@@ -5490,6 +5511,7 @@ async function renderRecent(){
   const compact=(S.view==='list');
   const folderBox=compact?list:grid;
   folderBox.appendChild(addCard());
+  folderBox.appendChild(boardCard());
   /* 폴더 목록은 '폴더별' 을 고를 때 보입니다 */
 
   if(!S.lib&&S.sort==='folder'&&!S.q){
@@ -5662,6 +5684,35 @@ if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
     try{
       const reg=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
       reg.update();
+    }catch(e){}
+  })();
+}
+
+/* 폰에서 PDF를 열거나 '공유'로 보내면 여기로 들어와 자동으로 띄웁니다.
+   파일 연결(file_handlers)은 컴퓨터·전자칠판 Chrome 에서 되고, 폰은 대부분
+   '공유' 로만 받습니다(안드로이드 Chrome 기준 — 아이폰 사파리는 둘 다 지원이 없습니다). */
+if('launchQueue' in window){
+  window.launchQueue.setConsumer(async params=>{
+    if(!params.files||!params.files.length)return;
+    try{
+      const file=await params.files[0].getFile();
+      if(S.doc){await saveNow();if(S.edited)await AutoDL.run(true)}
+      await loadPdf(await file.arrayBuffer(),file.name);
+    }catch(e){}
+  });
+}
+if(/[?&]share=pdf\b/.test(location.search)&&window.caches){
+  (async()=>{
+    history.replaceState(null,'',location.pathname);
+    try{
+      const c=await caches.open('panseo-note-shared');
+      const res=await c.match('shared-pdf');
+      if(!res)return;
+      await c.delete('shared-pdf');
+      const buf=await res.arrayBuffer();
+      const nm=decodeURIComponent(res.headers.get('X-File-Name')||'공유된 자료.pdf');
+      if(S.doc){await saveNow();if(S.edited)await AutoDL.run(true)}
+      await loadPdf(buf,nm);
     }catch(e){}
   })();
 }
@@ -6025,7 +6076,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.38';
+const APP_VER='25.39';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){

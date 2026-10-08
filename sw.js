@@ -10,7 +10,7 @@
 
    새 판이 나왔는지는 version.json(18바이트)으로 따로 확인합니다. 그 파일만은
    절대 저장해 두지 않습니다 — 그것마저 묵으면 새 판을 영영 못 보게 됩니다. */
-const CACHE = 'panseo-note-25.38';
+const CACHE = 'panseo-note-25.39';
 const APP = './index.html';
 
 self.addEventListener('install', e => {
@@ -36,11 +36,31 @@ self.addEventListener('message', e => {
 
 self.addEventListener('fetch', e => {
   const req = e.request;
-  if (req.method !== 'GET') return;
 
   let url;
   try { url = new URL(req.url); } catch (err) { return; }
   if (url.origin !== location.origin) return;      /* 남의 집 파일은 건드리지 않습니다 */
+
+  /* 폰에서 PDF를 '공유'로 보내면 여기로 들어옵니다(manifest.json 의 share_target).
+     파일을 받아 임시로 담아 두고 앱 화면으로 돌려보내면, 화면이 뜰 때 그 파일을 집어 엽니다. */
+  if (req.method === 'POST' && url.pathname.endsWith('/share-pdf')) {
+    e.respondWith((async () => {
+      try {
+        const form = await req.formData();
+        const file = form.get('pdf');
+        if (file) {
+          const c = await caches.open('panseo-note-shared');
+          await c.put('shared-pdf', new Response(file, {
+            headers: { 'Content-Type': 'application/pdf',
+                       'X-File-Name': encodeURIComponent(file.name || '공유된 자료.pdf') }
+          }));
+        }
+      } catch (err) {}
+      return Response.redirect('./?share=pdf', 303);
+    })());
+    return;
+  }
+  if (req.method !== 'GET') return;
 
   /* 버전 파일은 늘 서버에서 받습니다 */
   if (url.pathname.endsWith('version.json')) {
