@@ -318,21 +318,39 @@ try{
   body.lib-open #board,html.lib-open #board,
   body.lib-open #splitBar,html.lib-open #splitBar{display:none!important}
   /* 전체화면으로 열면 위·아래 막대·쪽 번호 줄·왼쪽 필기도구까지 모두 치워
-     그림·PDF(또는 칠판)만 남깁니다. 왼쪽 위 "도구" 손잡이만 늘 떠 있다가,
-     누르면 전부 다시 나오고, 한 번 더 누르면 도로 치워집니다. */
+     그림·PDF(또는 칠판)만 남깁니다. 왼쪽 위 "도구" 손잡이만 늘 떠 있습니다. */
   body.ui-min #topbar,html.ui-min #topbar,
   body.ui-min header,html.ui-min header,
   body.ui-min #rail,html.ui-min #rail,
   body.ui-min #dock,html.ui-min #dock,
   body.ui-min .sideBar,html.ui-min .sideBar{display:none!important}
-  #quickBar{position:fixed;top:8px;left:8px;z-index:9995;display:none;gap:8px}
+  #quickBar{position:fixed;top:10px;left:10px;right:10px;z-index:9995;display:none;
+    align-items:center;gap:10px}
   body:not(.lib-open) #quickBar{display:flex}       /* 자료·칠판을 보는 동안에만 */
-  #quickBar button{height:34px;padding:0 14px;border-radius:17px;display:flex;
-    align-items:center;justify-content:center;background:rgba(20,29,38,.55);color:#fff;
-    border:1px solid rgba(255,255,255,.3);font-size:14px;font-weight:600;line-height:1;
-    backdrop-filter:blur(2px)}
-  /* 전체화면에서 도구줄까지 숨겼을 때만 — 평소엔 아래·옆 막대로 이미 바꿀 수 있습니다 */
-  body:not(.ui-min) #btnQuickTool{display:none}
+  /* 눌러보고 싶게 — 하늘색 유리알처럼 도드라지고, 누르면 눌리는 버튼 */
+  #btnChromeToggle{flex:0 0 auto;height:44px;padding:0 20px;border-radius:22px;
+    font-size:16px;font-weight:800;
+    color:#06324a;background:linear-gradient(180deg,#bdeaff 0%,#6cc6f2 55%,#3aa8e6 100%);
+    border:1px solid #2f93d6;
+    box-shadow:0 4px 0 #2a84c0,0 8px 14px rgba(15,60,90,.4),inset 0 1px 1px rgba(255,255,255,.85);
+    text-shadow:0 1px 0 rgba(255,255,255,.55);
+    transition:transform .08s,box-shadow .08s}
+  #btnChromeToggle:active{transform:translateY(3px);
+    box-shadow:0 1px 0 #2a84c0,0 2px 6px rgba(15,60,90,.35),inset 0 1px 1px rgba(255,255,255,.7)}
+  /* "도구" 를 누르면 그 옆에 나오는, 한 줄짜리 간단한 도구줄 — 중복 없이 꼭 쓰는 것만.
+     남는 폭을 그대로 쓰고, 모자라면 줄바꿈 대신 가로로 스크롤되어 늘 한 줄을 지킵니다. */
+  #quickTools{flex:1 1 auto;min-width:0;height:44px;
+    display:none;align-items:center;gap:8px;overflow-x:auto;padding:0 10px;
+    background:rgba(20,29,38,.55);border-radius:22px;backdrop-filter:blur(2px)}
+  body.quick-open #quickTools{display:flex}
+  #quickTools button{flex:0 0 auto;height:34px;min-width:34px;padding:0 10px;border-radius:17px;
+    display:flex;align-items:center;justify-content:center;gap:4px;
+    background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);
+    font-size:13px;font-weight:600;line-height:1}
+  #quickTools button.on{background:#ffd34d;color:#1a1406;border-color:#ffd34d}
+  #quickTools button[disabled]{opacity:.35}
+  #quickTools .qtSep{flex:0 0 auto;width:1px;height:22px;background:rgba(255,255,255,.3);margin:0 2px}
+  #quickTools .qtPage{flex:0 0 auto;font-size:13px;color:#fff;min-width:46px;text-align:center}
   #sheet{position:relative;box-shadow:0 10px 34px rgba(0,0,0,.45);background:#fff;flex:0 0 auto;
     will-change:transform;transform-origin:center center;backface-visibility:hidden}
   #pdfCv,#inkCv{display:block;position:relative}
@@ -915,13 +933,30 @@ try{
      맨 위 작은 단추로 접어 둘 수 있고, 접어 둔 것은 기억합니다. -->
 <div id="sideL" class="sideBar"></div>
 <div id="sideR" class="sideBar"></div>
-<!-- 전체화면에서 모든 도구를 숨긴 동안에도 늘 떠 있는 손잡이들.
-     "도구" 는 누르면 펜 도구와 위·아래 막대가 다시 나오고, 한 번 더 누르면 치워집니다.
-     그 옆 단추는 지금 도구의 반대쪽(펜↔이동)으로 한 번에 바로 바꿉니다 —
-     기본은 '이동' 이니 "펜" 이라고 뜨고, 펜으로 바뀌면 "이동" 이라고 뜹니다. -->
+<!-- 전체화면에서 모든 막대를 숨긴 동안에도 늘 떠 있는 손잡이.
+     누르면 옆에 한 줄짜리 간단 도구줄(#quickTools)이 나오고, 한 번 더 누르면 치워집니다.
+     중복 없이 꼭 쓰는 것만 — 아래 막대·왼쪽 도구띠와 같은 setTool·undoOnce·goto 를
+     그대로 불러서, 두 군데 상태가 늘 같이 맞습니다. -->
 <div id="quickBar">
   <button id="btnChromeToggle" title="도구 보이기/숨기기">도구</button>
-  <button id="btnQuickTool" title="펜·이동 바꾸기">펜</button>
+  <div id="quickTools">
+    <button id="qtClose" title="자료 닫기">✕</button>
+    <span class="qtSep"></span>
+    <button class="tool" data-tool="hand" data-label="이동" title="이동">✋</button>
+    <button class="tool" data-tool="pen" data-label="펜" title="펜">✏</button>
+    <button class="tool" data-tool="hl" data-label="형광펜" title="형광펜">🖍</button>
+    <button class="tool" data-tool="eraser" data-label="지우개" title="지우개">🧹</button>
+    <button class="tool" data-tool="shape" data-label="도형" title="도형">▭</button>
+    <button class="tool" data-tool="cut" data-label="오리기" title="오리기">✂</button>
+    <button data-act="undo" title="되돌리기 (Ctrl+Z)">↩</button>
+    <span class="qtSep"></span>
+    <button id="qtPrev" title="이전 쪽">◀</button>
+    <span class="qtPage mono" id="qtPage">– / –</span>
+    <button id="qtNext" title="다음 쪽">▶</button>
+    <span class="qtSep"></span>
+    <button id="qtSave" title="PDF로 저장">💾</button>
+    <button id="qtMore" title="설정">⚙︎</button>
+  </div>
 </div>
 
 <div id="dock">
@@ -2376,6 +2411,7 @@ async function doRender(my){
   document.documentElement.classList.toggle('rail-h', S.rendered.w > S.rendered.h);
   $('pageInfo').textContent=`${S.page} / ${S.pages}`;
   $('dockPage').textContent=`${S.page} / ${S.pages}`;
+  $('qtPage').textContent=`${S.page} / ${S.pages}`;
   $('zoomInfo').textContent=Math.round(S.scale*(S.vz||1)/S.fitScale*100)+'%';
   applyView();                          /* 위치를 다시 계산하지 않습니다 */
   buildRail();
@@ -5058,7 +5094,7 @@ $('btnLaser').onclick=e=>setTool('laser',e.currentTarget);
 /* 전체화면 유지 — 한 번 켜 두면 다음에 열 때도, 중간에 풀려도 다시 들어갑니다.
    브라우저 규칙상 화면을 한 번 눌러야(사용자 동작) 다시 전체화면이 됩니다. */
 const FULL_KEY='pn.keepFull';
-function wantFull(){try{return localStorage.getItem(FULL_KEY)==='1'}catch(e){return false}}
+function wantFull(){try{return localStorage.getItem(FULL_KEY)!=='0'}catch(e){return true}}
 function setWantFull(v){try{localStorage.setItem(FULL_KEY,v?'1':'0')}catch(e){}}
 function fsSupported(){
   const el=document.documentElement;
@@ -5114,6 +5150,7 @@ $('btnClose').onclick=async()=>{
   $('fileName').textContent='파일 없음';
   $('rail').innerHTML='';
   $('pageInfo').textContent='– / –';
+  $('qtPage').textContent='– / –';
   const w=$('welcome');w.hidden=false;w.style.display='';  document.body.classList.add('lib-open');
   if(typeof setUiMin==='function')setUiMin(false,true);   /* 서재에서는 늘 위·아래 막대가 보입니다 */
   await renderFolders();await renderRecent();
@@ -5140,32 +5177,39 @@ function updFullBtn(){
    브라우저가 전체화면을 허락합니다. 공유·파일연결으로 열렸을 때처럼 그 틈이
    없으면 조용히 건너뛰고, F11 안내 토스트도 띄우지 않습니다. */
 function autoGoFull(){
+  setWantFull(true);        /* 지금 당장 안 되어도, 다음 탭마다(아래 전역 리스너) 계속 다시 시도합니다 */
   if(isFull())return;
   document.documentElement.requestFullscreen({navigationUI:'hide'}).then(()=>{
-    setWantFull(true);updFullBtn();
+    updFullBtn();
   }).catch(()=>{});
 }
-/* 위·아래 막대·쪽 번호 줄·펜 도구까지 숨겨, PDF·그림·칠판만 보이게 합니다.
-   왼쪽 위 "도구" 손잡이로 언제든 다시 꺼낼 수 있고, 고른 상태는 기억해 둡니다. */
+/* 위·아래 막대·쪽 번호 줄·왼쪽 필기도구띠까지 숨겨, PDF·그림·칠판만 보이게 합니다.
+   자료를 보는 동안은 늘 이 상태고, "도구" 손잡이는 그 대신 간단 도구줄(quickTools)을 엽니다. */
 function wantUiMin(){try{return localStorage.getItem('pn.uiMin')!=='0'}catch(e){return true}}
 function setUiMin(on,noSave){
   document.body.classList.toggle('ui-min',!!on);
   document.documentElement.classList.toggle('ui-min',!!on);
-  const b=$('btnChromeToggle');if(b)b.title=on?'도구 다시 보기':'도구 숨기기';
+  if(!on)setQuickOpen(false);        /* 서재로 돌아갈 때는 간단 도구줄도 닫아 둡니다 */
   if(noSave)return;
   try{localStorage.setItem('pn.uiMin',on?'1':'0')}catch(e){}
 }
-$('btnChromeToggle').onclick=()=>setUiMin(!document.body.classList.contains('ui-min'));
-/* 바뀔 도구(지금 도구의 반대쪽)를 보여 줍니다 — 기본이 '이동' 이니 처음엔 "펜",
-   펜을 고르면 "이동" 으로 바뀌어 한 번 누르면 바로 서로 바뀝니다. */
-function syncQuickTool(){
-  const b=$('btnQuickTool');if(!b)return;
-  const next=S.tool==='hand'?'pen':'hand';
-  b.textContent=TOOL_NAME[next];
-  b.dataset.next=next;
+/* 한 줄짜리 간단 도구줄 — 중복 없이 꼭 쓰는 것만, 아래 막대·왼쪽 띠와 같은
+   setTool·undoOnce·goto 를 그대로 불러서 두 군데 상태가 늘 같이 맞습니다. */
+function setQuickOpen(on){
+  document.body.classList.toggle('quick-open',!!on);
+  const b=$('btnChromeToggle');if(b)b.title=on?'도구 숨기기':'도구 보이기';
 }
-$('btnQuickTool').onclick=()=>setTool($('btnQuickTool').dataset.next||'pen');
-syncQuickTool();
+$('btnChromeToggle').onclick=()=>setQuickOpen(!document.body.classList.contains('quick-open'));
+$('quickTools').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.act==='undo'){undoOnce();return}
+  const tool=b.dataset.tool;if(tool)setTool(tool,b);
+});
+$('qtClose').onclick=()=>$('btnClose2').click();
+$('qtPrev').onclick=()=>$('btnPrev2').click();
+$('qtNext').onclick=()=>$('btnNext2').click();
+$('qtSave').onclick=()=>$('btnPdf').click();
+$('qtMore').onclick=()=>$('btnMore').click();
 $('btnFull').onclick=async()=>{
   if(isFull()){
     setWantFull(false);
@@ -5183,7 +5227,10 @@ document.addEventListener('fullscreenchange',()=>{
   const on=!!document.fullscreenElement;
   if(on)fauxFull(false);
   updFullBtn();
-  if(!on&&wantFull())toast('전체화면이 풀렸습니다 — 화면을 한 번 누르면 다시 들어갑니다');
+  /* 파일 선택창 자체가 전체화면을 강제로 풀어 둡니다 — 그동안은
+     "풀렸다" 고 알릴 필요가 없습니다. 고르고 나면 곧 다시 걸립니다. */
+  const pickerBusy=S.pickerAt&&(Date.now()-S.pickerAt<15000);
+  if(!on&&wantFull()&&!pickerBusy)toast('전체화면이 풀렸습니다 — 화면을 한 번 누르면 다시 들어갑니다');
   if(S.doc)setTimeout(()=>{renderPage()},250);
   if(S.doc)setTimeout(()=>{renderPage()},700);
 });
@@ -5605,7 +5652,9 @@ async function renderRecent(){
       `<span class="dt">${f.data?'':'다시 선택 · '}${new Date(f.opened).toLocaleDateString('ko-KR')}`+
       `${flat&&f.folder?' · 🏷 '+f.folder:''}</span>`;
     c.querySelector('.cover').onclick=()=>{
-      if(f.data)loadPdf(f.data,f.name,f.id);
+      /* 전체화면은 누른 동작 바로 안에서만 허락되므로, PDF 가 다 읽히길
+         기다렸다가 걸면(loadPdf 안) 그 틈에 허락이 끊겨 있곤 했습니다 */
+      if(f.data){ if(typeof autoGoFull==='function')autoGoFull(); loadPdf(f.data,f.name,f.id) }
       else{toast('같은 파일을 다시 선택해 주세요 — 판서는 그대로 남아 있습니다');$('fileInput').click()}
     };
     c.querySelector('.more').onclick=()=>cardMenu(f);
@@ -5780,6 +5829,7 @@ if(/[?&]share=pdf\b/.test(location.search)&&window.caches){
 function openPicker(){
   const el=$('fileInput');
   try{el.value=''}catch(e){}
+  S.pickerAt=Date.now();            /* 파일 창이 전체화면을 강제로 풀어도, 그동안은 안내하지 않습니다 */
   el.click();                       /* 반드시 누르는 동작 안에서 바로 실행돼야 합니다 */
   setTimeout(()=>{ if(!S.doc&&!S.pickedOnce)toast('파일 선택 창이 안 뜨면 화면을 한 번 누른 뒤 다시 시도해 주세요') },2500);
 }
@@ -5806,6 +5856,10 @@ async function imageToPdfBytes(file){
   return doc.output('arraybuffer');
 }
 $('fileInput').onchange=async e=>{
+  /* 전체화면은 누른 동작 바로 안에서만 허락됩니다 — 파일을 다 읽고 PDF를
+     그린 뒤(loadPdf 안)에 걸면 그 틈에 허락이 끊겨 있곤 했습니다.
+     파일 선택창 자체가 전체화면을 강제로 풀어 두므로, 고르자마자 다시 겁니다. */
+  if(typeof autoGoFull==='function')autoGoFull();
   const f=e.target.files[0];if(!f)return;
   S.pickedOnce=true;
   if(S.doc){await saveNow();if(S.edited)await AutoDL.run(true)}   /* 손댄 경우에만 저장 */
@@ -6163,7 +6217,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.44';
+const APP_VER='25.45';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
