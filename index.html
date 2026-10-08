@@ -1022,7 +1022,7 @@ try{
   </div>
 </div>
 
-<input type="file" id="fileInput" accept=".pdf,application/pdf" class="offscreen">
+<input type="file" id="fileInput" accept=".pdf,application/pdf,.png,.jpg,.jpeg,image/png,image/jpeg" class="offscreen">
 <input type="file" id="jsonInput" accept=".json,application/json" class="offscreen">
 <div id="toast"></div>
 <div id="edgeTag" class="edgeTag"></div>
@@ -5492,7 +5492,7 @@ async function renderRecent(){
   const list=$('recentList'),grid=$('folderGrid');
   const addCard=()=>{
     const c=document.createElement('div');c.className='card newcard';
-    c.innerHTML='<button class="cover"><span class="plus">＋</span></button><span class="nm">새 자료</span>';
+    c.innerHTML='<button class="cover"><span class="plus">＋</span></button><span class="nm">PDF·그림 선택</span>';
     c.querySelector('.cover').onclick=openPicker;
     return c;
   };
@@ -5546,7 +5546,7 @@ async function renderRecent(){
       `${flat&&f.folder?' · 🏷 '+f.folder:''}</span>`;
     c.querySelector('.cover').onclick=()=>{
       if(f.data)loadPdf(f.data,f.name,f.id);
-      else{toast('같은 PDF 파일을 다시 선택해 주세요 — 판서는 그대로 남아 있습니다');$('fileInput').click()}
+      else{toast('같은 파일을 다시 선택해 주세요 — 판서는 그대로 남아 있습니다');$('fileInput').click()}
     };
     c.querySelector('.more').onclick=()=>cardMenu(f);
     list.appendChild(c);count++;
@@ -5724,11 +5724,38 @@ function openPicker(){
   setTimeout(()=>{ if(!S.doc&&!S.pickedOnce)toast('파일 선택 창이 안 뜨면 화면을 한 번 누른 뒤 다시 시도해 주세요') },2500);
 }
 $('btnOpen').onclick=$('btnOpen2').onclick=openPicker;
+/* 그림(jpg·png) 한 장을 한 쪽짜리 PDF로 바꿔 둡니다 — 그 다음부터는
+   보통 PDF 자료와 똑같이 보이고 저장됩니다(필기·되돌리기·PDF 저장 모두). */
+async function imageToPdfBytes(file){
+  const url=URL.createObjectURL(file);
+  let img;
+  try{ img=await new Promise((ok,no)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=no;im.src=url}) }
+  finally{ URL.revokeObjectURL(url) }
+  const cv=document.createElement('canvas');
+  cv.width=img.naturalWidth;cv.height=img.naturalHeight;
+  const cx=cv.getContext('2d');
+  cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);   /* 투명 배경은 흰 종이처럼 */
+  cx.drawImage(img,0,0);
+  const jpg=cv.toDataURL('image/jpeg',.95),land=cv.width>cv.height;
+  const fmt=[land?842:595,land?595:842];
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:land?'l':'p',unit:'pt',format:fmt});
+  const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
+  const r=Math.min(pw/cv.width,ph/cv.height),w=cv.width*r,h=cv.height*r;
+  doc.addImage(jpg,'JPEG',(pw-w)/2,(ph-h)/2,w,h);
+  return doc.output('arraybuffer');
+}
 $('fileInput').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   S.pickedOnce=true;
   if(S.doc){await saveNow();if(S.edited)await AutoDL.run(true)}   /* 손댄 경우에만 저장 */
-  await loadPdf(await f.arrayBuffer(),f.name);
+  const isImg=/^image\//.test(f.type)||/\.(png|jpe?g)$/i.test(f.name);
+  let bytes,name=f.name;
+  if(isImg){
+    try{ bytes=await imageToPdfBytes(f); name=f.name.replace(/\.(png|jpe?g)$/i,'')+'.pdf' }
+    catch(err){ toast('그림을 열지 못했습니다: '+err.message); e.target.value=''; return }
+  }else bytes=await f.arrayBuffer();
+  await loadPdf(bytes,name);
   e.target.value='';
 };
 window.addEventListener('keydown',e=>{
@@ -6076,7 +6103,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.39';
+const APP_VER='25.40';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
