@@ -4251,6 +4251,7 @@ bdCv.addEventListener('pointerdown',e=>{
   ghostShow(e);
   try{bdCv.setPointerCapture(e.pointerId)}catch(err){}
   BD.drawing=true;BD.palm=false;BD.last=[x,y];BD.prev=null;
+  BD.eraseHit=false;             /* 이번에 뭔가 지웠는지 — 떼는 순간 연필로 바꿀지 정합니다 */
   BD.drawId=e.pointerId;                                     /* 이 획을 그리는 손가락/펜 — 다른 포인터의 움직임은 무시 */
   if(e.pointerType!=='touch')BD.penAt=performance.now();     /* 펜이 지금 칠판에 닿아 있음 (손등 무시용) */
   snap('bd');
@@ -4369,6 +4370,9 @@ function bdEnd(e){
     if(e&&e.pointerType==='touch')BD.lastTouch={s:BD.cur,at:performance.now()};
     BD.cur=null;S.edited=true;bdRedraw();   /* 뗀 순간 매끈하게 정리 */
   }
+  /* 지우개로 몇 획 지우고 손을 떼면 연필로 — 자료 쪽과 같습니다 */
+  if(S.tool==='eraser'&&BD.eraseHit)setTool('pen',$('btnPen'));
+  BD.eraseHit=false;
   bdSaveSoon();
 }
 bdCv.addEventListener('pointerup',bdEnd);
@@ -4377,7 +4381,7 @@ bdCv.addEventListener('lostpointercapture',bdEnd);
 function bdErase(x,y){
   const r=Math.max(16,curSize()*2.2);
   const out=cutStrokes(BD.strokes,(st,q)=>bdPt(st,q),x,y,r);
-  if(out){BD.strokes=out;S.edited=true;bdRedraw()}
+  if(out){BD.strokes=out;S.edited=true;BD.eraseHit=true;bdRedraw()}
 }
 $('btnBdPrev').onclick=()=>{ if((BD.page||1)>1)bdGoto(BD.page-1) };
 $('btnBdNext').onclick=async()=>{
@@ -4470,6 +4474,9 @@ $('btnBoardClear').onclick=async()=>{
   snap('bd');
   BD.strokes=[];BD.imgs=[];BD.sel=null;
   S.edited=true;bdRedraw();await bdSave();
+  /* PDF 쪽 비우기는 '이동'으로 바뀌지만(다음 쪽으로 넘어갈 때가 많습니다),
+     칠판은 넘겨 갈 다음 쪽이 따로 없으니 — 비운 뒤엔 바로 '연필'로 둡니다. */
+  setTool('pen',$('btnPen'));
   /* 마지막 쪽을 비웠으면 그 쪽 자체를 없애고 앞 쪽으로 갑니다.
      전에는 내용만 지워서 2/2 가 그대로 남았습니다. */
   if((BD.page||1)===(BD.pages||1)&&(BD.pages||1)>1){
@@ -4842,7 +4849,13 @@ function openPop(anchor,tool){
       cb.className='clearAllBtn';
       cb.textContent='🧹 전체 지우기';
       cb.title='이 쪽의 필기를 모두 지웁니다';
-      cb.onclick=()=>{closePop();$('btnClear').click()};
+      /* 칠판만 보고 있으면(PDF 없이) 칠판을, 아니면 PDF 쪽을 비웁니다 —
+         PDF 일 때나 칠판일 때나 '전체 지우기' 가 똑같이 먹혀야 합니다. */
+      cb.onclick=()=>{
+        closePop();
+        if(S.split&&!S.doc)$('btnBoardClear').click();
+        else $('btnClear').click();
+      };
       sizeRow.appendChild(cb);
     }
     pop.appendChild(sizeRow);
@@ -6233,7 +6246,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.57';
+const APP_VER='25.58';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
