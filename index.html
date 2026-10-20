@@ -173,13 +173,14 @@ try{
   button.on{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700}
   button.icon{padding:0;width:50px;justify-content:center;font-size:19px}
   /* 도구 옆 ▾ — 색·굵기 창을 여는 작은 단추 (전에는 '길게 꾹').
-     도구 단추에 딱 붙여, 한 벌처럼 보이게 합니다. */
-  button.toolMore{min-height:50px;width:22px;padding:0;margin-left:-1px;
-    justify-content:center;font-size:12px;line-height:1;color:var(--text-dim);
+     도구 단추에 딱 붙여, 한 벌처럼 보이게 합니다. 전에는 너무 작고
+     옅어서 있는 줄도 몰랐다고 하여, 크고 뚜렷하게 키웠습니다. */
+  button.toolMore{min-height:50px;width:28px;padding:0;margin-left:-1px;
+    justify-content:center;font-size:16px;font-weight:800;line-height:1;color:var(--chalk);
     background:var(--ink-2);border-radius:0 var(--radius) var(--radius) 0}
   button.toolMore:hover{background:var(--slate);color:var(--text)}
-  .sideBar button.toolMore{width:44px;height:20px;min-height:20px;margin:-3px 0 0;
-    border-radius:0 0 8px 8px;font-size:12px}
+  .sideBar button.toolMore{width:44px;height:28px;min-height:28px;margin:-3px 0 0;
+    border-radius:0 0 8px 8px;font-size:17px}
   button.primary{background:var(--chalk);border-color:var(--chalk);color:#1a1a12;font-weight:700}
   button.primary:hover{background:#ffe071}
   button.ghost{background:transparent}
@@ -195,6 +196,12 @@ try{
      고른 것을 노랑으로 꽉 채우면 안에 무엇이 있는지 보이지 않습니다
      (앞의 button.on 이 바탕을 칠합니다). 채우지 않고 테두리로만 표시합니다. */
   #pop .popRow{display:flex;gap:7px;align-items:center;justify-content:flex-start}
+  /* 지우개 굵기 줄의 '전체 지우기' — margin-left:auto 로 그 줄의 가장 오른쪽에 붙습니다.
+     (#pop.wide .popRow button 의 44px 동그라미 규칙보다 특이도가 높아야 합니다.) */
+  #pop.wide .popRow .clearAllBtn{width:auto;height:38px;min-height:38px;border-radius:10px;
+    padding:0 14px;margin-left:auto;font-size:13px;font-weight:700;
+    background:#5a2330;border:1px solid #7d3244;color:#ffd9df}
+  #pop.wide .popRow .clearAllBtn:hover{background:#7d3244}
   #pop .popRow .lab{flex:0 0 42px;font-size:11.5px;color:var(--text-dim);
     text-align:right;padding-right:5px;letter-spacing:.02em}
   #pop.wide .popRow button{width:44px;height:44px;min-height:44px;padding:0;
@@ -317,40 +324,19 @@ try{
      칠판을 켜 둔 것은 그대로 기억되므로, 자료를 열면 다시 나옵니다. */
   body.lib-open #board,html.lib-open #board,
   body.lib-open #splitBar,html.lib-open #splitBar{display:none!important}
-  /* 전체화면으로 열면 위·아래 막대·쪽 번호 줄·왼쪽 필기도구까지 모두 치워
-     그림·PDF(또는 칠판)만 남깁니다. 왼쪽 위 "도구" 손잡이만 늘 떠 있습니다. */
-  body.ui-min #topbar,html.ui-min #topbar,
-  body.ui-min header,html.ui-min header,
-  body.ui-min #rail,html.ui-min #rail,
-  body.ui-min #dock,html.ui-min #dock,
-  body.ui-min .sideBar,html.ui-min .sideBar{display:none!important}
-  #quickBar{position:fixed;top:10px;left:10px;right:10px;z-index:9995;display:none;
-    align-items:center;gap:10px}
-  body:not(.lib-open) #quickBar{display:flex}       /* 자료·칠판을 보는 동안에만 */
-  /* 눌러보고 싶게 — 하늘색 유리알처럼 도드라지고, 누르면 눌리는 버튼 */
-  #btnChromeToggle{flex:0 0 auto;height:44px;padding:0 20px;border-radius:22px;
-    font-size:16px;font-weight:800;
-    color:#06324a;background:linear-gradient(180deg,#bdeaff 0%,#6cc6f2 55%,#3aa8e6 100%);
-    border:1px solid #2f93d6;
-    box-shadow:0 4px 0 #2a84c0,0 8px 14px rgba(15,60,90,.4),inset 0 1px 1px rgba(255,255,255,.85);
-    text-shadow:0 1px 0 rgba(255,255,255,.55);
-    transition:transform .08s,box-shadow .08s}
-  #btnChromeToggle:active{transform:translateY(3px);
-    box-shadow:0 1px 0 #2a84c0,0 2px 6px rgba(15,60,90,.35),inset 0 1px 1px rgba(255,255,255,.7)}
-  /* "도구" 를 누르면 그 옆에 나오는, 한 줄짜리 간단한 도구줄 — 중복 없이 꼭 쓰는 것만.
-     남는 폭을 그대로 쓰고, 모자라면 줄바꿈 대신 가로로 스크롤되어 늘 한 줄을 지킵니다. */
-  #quickTools{flex:1 1 auto;min-width:0;height:44px;
-    display:none;align-items:center;gap:8px;overflow-x:auto;padding:0 10px;
-    background:rgba(20,29,38,.55);border-radius:22px;backdrop-filter:blur(2px)}
-  body.quick-open #quickTools{display:flex}
-  #quickTools button{flex:0 0 auto;height:34px;min-width:34px;padding:0 10px;border-radius:17px;
-    display:flex;align-items:center;justify-content:center;gap:4px;
-    background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);
-    font-size:13px;font-weight:600;line-height:1}
-  #quickTools button.on{background:#ffd34d;color:#1a1406;border-color:#ffd34d}
-  #quickTools button[disabled]{opacity:.35}
-  #quickTools .qtSep{flex:0 0 auto;width:1px;height:22px;background:rgba(255,255,255,.3);margin:0 2px}
-  #quickTools .qtPage{flex:0 0 auto;font-size:13px;color:#fff;min-width:46px;text-align:center}
+  /* 전체화면(⛶)일 때만 위쪽 막대·쪽 번호 줄·쪽 넘김 조각을 숨겨, PDF 위에
+     펜 도구막대(header)와 왼쪽 세로 막대(sideL)만 남깁니다. 이 전환은
+     전체화면이 켜지고 꺼질 때(updFullBtn)만 함께 일어나므로 — 이미 화면
+     전체가 바뀌는 그 순간에 얹혀가는 것이라 따로 화면이 흔들리지 않습니다.
+     (왼쪽 막대를 접고 펴는 것은 이것과 상관없이 그 막대만 움직입니다 —
+     전에는 둘을 묶어 뒀다가, 접을 때마다 불필요하게 화면이 다시 그려지고
+     몇몇 전자칠판에서는 전체화면까지 풀려 버려 떼어 냈습니다.)
+     전체화면을 끄면 위쪽 막대가 다시 보여 '자료 닫기'로 빠져나갈 수 있습니다. */
+  /* 서재(lib-open)에서는 제외합니다 — 왼쪽 막대(sideL)가 서재에서는 아예
+     감춰지므로, 거기서까지 위쪽 막대를 숨기면 빠져나갈 길이 없어집니다. */
+  body.full-min:not(.lib-open) #topbar,html.full-min:not(.lib-open) #topbar,
+  body.full-min:not(.lib-open) #rail,html.full-min:not(.lib-open) #rail,
+  body.full-min:not(.lib-open) #dock,html.full-min:not(.lib-open) #dock{display:none!important}
   #sheet{position:relative;box-shadow:0 10px 34px rgba(0,0,0,.45);background:#fff;flex:0 0 auto;
     will-change:transform;transform-origin:center center;backface-visibility:hidden}
   #pdfCv,#inkCv{display:block;position:relative}
@@ -500,26 +486,39 @@ try{
   .sideBar button[data-tool="eraser"]{color:#5b6b7b}
   .sideBar button[data-tool="hand"]{color:#3b82f6}
   .sideBar button[data-act="undo"]{color:#7a8797}
-  /* 도구 옆 ▾ (색·굵기) — 있는 듯 없는 듯하게 */
-  .sideBar button.toolMore{background:transparent;border-color:transparent;color:#aab6c2}
-  .sideBar button.toolMore:hover{background:#f2f4f8;color:#5a6a7a}
+  /* 도구 옆 ▾ (색·굵기) — 흰 바탕과 같은 색이라 있는 줄 몰랐다고 하여,
+     옅은 회색 통 + 짙은 글자로 또렷하게 보이게 했습니다 */
+  .sideBar button.toolMore{background:#eef1f5;border-color:transparent;
+    color:#45525e;font-weight:800}
+  .sideBar button.toolMore:hover{background:#dde3ea;color:#1f2a33}
   .sideBar button[disabled]{opacity:.45}
-  /* 손잡이 하나로 합쳤습니다 — 누르면 접기·펴기, 끌면 막대를 옮깁니다.
-     접기(22px)와 잡이(20px)를 합친 만큼(47px) 키워, 손가락으로 눌러도
-     빗나가지 않습니다. 노랑이라 어디를 잡아야 할지 바로 보입니다. */
-  /* 손잡이 — 통에 묻히도록 아주 옅게. 누르면 접기·펴기, 끌면 옮기기 */
-  .sideBar .sideGrip{width:44px;height:47px;min-height:47px;padding:0;
-    font-size:22px;font-weight:800;line-height:1;border-radius:12px;
-    background:#f2f4f8;border-color:transparent;color:#8a97a5;opacity:1;
-    cursor:move;touch-action:none}
-  .sideBar .sideGrip:hover{background:#e7ebf1;color:#4a5a6b}
+  /* 손잡이를 둘로 나눴습니다 — 전자펜·손가락은 '탭' 에도 떨림이 있어
+     (마우스처럼 딱 멈춰 있지 않습니다), 접기(탭)와 옮기기(끌기)를 한
+     단추에 같이 두면 서로 엇갈리기 쉽습니다. 위는 접기·펴기 전용(탭만
+     봅니다), 그 아래는 옮기기 전용(끌기만 봅니다)으로 나눴습니다. */
+  .sideBar .sideGrip{width:44px;height:38px;min-height:38px;padding:0;
+    font-size:20px;font-weight:800;line-height:1;border-radius:12px 12px 4px 4px;
+    background:#f2f4f8;border-color:transparent;color:#4a5a6b;opacity:1;
+    cursor:pointer}
+  .sideBar .sideGrip:hover{background:#e7ebf1;color:#1f2a33}
   .sideBar .sideGrip svg{filter:none}
-  /* 접으면 손잡이만 남습니다 — 다시 펼 길, 그리고 옮길 길(✥)은 늘 남겨 둡니다.
+  /* 옮기기 전용 손잡이(✥) — 접기 손잡이 바로 아래, 한 통처럼 붙여 둡니다.
+     접기 손잡이와 크기를 맞추고, 파란색(이동 도구와 같은 색)으로 또렷이
+     구분해 — 둘 다 '그냥 작고 옅은 글자' 라 못 찾겠다는 말에 키웠습니다. */
+  .sideBar .sideMoveBtn{width:44px;height:38px;min-height:38px;padding:0;margin-top:-4px;
+    font-size:21px;font-weight:800;line-height:1;border-radius:4px 4px 12px 12px;
+    background:#e7f0ff;border-color:transparent;color:#2a6fd6;opacity:1;
+    cursor:move;touch-action:none}
+  .sideBar .sideMoveBtn:hover{background:#d5e6ff;color:#1b4fa0}
+  /* 접으면 도구 단추들은 숨고, 접기·옮기기 손잡이 둘만 남습니다 —
      접은 채로도 옮길 수 있어야, 화면 맨 아래까지 끌어 내릴 수 있습니다. */
-  /* 접어도 너비는 펼친 상태와 똑같이 — 손잡이가 작으면 잘 안 눌립니다 */
   .sideBar.hid{padding:6px;gap:6px;background:rgba(255,255,255,.94);border-color:rgba(0,0,0,.06)}
   .sideBar.hid button{display:none}
-  .sideBar.hid .sideGrip{display:flex;width:44px;height:72px;min-height:72px;font-size:24px}
+  .sideBar.hid .sideGrip,.sideBar.hid .sideMoveBtn{display:flex}
+  .sideBar.hid .sideGrip{width:44px;height:48px;min-height:48px;font-size:24px}
+  /* 접힌 왼쪽 막대의 "도구" 글자 손잡이 — 화살표보다 작은 글자라야 44px 안에 한 줄로 들어갑니다 */
+  .sideBar.hid .sideGrip.sideGripLabel{font-size:14px;letter-spacing:-.3px;white-space:nowrap}
+  .sideBar.hid .sideMoveBtn{width:44px;height:38px;min-height:38px;font-size:21px}
   @media (max-width:1180px){
     .sideBar button{width:40px;height:40px;min-height:40px}
     .sideBar button svg{width:25px;height:25px}
@@ -530,7 +529,13 @@ try{
        그때만 6px 로 붙입니다 (아래 규칙이 이깁니다). */
     #sideL{left:84px}
   }
+  /* 전체화면(full-min) — 쪽 번호 줄(#rail)이 숨어 있으니, 그 자리였던 왼쪽
+     끝으로 당겨 옵니다. 손잡이가 늘 쪽 번호가 있던 자리에 떠 있게 됩니다.
+     (진짜 화면 끝(0~6px)은 피합니다 — 전자칠판 일부 기종은 그 가장자리를
+     누르면 전체화면을 빠져나가는 몸짓으로 읽어, 손잡이가 거기 있으면 누를
+     때마다 전체화면이 풀렸습니다.) */
   html.rail-h #sideL,body.board-full #sideL,html.board-full #sideL{left:6px}
+  body.full-min #sideL,html.full-min #sideL{left:12px}
   #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
     contain:layout style;pointer-events:auto;isolation:isolate;
     background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
@@ -930,35 +935,11 @@ try{
      넓은 전자칠판에서 어느 쪽에 서 있든 걸어가지 않게 왼쪽·오른쪽 둘 다
      둡니다 (지우개를 양 끝에 둔 뜻과 같습니다). 아래 막대는 그대로
      있습니다 — 둘 중 편한 곳을 쓰면 됩니다.
-     맨 위 작은 단추로 접어 둘 수 있고, 접어 둔 것은 기억합니다. -->
+     맨 위 손잡이(‹)가 제목줄 구실까지 합니다 — 누르면 접기·펴기(동시에
+     위쪽 막대·쪽 번호 줄도 함께 숨었다 나왔다 합니다), 끌면 자리를 옮깁니다.
+     접은 손잡이는 쪽 번호가 있던 왼쪽 자리로 당겨져, 늘 손이 닿는 곳에 떠 있습니다. -->
 <div id="sideL" class="sideBar"></div>
 <div id="sideR" class="sideBar"></div>
-<!-- 전체화면에서 모든 막대를 숨긴 동안에도 늘 떠 있는 손잡이.
-     누르면 옆에 한 줄짜리 간단 도구줄(#quickTools)이 나오고, 한 번 더 누르면 치워집니다.
-     중복 없이 꼭 쓰는 것만 — 아래 막대·왼쪽 도구띠와 같은 setTool·undoOnce·goto 를
-     그대로 불러서, 두 군데 상태가 늘 같이 맞습니다. -->
-<div id="quickBar">
-  <button id="btnChromeToggle" title="도구 보이기/숨기기">도구</button>
-  <div id="quickTools">
-    <button id="qtClose" title="자료 닫기">✕</button>
-    <span class="qtSep"></span>
-    <button class="tool" data-tool="hand" data-label="이동" title="이동">✋</button>
-    <button class="tool" data-tool="pen" data-label="펜" title="펜">✏</button>
-    <button class="tool" data-tool="hl" data-label="형광펜" title="형광펜">🖍</button>
-    <button class="tool" data-tool="eraser" data-label="지우개" title="지우개">🧹</button>
-    <button class="tool" data-tool="shape" data-label="도형" title="도형">▭</button>
-    <button class="tool" data-tool="cut" data-label="오리기" title="오리기">✂</button>
-    <button data-act="undo" title="되돌리기 (Ctrl+Z)">↩</button>
-    <span class="qtSep"></span>
-    <button id="qtPrev" title="이전 쪽">◀</button>
-    <span class="qtPage mono" id="qtPage">– / –</span>
-    <button id="qtNext" title="다음 쪽">▶</button>
-    <span class="qtSep"></span>
-    <button id="qtSave" title="PDF로 저장">💾</button>
-    <button id="qtMore" title="설정">⚙︎</button>
-  </div>
-</div>
-
 <div id="dock">
   <button class="icon pageBtn" id="btnPrev2" title="이전 쪽">◀</button>
   <span class="mono pageBtn" id="dockPage">– / –</span>
@@ -2253,8 +2234,7 @@ async function loadPdf(bytes,name,id){
   /* 이제 PDF 가 화면에 있습니다 — 도구막대도 지금 함께 나타납니다 */
   document.body.classList.remove('lib-open');
   if(typeof revealSideL==='function')revealSideL();
-  if(typeof autoGoFull==='function')autoGoFull();      /* 화면을 크게 */
-  if(typeof setUiMin==='function')setUiMin(wantUiMin()); /* 도구까지 치우고, 왼쪽 위 "도구" 손잡이만 남깁니다 */
+  if(typeof autoGoFull==='function')autoGoFull();      /* 화면을 크게 — 성공하면 updFullBtn 이 위쪽 막대도 치웁니다 */
   setTool('hand',$('btnHand'));                       /* 자료를 열면 기본은 '이동' — 열자마자 그어지지 않게 */
   updFitBtn();                                        /* 폭맞춤·쪽맞춤 중 지금 것을 노랑으로 */
   buildRail();
@@ -2411,7 +2391,6 @@ async function doRender(my){
   document.documentElement.classList.toggle('rail-h', S.rendered.w > S.rendered.h);
   $('pageInfo').textContent=`${S.page} / ${S.pages}`;
   $('dockPage').textContent=`${S.page} / ${S.pages}`;
-  $('qtPage').textContent=`${S.page} / ${S.pages}`;
   $('zoomInfo').textContent=Math.round(S.scale*(S.vz||1)/S.fitScale*100)+'%';
   applyView();                          /* 위치를 다시 계산하지 않습니다 */
   buildRail();
@@ -2968,6 +2947,7 @@ function startStroke(e){
   S.pan=null;S.pinch=null;
   S.drawId=e.pointerId;
   S.drawing=true;S.last=[x,y];S.strokeBy=e.pointerType;S.strokeAt=performance.now();
+  S.eraseHit=false;                 /* 이번에 뭔가 지웠는지 — 떼는 순간 연필로 바꿀지 정합니다 */
   if(S.palmErase){snap('pdf');erase(x,y);return}   /* 손바닥 — 어느 도구를 골라 뒀든 지웁니다 */
   if(S.tool==='laser'){laserPoint(x,y,true);return}
   S.penErase=(e.pointerType==='pen'&&e.buttons===32);   /* 펜 뒤쪽 지우개 버튼 */
@@ -3087,6 +3067,10 @@ function endStroke(){
        방금 그은 획만 마지막으로 한 번 곱게 얹습니다. */
     if(wasShape)redraw(); else paintStroke(done);
   }
+  /* 지우개로 몇 획 지우고 손을 떼면 연필로 — 지우고 나서 바로 또
+     쓰는 경우가 많아, 매번 연필로 바꾸는 손을 덜어 줍니다. */
+  if(S.tool==='eraser'&&S.eraseHit)setTool('pen',$('btnPen'));
+  S.eraseHit=false;
   S.strokeBy='';
   scheduleSave();
 }
@@ -3795,7 +3779,7 @@ function cutStrokes(list,toScreen,x,y,r){
 function erase(x,y){
   const r=Math.max(16,curSize()*2.2);
   const out=cutStrokes(S.strokes,(st,q)=>toP(q[0],q[1]),x,y,r);
-  if(out){S.strokes=out;S.edited=true;redraw()}
+  if(out){S.strokes=out;S.edited=true;S.eraseHit=true;redraw()}
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -4731,7 +4715,6 @@ function setTool(t,btn){
   applyCursor();
   const el=$('toolNow');
   if(el)el.textContent=TOOL_NAME[t]||'펜';
-  if(typeof syncQuickTool==='function')syncQuickTool();
   diag('도구선택 전');
   showSize();
   paintSwatches();showColor();showShapeBtn();
@@ -4852,6 +4835,16 @@ function openPop(anchor,tool){
       b.onclick=()=>{S.sizes[key]=v;showSize();showShapeBtn();closePop();saveToolPrefs();toast(`굵기 ${v}`)};
       sizeRow.appendChild(b);
     });
+    /* 지우개는 굵기 옆, 줄 가장 오른쪽에 '전체 지우기' 를 바로 둡니다 —
+       한 획씩 문지르지 않고 이 쪽을 통째로 비우고 싶을 때가 많습니다. */
+    if(tool==='eraser'){
+      const cb=document.createElement('button');
+      cb.className='clearAllBtn';
+      cb.textContent='🧹 전체 지우기';
+      cb.title='이 쪽의 필기를 모두 지웁니다';
+      cb.onclick=()=>{closePop();$('btnClear').click()};
+      sizeRow.appendChild(cb);
+    }
     pop.appendChild(sizeRow);
   }
   /* '다듬기' 스위치는 뺐습니다 — 기능 자체를 없앴으므로, 켜 두어도
@@ -4939,8 +4932,13 @@ function showShapeBtn(){
 const SIDE_TOOLS=[['btnPen','pen'],['btnLaser','laser'],
                   ['btnEraser','eraser'],['btnHand','hand']];
 function sideKey(side){return 'pn.sideHid.'+side}
+/* 왼쪽(L)은 기본을 접힌 채로 둡니다 — PDF 가 크게 보이는 쪽이 늘 먼저입니다.
+   손잡이로 직접 펼친 적이 있으면(저장값 '0') 다음에도 펼친 채로 엽니다. */
 function sideHidden(side){
-  try{return localStorage.getItem(sideKey(side))==='1'}catch(e){return false}
+  try{
+    const v=localStorage.getItem(sideKey(side));
+    return side==='L'?v!=='0':v==='1';
+  }catch(e){return side==='L'}
 }
 /* 접기·펴기 — 왼쪽과 오른쪽을 따로 기억합니다.
    접으면 손잡이만 남습니다. 아주 없애지 않는 것은, 없애 버리면 다시
@@ -4950,11 +4948,20 @@ function setSideHid(side,hid,noSave){
   box.classList.toggle('hid',!!hid);
   const t=box.querySelector('.sideGrip');
   if(t){
-    const away=(side==='L')?'‹':'›';   /* 바깥쪽으로 접기 */
-    const back=(side==='L')?'›':'‹';   /* 안쪽으로 펴기 */
-    t.textContent=hid?back:away;
+    /* 왼쪽 막대가 접히면 화살표 대신 "도구" 글자로 — 눌러야 할 자리라는
+       것이 화살표보다 뚜렷이 보입니다. 펼친 채는 접는 화살표(‹)만 둡니다. */
+    if(side==='L'){
+      t.textContent=hid?'도구':'‹';
+      t.classList.toggle('sideGripLabel',!!hid);
+    }else{
+      t.textContent=hid?'‹':'›';
+    }
     t.title=hid?'필기도구 펴기':'필기도구 접기';
   }
+  /* 이 막대만 접히고 펼쳐집니다 — 위쪽 막대·쪽 번호 줄·화면 크기는 전혀
+     안 건드립니다. 전에는 함께 숨겼다 폈다 했는데, 그때마다 화면이 다시
+     그려지며 "화면이 움직인다", 몇몇 전자칠판에서는 전체화면까지 풀려
+     버렸습니다. 이 막대는 position:fixed 라 접고 펴도 화면은 그대로입니다. */
   /* noSave=true 는 도구를 고르면 저절로 접히는(임시) 경우입니다 —
      사용자가 손잡이로 직접 정한 상태만 기억합니다. */
   if(noSave)return;
@@ -4963,16 +4970,12 @@ function setSideHid(side,hid,noSave){
 /* 떠 있는 막대를 끌어서 옮긴 자리 — 왼쪽·오른쪽을 따로 기억합니다.
    두 번 누르면 제자리(화면 가운데 높이)로 돌아갑니다. */
 function sidePosKey(side){return 'pn.sidePos.'+side}
-/* 도구상자가 왼쪽으로 갈 수 있는 한계 — 쪽 번호 줄의 오른쪽 끝입니다.
-   여기를 넘어가면 쪽 번호를 덮어 '보였다 안 보였다' 합니다.
-   쪽 번호가 가로로 눕거나(rail-h) 줄이 없을 때는 한계가 없습니다. */
+/* 도구상자가 왼쪽으로 갈 수 있는 한계 — 전에는 쪽 번호 줄을 덮지 못하게
+   막았지만, 펼친 채로도 가장 왼쪽까지 끌어 두고 싶다는 요청이 있어
+   늘 화면 맨 끝(4px)까지 끌 수 있게 열어 둡니다. 쪽 번호와 겹치면
+   쪽 번호 줄이 뒤에 깔립니다(z-index). */
 function sideMinLeft(){
-  if(document.documentElement.classList.contains('rail-h'))return 4;
-  const a=document.getElementById('rail');
-  if(!a)return 4;
-  const r=a.getBoundingClientRect();
-  if(!r.width||!r.height)return 4;          /* 줄이 감춰져 있으면 마음대로 */
-  return Math.round(r.right)+6;
+  return 4;
 }
 function applySidePos(side){
   const box=$('side'+side);if(!box)return;
@@ -4989,21 +4992,29 @@ function applySidePos(side){
     box.style.left='';box.style.right='';box.style.top='';box.style.transform='';
   }
 }
-function bindSideDrag(box,handle,side){
+/* 접기·펴기 손잡이 — 탭(클릭)에만 반응합니다. 끌기와 한 단추에 같이 두면
+   전자펜·손가락은 누르는 순간에도 조금씩 흔들려, 옮기려다 접히거나
+   접으려다 옮겨지는 오작동이 났습니다. 마우스와 달리 터치는 그 떨림을
+   '끈 것' 과 구분하기 어려우니, 아예 손잡이를 나눴습니다(bindSideMove 가 옮기기). */
+function bindSideFold(box,handle,side){
+  handle.addEventListener('click',e=>{
+    e.preventDefault();e.stopPropagation();
+    setSideHid(side,!box.classList.contains('hid'));
+  });
+}
+/* 옮기기 전용 손잡이 — 끌기에만 반응합니다. 탭(접기·펴기)과는 무관합니다. */
+function bindSideMove(box,handle,side){
   handle.addEventListener('pointerdown',e=>{
     e.preventDefault();e.stopPropagation();
     const r=box.getBoundingClientRect();
     const dx=e.clientX-r.left, dy=e.clientY-r.top;
-    let moved=false;
     box.style.transform='none';box.style.right='auto';
     box.style.left=r.left+'px';box.style.top=r.top+'px';
     try{handle.setPointerCapture(e.pointerId)}catch(err){}
+    let moved=false;
     const mv=ev=>{
-      /* 손가락은 누를 때도 조금 흔들립니다 — 12px 넘게 가야 '끈 것' 입니다 */
-      if(!moved&&Math.hypot(ev.clientX-e.clientX,ev.clientY-e.clientY)<12)return;
       moved=true;
       let L=ev.clientX-dx, T=ev.clientY-dy;
-      /* 쪽 번호 줄 위로는 못 넘어갑니다 — 넘어가면 번호가 가려집니다 */
       L=Math.max(sideMinLeft(),Math.min(window.innerWidth-box.offsetWidth-4,L));
       T=Math.max(4,Math.min(window.innerHeight-box.offsetHeight-4,T));
       box.style.left=L+'px';box.style.top=T+'px';
@@ -5014,29 +5025,27 @@ function bindSideDrag(box,handle,side){
       handle.removeEventListener('pointercancel',up);
       if(moved)try{localStorage.setItem(sidePosKey(side),
         JSON.stringify({left:parseInt(box.style.left),top:parseInt(box.style.top)}))}catch(err){}
-      /* 끌지 않고 그냥 눌렀으면 = 접기·펴기 */
-      else setSideHid(side,!box.classList.contains('hid'));
     };
     handle.addEventListener('pointermove',mv);
     handle.addEventListener('pointerup',up);
     handle.addEventListener('pointercancel',up);
   });
-  /* 두 번 누르면: 제자리(왼쪽 가운데)로 돌아가고, 접혀 있었으면 다시 펼쳐집니다 */
+  /* 두 번 누르면: 제자리(왼쪽 가운데)로 돌아갑니다 */
   handle.addEventListener('dblclick',e=>{
     e.preventDefault();
     try{localStorage.removeItem(sidePosKey(side))}catch(err){}
     applySidePos(side);
-    setSideHid(side,false);               /* 직접 두 번 눌렀으니 펼침을 기억합니다 */
     box.classList.remove('unfold');void box.offsetWidth;box.classList.add('unfold');
   });
 }
-/* 자료를 열 때 왼쪽 막대를 가운데에서 펼쳐 보여 줍니다 —
-   접혀 있었거나 딴 데로 옮겨 뒀어도 제자리(가운데)로 돌려놓습니다. */
+/* 자료를 열 때 왼쪽 막대 자리를 제자리(가운데)로 돌려놓습니다.
+   접힌 채 펼친 채는 지난번 손잡이로 직접 정한 그대로 둡니다 — 처음 여는
+   선생님은 접힌 채(=PDF 가 크게) 시작해, 전체 화면이 넓게 보입니다. */
 function revealSideL(){
   const box=$('sideL');if(!box)return;
   try{localStorage.removeItem(sidePosKey('L'))}catch(e){}
   applySidePos('L');                 /* 저장된 자리 지우고 CSS 기본(가운데)으로 */
-  setSideHid('L',false);             /* 펼침 */
+  setSideHid('L',sideHidden('L'));   /* 기억해 둔 접힘 상태 그대로 (기본은 접힘) */
   box.classList.remove('unfold');void box.offsetWidth;   /* 애니메이션 다시 태우기 */
   box.classList.add('unfold');
 }
@@ -5045,12 +5054,18 @@ function buildSideTools(){
     const box=$('side'+side);if(!box)continue;
     box.dataset.side=side;
     box.innerHTML='';
-    /* 맨 위 손잡이 하나 — 누르면 접기·펴기, 끌면 옮기기 */
+    /* 맨 위 손잡이 둘 — 접기·펴기(탭 전용)와 옮기기(끌기 전용)를 나눴습니다 */
     const g=document.createElement('button');
     g.className='sideGrip';g.type='button';
-    g.title='누르면 접기·펴기, 끌면 옮깁니다 (두 번 누르면 제자리)';
+    g.title='누르면 접기·펴기';
     box.appendChild(g);
-    bindSideDrag(box,g,side);
+    bindSideFold(box,g,side);
+    const mv=document.createElement('button');
+    mv.className='sideMoveBtn';mv.type='button';
+    mv.textContent='✥';
+    mv.title='끌어서 자리를 옮깁니다 (두 번 누르면 제자리)';
+    box.appendChild(mv);
+    bindSideMove(box,mv,side);
     /* 도구 — 아래 막대의 단추를 그대로 복제합니다 */
     for(const [srcId,tool] of SIDE_TOOLS){
       const src=$(srcId);if(!src)continue;
@@ -5070,10 +5085,20 @@ function buildSideTools(){
     u.title='되돌리기 (Ctrl+Z)';
     u.textContent='↩';
     box.appendChild(u);
+    /* 전체화면 — 켜져 있으면 ✕(눌러서 끄기), 꺼져 있으면 ⛶(눌러서 켜기).
+       전자칠판은 Esc 키가 없어 전체화면을 빠져나갈 길이 마땅치 않았는데,
+       이 단추는 늘 손이 닿는 이 막대 안에 있어 따로 뜨는 상자가 필요 없습니다.
+       updFullBtn() 이 상태에 맞춰 모양을 바꿔 줍니다. */
+    const fb=document.createElement('button');
+    fb.className='icon';fb.id='btnFull2';fb.type='button';
+    fb.title='전체화면 (F11)';
+    fb.textContent='⛶';
+    fb.onclick=()=>$('btnFull').click();
+    box.appendChild(fb);
 
     box.addEventListener('click',e=>{
       const b=e.target.closest('button');if(!b)return;
-      if(b.classList.contains('sideGrip'))return;   /* 손잡이는 제가 알아서 합니다 */
+      if(b.classList.contains('sideGrip')||b.classList.contains('sideMoveBtn'))return;   /* 손잡이 둘은 제가 알아서 합니다 */
       if(b.dataset.act==='undo'){undoOnce();return}
       const tool=b.dataset.tool;if(!tool)return;
       setTool(tool,b);   /* 한 번 탭 = 그 도구 바로 쓰기. 색·굵기는 길게 꾹 */
@@ -5150,9 +5175,7 @@ $('btnClose').onclick=async()=>{
   $('fileName').textContent='파일 없음';
   $('rail').innerHTML='';
   $('pageInfo').textContent='– / –';
-  $('qtPage').textContent='– / –';
   const w=$('welcome');w.hidden=false;w.style.display='';  document.body.classList.add('lib-open');
-  if(typeof setUiMin==='function')setUiMin(false,true);   /* 서재에서는 늘 위·아래 막대가 보입니다 */
   await renderFolders();await renderRecent();
   btn.textContent=label;btn.disabled=false;
   if(!hasInk)toast('자료를 닫았습니다');
@@ -5172,6 +5195,18 @@ function updFullBtn(){
   const on=isFull();
   $('btnFull').textContent=on?'⛶ 전체화면 끄기':'⛶ 전체화면';
   $('btnFull').classList.toggle('on',on);
+  /* 왼쪽 막대 안의 같은 단추 — 보통 창처럼, 켜져 있으면 ✕(끄기)로,
+     꺼져 있으면 ⛶(켜기)로 기호 자체가 바뀝니다 */
+  const b2=$('btnFull2');
+  if(b2){
+    b2.classList.toggle('on',on);
+    b2.textContent=on?'✕':'⛶';
+    b2.title=on?'전체화면 끄기 (F11)':'전체화면 (F11)';
+  }
+  /* 전체화면일 때만 위쪽 막대·쪽 번호 줄을 숨깁니다 — 켜지고 꺼지는 바로
+     그 순간에 같이 일어나, 따로 화면이 흔들리지 않습니다. */
+  document.body.classList.toggle('full-min',on);
+  document.documentElement.classList.toggle('full-min',on);
 }
 /* 자료(PDF·그림·칠판)를 열면 화면을 꽉 채웁니다 — 직접 고른 동작 바로 다음이라야
    브라우저가 전체화면을 허락합니다. 공유·파일연결으로 열렸을 때처럼 그 틈이
@@ -5183,33 +5218,6 @@ function autoGoFull(){
     updFullBtn();
   }).catch(()=>{});
 }
-/* 위·아래 막대·쪽 번호 줄·왼쪽 필기도구띠까지 숨겨, PDF·그림·칠판만 보이게 합니다.
-   자료를 보는 동안은 늘 이 상태고, "도구" 손잡이는 그 대신 간단 도구줄(quickTools)을 엽니다. */
-function wantUiMin(){try{return localStorage.getItem('pn.uiMin')!=='0'}catch(e){return true}}
-function setUiMin(on,noSave){
-  document.body.classList.toggle('ui-min',!!on);
-  document.documentElement.classList.toggle('ui-min',!!on);
-  if(!on)setQuickOpen(false);        /* 서재로 돌아갈 때는 간단 도구줄도 닫아 둡니다 */
-  if(noSave)return;
-  try{localStorage.setItem('pn.uiMin',on?'1':'0')}catch(e){}
-}
-/* 한 줄짜리 간단 도구줄 — 중복 없이 꼭 쓰는 것만, 아래 막대·왼쪽 띠와 같은
-   setTool·undoOnce·goto 를 그대로 불러서 두 군데 상태가 늘 같이 맞습니다. */
-function setQuickOpen(on){
-  document.body.classList.toggle('quick-open',!!on);
-  const b=$('btnChromeToggle');if(b)b.title=on?'도구 숨기기':'도구 보이기';
-}
-$('btnChromeToggle').onclick=()=>setQuickOpen(!document.body.classList.contains('quick-open'));
-$('quickTools').addEventListener('click',e=>{
-  const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.act==='undo'){undoOnce();return}
-  const tool=b.dataset.tool;if(tool)setTool(tool,b);
-});
-$('qtClose').onclick=()=>$('btnClose2').click();
-$('qtPrev').onclick=()=>$('btnPrev2').click();
-$('qtNext').onclick=()=>$('btnNext2').click();
-$('qtSave').onclick=()=>$('btnPdf').click();
-$('qtMore').onclick=()=>$('btnMore').click();
 $('btnFull').onclick=async()=>{
   if(isFull()){
     setWantFull(false);
@@ -5234,9 +5242,13 @@ document.addEventListener('fullscreenchange',()=>{
   if(S.doc)setTimeout(()=>{renderPage()},250);
   if(S.doc)setTimeout(()=>{renderPage()},700);
 });
-/* 전체화면을 켜 둔 상태라면 아무 곳이나 누를 때 복귀 */
-document.addEventListener('pointerdown',()=>{
+/* 전체화면을 켜 둔 상태라면 아무 곳이나 누를 때 복귀 — 다만 위쪽 막대(#topbar,
+   자료 닫기·종료·설정이 있는 곳)를 누를 때는 다시 걸지 않습니다. 전자칠판처럼
+   Esc 키가 없는 기기에서, 여기를 누르는 순간마다 전체화면을 다시 걸려고 하면
+   그 탭 자체를 가로채 버려 끝내 자료를 닫거나 앱을 끌 방법이 없어집니다. */
+document.addEventListener('pointerdown',e=>{
   if(!fsSupported())return;      /* 아이패드 — 들어갈 수 없는데 누를 때마다 시도했습니다 */
+  if(e.target&&e.target.closest&&e.target.closest('#topbar'))return;
   if(wantFull()&&!document.fullscreenElement)goFull();
 },true);
 function curKey(){return (S.tool==='hl'||S.tool==='laser'||S.tool==='eraser')?S.tool:'pen'}
@@ -5263,7 +5275,12 @@ $('btnThick').onclick=()=>bumpSize(1);
 $('btnUndo').onclick=undoOnce;
 $('btnClear').onclick=async()=>{
   if(!S.strokes.length)return;
-  if(await askConfirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`)){S.strokes=[];S.edited=true;redraw();saveNow()}
+  if(await askConfirm(`${S.page}쪽의 필기를 모두 지웁니다. 계속할까요?`)){
+    S.strokes=[];S.edited=true;redraw();saveNow();
+    /* 지우고 나서 지우개를 든 채로 두면 화면을 또 지우기 쉽습니다 —
+       비운 뒤에는 '이동'으로 바꿔 둡니다 */
+    setTool('hand',$('btnHand'));
+  }
   snap('pdf');
 };
 $('btnClearAll').onclick=async()=>{
@@ -5418,7 +5435,6 @@ function openBoardOnly(){
   document.body.classList.remove('lib-open');
   if(typeof revealSideL==='function')revealSideL();
   if(typeof autoGoFull==='function')autoGoFull();
-  if(typeof setUiMin==='function')setUiMin(wantUiMin());
   applySplitMode(2);
 }
 
@@ -6217,7 +6233,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.45';
+const APP_VER='25.57';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
@@ -6598,7 +6614,8 @@ $('jsonInput').onchange=async e=>{
     }
   }catch(e){}
   setTimeout(autoCheckUpdate,2500);
-  setTimeout(()=>showGuide(true),900);       /* 켤 때마다 손동작 안내 — 잠깐만 */
+  /* 켤 때마다 저절로 뜨던 손동작 안내는 거슬린다고 하여 없앴습니다 —
+     필요하면 위쪽 ❔ 를 눌러 봅니다(showGuide(false)). */
   /* 기본은 '이동(✋)' 입니다 — 자료를 열자마자 실수로 그어지지 않게.
      연필을 고르면 이동은 그 자리에서 꺼집니다 (setTool 이 [data-tool] 을
      전부 끕니다). 색·굵기는 지난번 고른 것을 그대로 이어 씁니다. */
