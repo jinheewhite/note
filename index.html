@@ -280,26 +280,29 @@ try{
 
   main{flex:1;display:flex;min-height:0;padding-bottom:var(--bar)}
   body.bar-top main,html.bar-top main{padding-bottom:0;padding-top:var(--bar)}
-  aside{width:78px;flex:0 0 auto;background:var(--ink-2);border-right:1px solid var(--line);overflow-y:auto;padding:10px 0 40px}
+  aside{width:39px;flex:0 0 auto;background:var(--ink-2);border-right:1px solid var(--line);overflow-y:auto;padding:10px 0 40px}
   /* 가로 자료는 쪽 번호가 위쪽에 가로로 놓입니다 — 좌우로 넘긴다는 뜻입니다 */
   html.rail-h main{flex-direction:column}
   html.rail-h aside{width:auto;height:52px;order:-1;display:flex;align-items:center;gap:6px;
     overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--line);
     padding:0 12px;justify-content:center}
   html.rail-h aside .p{margin:0;min-width:46px;height:36px;flex:0 0 auto}
-  aside .p{margin:5px 11px;height:46px;border-radius:8px;border:1px solid transparent;
-    display:flex;align-items:center;justify-content:center;gap:6px;color:var(--text-dim);cursor:pointer;font-size:14px}
+  aside .p{margin:5px 4px;height:46px;border-radius:8px;border:1px solid transparent;
+    display:flex;align-items:center;justify-content:center;gap:3px;color:var(--text-dim);cursor:pointer;font-size:14px}
   aside .p:hover{background:var(--ink-3);color:var(--text)}
   /* 지금 보고 있는 쪽 — 도구 켜진 것과 같은 분필색으로 크게 도드라지게 */
   aside .p.cur{background:var(--chalk);color:#1a1a12;border-color:var(--chalk);
     font-weight:800;font-size:16px;box-shadow:0 0 0 3px rgba(245,213,71,.28)}
   aside .p.cur .mark{display:none}
-  aside .p .mark{width:7px;height:7px;border-radius:50%;background:transparent}
+  aside .p .mark{width:5px;height:5px;border-radius:50%;background:transparent}
   aside .p.jump{color:var(--chalk);font-weight:700;border:1px solid var(--line)}
   aside .p.has .mark{background:var(--chalk)}
+  /* 한 쪽뿐인 자료는 넘길 쪽이 없어 번호 줄이 그냥 자리만 차지합니다 — 숨깁니다.
+     두 쪽부터는 꼭 보여야 하므로 그때는 다시 켜집니다(JS의 one-page 클래스). */
+  body.one-page aside,html.one-page aside{display:none}
   /* 쪽 번호 줄 맨 위·맨 아래에 붙어 따라다니는 ▲▼ — 30쪽 넘는 자료에서
      번호를 굴려 찾지 않고 바로 앞/뒤 쪽으로 넘깁니다. */
-  aside .railNav{position:sticky;z-index:3;flex:0 0 auto;margin:0 11px;height:34px;min-height:0;
+  aside .railNav{position:sticky;z-index:3;flex:0 0 auto;margin:0 4px;height:34px;min-height:0;
     display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;
     color:#1a1a12;background:var(--chalk);border:1px solid var(--chalk);border-radius:8px;cursor:pointer}
   aside .railNav.up{top:0;margin-bottom:5px}
@@ -328,23 +331,24 @@ try{
      칠판을 켜 둔 것은 그대로 기억되므로, 자료를 열면 다시 나옵니다. */
   body.lib-open #board,html.lib-open #board,
   body.lib-open #splitBar,html.lib-open #splitBar{display:none!important}
-  /* 전체화면은 세 단계입니다. 전체화면을 켜면(2단계) 위쪽 막대·쪽 번호
-     줄·쪽 넘김 조각을 숨기고, 아래쪽 펜 막대(header)·왼쪽 막대(sideL)는
-     남겨 둡니다. 이 전환은 전체화면이 실제로 켜지는 그 순간(requestFullscreen)
-     에 같이 일어나므로 이미 화면이 바뀌는 중이라 안전합니다.
-     한 번 더 누르면(header-min, 3단계) 아래쪽 펜 막대도 숨어 PDF+왼쪽
-     막대만 남습니다. 쪽 번호 줄은 3단계에서도 그대로 숨겨진 채 둡니다 —
-     전체화면을 켠 채로 쪽 번호 줄만 다시 껐다 켜면(레이아웃이 있는 자리를
-     차지하는 요소라) 화면이 다시 흘러(reflow), 몇몇 전자칠판에서는 이것만
-     으로도 전체화면이 풀려 버렸습니다. 아래쪽 펜 막대(header)는
-     position:fixed 라 숨겨도 화면 레이아웃 자체는 안 흔들려 더 안전합니다.
-     펜·지우개·이동·되돌리기·전체화면 단추는 전부 왼쪽 막대 안에 있어
-     아쉬울 게 없습니다. (왼쪽 막대를 접고 펴는 것은 이것과 상관없이 그
-     막대만 움직입니다.) 전체화면을 끄면(1단계) 위쪽 막대도 다시 보여
-     '자료 닫기'로 빠져나갈 수 있습니다. 서재(lib-open)에서는 예외로 둬,
-     빠져나갈 길이 늘 있습니다. */
+  /* 전체화면은 세 단계입니다. 전체화면을 켜면(2단계) 위쪽 막대·쪽 넘김
+     조각을 숨기고, 쪽 번호 줄(rail)·아래쪽 펜 막대(header)·왼쪽 막대
+     (sideL)는 남겨 둡니다. 이 전환은 전체화면이 실제로 켜지는 그 순간
+     (requestFullscreen)에 같이 일어나므로 이미 화면이 바뀌는 중이라
+     안전합니다. 쪽 번호가 안 보이면 지금 몇 쪽인지 몰라 불편하다는
+     말을 들어, 쪽 번호 줄은 전체화면 중에도 계속 띄워 둡니다 — 전체화면을
+     켠 채로 그 줄을 또 껐다 켜는 게 아니라 처음부터 안 건드리는 것이라,
+     레이아웃이 있는 자리를 차지하는 요소를 뒤늦게 토글해 화면이 흘러
+     (reflow) 전체화면이 풀리는 일(몇몇 전자칠판에서 실제로 겪었습니다)은
+     생기지 않습니다. 한 번 더 누르면(header-min, 3단계) 아래쪽 펜
+     막대도 숨어 PDF+쪽 번호 줄+왼쪽 막대만 남습니다. 아래쪽 펜 막대
+     (header)는 position:fixed 라 숨겨도 화면 레이아웃 자체는 안 흔들려
+     더 안전합니다. 펜·지우개·이동·되돌리기·전체화면 단추는 전부 왼쪽
+     막대 안에 있어 아쉬울 게 없습니다. (왼쪽 막대를 접고 펴는 것은
+     이것과 상관없이 그 막대만 움직입니다.) 전체화면을 끄면(1단계) 위쪽
+     막대도 다시 보여 '자료 닫기'로 빠져나갈 수 있습니다. 서재(lib-open)
+     에서는 예외로 둬, 빠져나갈 길이 늘 있습니다. */
   body.full-min:not(.lib-open) #topbar,html.full-min:not(.lib-open) #topbar,
-  body.full-min:not(.lib-open) #rail,html.full-min:not(.lib-open) #rail,
   body.full-min:not(.lib-open) #dock,html.full-min:not(.lib-open) #dock{display:none!important}
   body.full-min.header-min:not(.lib-open) header,
   html.full-min.header-min:not(.lib-open) header{display:none!important}
@@ -379,9 +383,11 @@ try{
   #board .hint{flex:1;color:var(--text-dim);font-size:12px;overflow:hidden;
     text-overflow:ellipsis;white-space:nowrap}
   #bdCv{flex:1;width:100%;touch-action:none;cursor:crosshair;background:#fff}
-  /* 칠판 단독 — PDF와 쪽 목록을 숨기고 칠판이 화면 전체를 씁니다 */
+  /* 칠판 단독 — PDF는 숨기고 칠판이 남는 폭을 다 씁니다. 쪽 번호 줄은
+     전체화면과 같은 이유로 숨기지 않습니다 — 이 전환이 전체화면을 켠
+     채로 일어날 수도 있어, 그때 숨기면 레이아웃이 흔들려(reflow) 전체
+     화면이 풀릴 수 있습니다. */
   body.board-full #stage,html.board-full #stage{display:none}
-  body.board-full aside,html.board-full aside{display:none}
   body.board-full #board,html.board-full #board{flex:1 1 100%;width:100%;max-width:100%;border-left:0}
   /* 칠판 겹침 — 칠판이 PDF 공간을 나눠 가지지 않고 그 위에 살짝 얹힙니다.
      PDF 쪽은 폭이 그대로라서, 칠판을 켜고 꺼도 크기가 변하지 않습니다. */
@@ -462,11 +468,10 @@ try{
     box-shadow:0 10px 24px rgba(0,0,0,.20), 0 2px 6px rgba(0,0,0,.10)}
   /* 수평은 왼쪽 끝, 수직은 가운데. (쪽번호 줄 위에 살짝 걸칠 수 있지만,
      아담해서 대부분의 쪽번호는 그대로 눌립니다.) */
-  /* 세로 쪽 번호 줄(아래 aside, 78px) 바로 오른쪽에 붙여 둡니다 — 전에는 left:8px
+  /* 세로 쪽 번호 줄(아래 aside, 39px) 바로 오른쪽에 붙여 둡니다 — 전에는 left:8px
      라 쪽 번호를 덮어 '지금 몇 쪽'이 안 보였습니다. (도형이 겹치면 노란 손잡이로 끌어 옮길 수 있습니다.) */
-  #sideL{left:84px}
-  html.rail-h #sideL{left:6px}
-  body.board-full #sideL,html.board-full #sideL{left:6px}
+  #sideL{left:45px}
+  html.rail-h #sideL,html.one-page #sideL{left:6px}
   /* 서재를 보는 동안에는 감춥니다 — 고를 자료가 아직 없습니다 */
   body.lib-open .sideBar,html.lib-open .sideBar{display:none!important}
   /* 오른쪽 막대는 쓰지 않습니다 — 아래 도구막대가 오른쪽에 있어 겹칩니다.
@@ -500,6 +505,9 @@ try{
   /* 전체화면 3단계(PDF만) — 노란 2단계와 또렷이 다르게, 빨간 느낌으로 */
   .sideBar #btnFull2.stage3{background:#5a2330;color:#ffd9df;border-color:transparent}
   .sideBar #btnFull2.stage3:hover{background:#7d3244}
+  /* 닫기 — 늘 손이 닿는 자리지만, 눌러서 바로 자료가 닫히므로 다른 도구와 살짝 떨어뜨리고 옅은 빨강으로 구분합니다 */
+  .sideBar .quit2{margin-top:6px;padding-top:10px;border-top:1px solid rgba(20,30,45,.1);color:#b3404f}
+  .sideBar .quit2:hover{background:#fbe4e8;color:#8a2435}
   /* 도구 옆 ▾ (색·굵기) — 흰 바탕과 같은 색이라 있는 줄 몰랐다고 하여,
      옅은 회색 통 + 짙은 글자로 또렷하게 보이게 했습니다 */
   .sideBar button.toolMore{background:#eef1f5;border-color:transparent;
@@ -536,20 +544,20 @@ try{
   @media (max-width:1180px){
     .sideBar button{width:40px;height:40px;min-height:40px}
     .sideBar button svg{width:25px;height:25px}
-    /* 여기서 left:6px 로 당기고 있었습니다 — 쪽 번호 줄(왼쪽 0~78px) 위에
+    /* 여기서 left:6px 로 당기고 있었습니다 — 쪽 번호 줄(왼쪽 0~39px) 위에
        도구상자가 그대로 올라앉아 번호를 가렸습니다. 창을 조금만 좁게
        (1180px 이하) 열면 늘 이랬습니다. 쪽 번호 줄 바깥에 세웁니다.
-       쪽 번호가 가로로 눕거나(rail-h) 칠판만 볼 때는 줄이 없으므로,
-       그때만 6px 로 붙입니다 (아래 규칙이 이깁니다). */
-    #sideL{left:84px}
+       쪽 번호가 가로로 눕는(rail-h) 때만 줄이 없으므로, 그때만 6px 로
+       붙입니다 (아래 규칙이 이깁니다). */
+    #sideL{left:45px}
   }
-  /* 전체화면(2·3단계) — 쪽 번호 줄(#rail)이 숨어 있으니, 그 자리였던 왼쪽
-     끝으로 당겨 옵니다. 손잡이가 늘 쪽 번호가 있던 자리에 떠 있게 됩니다.
-     (진짜 화면 끝(0~6px)은 피합니다 — 전자칠판 일부 기종은 그 가장자리를
-     누르면 전체화면을 빠져나가는 몸짓으로 읽어, 손잡이가 거기 있으면 누를
-     때마다 전체화면이 풀렸습니다.) */
-  html.rail-h #sideL,body.board-full #sideL,html.board-full #sideL{left:6px}
-  body.full-min #sideL,html.full-min #sideL{left:12px}
+  /* 쪽 번호가 가로로 눕는(rail-h) 동안이나 한 쪽뿐(one-page)이라 줄 자체가
+     없을 때는 화면 끝으로 당겨 옵니다. (진짜 화면 끝(0~6px)은 피합니다 —
+     전자칠판 일부 기종은 그 가장자리를 누르면 전체화면을 빠져나가는 몸짓으로
+     읽어, 손잡이가 거기 있으면 누를 때마다 전체화면이 풀렸습니다.) 전체화면·
+     칠판 단독 중에도 쪽 번호 줄은(두 쪽 이상이면) 그대로 남아 있으므로
+     따로 당기지 않습니다. */
+  html.rail-h #sideL,html.one-page #sideL{left:6px}
   #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
     contain:layout style;pointer-events:auto;isolation:isolate;
     background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
@@ -739,8 +747,8 @@ try{
     #dock{display:flex}
     .pageBtn{display:inline-flex}
     #dock .mono.pageBtn{display:inline-block}
-    aside{width:56px}
-    aside .p{margin:4px 7px;height:40px}
+    aside{width:28px}
+    aside .p{margin:4px 3px;height:40px}
     #board{flex:0 0 50%}
     #board .boardTop{padding:7px 9px;gap:7px}
     #board .hint{display:none}
@@ -821,6 +829,7 @@ try{
     <button id="btnBdDown" class="mini icon" data-hover="올리기 전으로 되돌아갑니다" title="되돌리기">↓</button>
     <button id="btnBdSave" class="mini primary" data-hover="칠판 쪽만 PDF 로 저장" title="칠판 쪽만 따로 저장합니다">💾 칠판 저장</button>
     <button id="btnBoardClear" class="mini" title="지금 보는 칠판 쪽을 지웁니다">칠판 비우기</button>
+    <button id="btnBoardClearAll" class="mini" title="칠판의 모든 쪽을 한 번에 지웁니다">칠판 전체 비우기</button>
   </span>
   <button id="btnFull" title="전체화면 (F11)">⛶ 전체화면</button>
   <button class="icon" id="btnMore" title="설정 · 저장 · 백업">⚙︎</button>
@@ -4506,6 +4515,16 @@ $('btnBoardClear').onclick=async()=>{
     toast('빈 칠판 쪽을 없앨습니다');
   }else toast('칠판을 비웠습니다');
 };
+$('btnBoardClearAll').onclick=async()=>{
+  const pages=BD.pages||1;
+  if(pages<=1&&!BD.strokes.length&&!(BD.imgs||[]).length){toast('칠판이 비어 있습니다');return}
+  if(!await askConfirm(`칠판의 모든 쪽(${pages}쪽)을 한 번에 지웁니다. 계속할까요?`))return;
+  snap('bd');
+  for(let p=2;p<=pages;p++){try{await Store.delNote(boardKey(p))}catch(e){}}
+  BD.page=1;BD.pages=1;BD.strokes=[];BD.imgs=[];BD.sel=null;
+  S.edited=true;setTool('pen',$('btnPen'));bdPageInfo();bdRedraw();await bdSave();
+  toast('칠판을 전체 비웠습니다');
+};
 
 /* ══════════════════════════════════════════════════════════
    5. 화면 구성
@@ -4525,6 +4544,10 @@ function railSig(){
   return `${h}|${from}-${to}|${S.pages}`;
 }
 function buildRail(){
+  /* 한 쪽뿐이면 넘길 쪽이 없으니 번호 줄 자체가 필요 없습니다 —
+     두 쪽부터는 꼭 보여야 하므로 그때는 켭니다. */
+  document.body.classList.toggle('one-page',S.pages<=1);
+  document.documentElement.classList.toggle('one-page',S.pages<=1);
   const rail=$('rail');
   const sig=railSig();
   if(rail.dataset.sig!==sig){
@@ -4552,7 +4575,7 @@ function buildRail(){
     if(on)cur=el;
   });
   /* 지금 쪽을 줄 한가운데에 둡니다 — 도구막대는 이제 줄 오른쪽 바깥에 있어
-     가리지 않습니다 (위 #sideL{left:84px}). */
+     가리지 않습니다 (위 #sideL{left:45px}). */
   if(cur){
     const go=()=>cur.scrollIntoView({block:'center',inline:'center'});
     go(); requestAnimationFrame(go);
@@ -5124,6 +5147,14 @@ function buildSideTools(){
     fb.textContent='⛶';
     fb.onclick=()=>$('btnFull').click();
     box.appendChild(fb);
+    /* 닫기 — 전체화면 중에는 위쪽 막대(topbar)가 숨어 '자료 닫기' 가 안 보입니다.
+       전체화면을 몇 단계 풀어야 닫기에 닿던 것을, 이 단추 하나로 바로 닫습니다. */
+    const cb=document.createElement('button');
+    cb.className='icon quit2';cb.id='btnClose3';cb.type='button';
+    cb.title='이 자료를 닫고 서재로 돌아갑니다';
+    cb.textContent='✕';
+    cb.onclick=()=>{const c=$('btnClose');if(c)c.click()};
+    box.appendChild(cb);
 
     box.addEventListener('click',e=>{
       const b=e.target.closest('button');if(!b)return;
@@ -5258,11 +5289,13 @@ function updFullBtn(){
    브라우저가 전체화면을 허락합니다. 공유·파일연결으로 열렸을 때처럼 그 틈이
    없으면 조용히 건너뛰고, F11 안내 토스트도 띄우지 않습니다. */
 function autoGoFull(){
-  setWantFull(true);        /* 지금 당장 안 되어도, 다음 탭마다(아래 전역 리스너) 계속 다시 시도합니다 */
+  setWantFull(true);
   if(isFull())return;
   document.documentElement.requestFullscreen({navigationUI:'hide'}).then(()=>{
     updFullBtn();
-  }).catch(()=>{});
+  }).catch(()=>{
+    armFullRetry();   /* 지금 당장 안 되면, 바로 다음 탭 한 번만 다시 시도합니다 */
+  });
 }
 $('btnFull').onclick=async()=>{
   if(isFull()){
@@ -5296,15 +5329,23 @@ document.addEventListener('fullscreenchange',()=>{
   /* 파일 선택창 자체가 전체화면을 강제로 풀어 둡니다 — 그동안은
      "풀렸다" 고 알릴 필요가 없습니다. 고르고 나면 곧 다시 걸립니다. */
   const pickerBusy=S.pickerAt&&(Date.now()-S.pickerAt<15000);
-  if(!on&&wantFull()&&!pickerBusy)toast('전체화면이 풀렸습니다 — 화면을 한 번 누르면 다시 들어갑니다');
+  if(!on&&wantFull()&&!pickerBusy)toast('전체화면이 풀렸습니다 — 다시 켜려면 전체화면 단추(⛶)를 눌러 주세요');
   if(S.doc)setTimeout(()=>{renderPage()},250);
   if(S.doc)setTimeout(()=>{renderPage()},700);
 });
-/* 전체화면을 켜 둔 상태라면 아무 곳이나 누를 때 복귀 — 다만 위쪽 막대(#topbar,
-   자료 닫기·종료·설정이 있는 곳)를 누를 때는 다시 걸지 않습니다. 전자칠판처럼
-   Esc 키가 없는 기기에서, 여기를 누르는 순간마다 전체화면을 다시 걸려고 하면
-   그 탭 자체를 가로채 버려 끝내 자료를 닫거나 앱을 끌 방법이 없어집니다. */
+/* 전체화면은 "전체화면" 단추를 눌렀을 때나, 자료를 열어 autoGoFull 이 부를 때만
+   켜집니다. 브라우저가 그 자리에서 막으면(사용자 동작이 바로 전이 아니라서)
+   바로 다음 한 번의 탭에서만 다시 시도하고 그칩니다 — 전에는 전체화면을 한 번
+   켜 둔 적이 있으면 그 뒤로 계속, 심지어 일부러 꺼 둔 다음에도 아무 데나 누를
+   때마다 저절로 다시 켜져서 "뜻하지 않게 전체화면이 된다"는 불편이 있었습니다. */
+let fullRetryArmed=false;
+function armFullRetry(){
+  fullRetryArmed=true;
+  setTimeout(()=>{fullRetryArmed=false},8000);
+}
 document.addEventListener('pointerdown',e=>{
+  if(!fullRetryArmed)return;
+  fullRetryArmed=false;
   if(!fsSupported())return;      /* 아이패드 — 들어갈 수 없는데 누를 때마다 시도했습니다 */
   if(e.target&&e.target.closest&&e.target.closest('#topbar'))return;
   if(wantFull()&&!document.fullscreenElement)goFull();
@@ -6291,7 +6332,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.63';
+const APP_VER='25.65';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){

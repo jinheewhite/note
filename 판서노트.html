@@ -95,6 +95,11 @@ try{
   #topbar .brand:hover{background:var(--ink-3)}
   #topbar .quit{background:#5a2330;border-color:#7d3244;color:#ffd9df;font-weight:700}
   #topbar .quit:hover{background:#7d3244}
+  /* 전체화면 중에도 위 막대(topbar)가 가려질 때가 있어, 아래 도구막대 맨 끝에도
+     닫기 단추를 항상 띄워 둡니다 — header 는 고정(fixed)이라 전체화면에서도 보입니다 */
+  #closeGrp{margin-left:auto;padding-left:6px}
+  #closeGrp .quit{background:#5a2330;border-color:#7d3244;color:#ffd9df;font-weight:700}
+  #closeGrp .quit:hover{background:#7d3244}
   body.bar-top #topbar,html.bar-top #topbar{order:-9;border-bottom:1px solid var(--line);border-top:0}
   header{position:fixed;left:0;right:0;bottom:0;z-index:40;
     height:var(--bar);min-height:var(--bar);max-height:var(--bar);
@@ -210,18 +215,18 @@ try{
 
   main{flex:1;display:flex;min-height:0;padding-bottom:var(--bar)}
   body.bar-top main,html.bar-top main{padding-bottom:0;padding-top:var(--bar)}
-  aside{width:78px;flex:0 0 auto;background:var(--ink-2);border-right:1px solid var(--line);overflow-y:auto;padding:10px 0 40px}
+  aside{width:39px;flex:0 0 auto;background:var(--ink-2);border-right:1px solid var(--line);overflow-y:auto;padding:10px 0 40px}
   /* 가로 자료는 쪽 번호가 위쪽에 가로로 놓입니다 — 좌우로 넘긴다는 뜻입니다 */
   html.rail-h main{flex-direction:column}
   html.rail-h aside{width:auto;height:52px;order:-1;display:flex;align-items:center;gap:6px;
     overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--line);
     padding:0 12px;justify-content:center}
   html.rail-h aside .p{margin:0;min-width:46px;height:36px;flex:0 0 auto}
-  aside .p{margin:5px 11px;height:46px;border-radius:8px;border:1px solid transparent;
-    display:flex;align-items:center;justify-content:center;gap:6px;color:var(--text-dim);cursor:pointer;font-size:14px}
+  aside .p{margin:5px 4px;height:46px;border-radius:8px;border:1px solid transparent;
+    display:flex;align-items:center;justify-content:center;gap:3px;color:var(--text-dim);cursor:pointer;font-size:14px}
   aside .p:hover{background:var(--ink-3);color:var(--text)}
   aside .p.cur{background:var(--slate);color:#fff;border-color:var(--chalk)}
-  aside .p .mark{width:7px;height:7px;border-radius:50%;background:transparent}
+  aside .p .mark{width:5px;height:5px;border-radius:50%;background:transparent}
   aside .p.jump{color:var(--chalk);font-weight:700;border:1px solid var(--line)}
   aside .p.has .mark{background:var(--chalk)}
 
@@ -276,7 +281,6 @@ try{
   #bdCv{flex:1;width:100%;touch-action:none;cursor:crosshair;background:#fff}
   /* 칠판 단독 — PDF와 쪽 목록을 숨기고 칠판이 화면 전체를 씁니다 */
   body.board-full #stage,html.board-full #stage{display:none}
-  body.board-full aside,html.board-full aside{display:none}
   body.board-full #board,html.board-full #board{flex:1 1 100%;width:100%;max-width:100%;border-left:0}
   /* 칠판 겹침 — 칠판이 PDF 공간을 나눠 가지지 않고 그 위에 살짝 얹힙니다.
      PDF 쪽은 폭이 그대로라서, 칠판을 켜고 꺼도 크기가 변하지 않습니다. */
@@ -348,18 +352,16 @@ try{
     display:flex;flex-direction:column;gap:7px;padding:7px;
     background:rgba(30,43,56,.94);border:1px solid var(--line);border-radius:16px;
     box-shadow:0 10px 30px rgba(0,0,0,.45)}
-  /* 쪽번호 줄(aside, 78px) 을 덮으면 그 자리 쪽번호를 못 누릅니다 — 비켜 세웁니다.
+  /* 쪽번호 줄(aside, 39px) 을 덮으면 그 자리 쪽번호를 못 누릅니다 — 비켜 세웁니다.
      칠판을 왼쪽으로 옮기면 쪽번호 줄도 오른쪽으로 가므로 자리를 맞바꿉니다.
-     가로 자료(rail-h)는 쪽번호가 위쪽에 눕고, 칠판 단독(board-full)은
-     쪽번호 줄이 아예 없으므로 둘 다 바깥쪽 끝까지 붙입니다. */
-  #sideL{left:88px}
+     칠판 단독(board-full)에서도 쪽번호 줄은 그대로 남아 있습니다.
+     가로 자료(rail-h)만 쪽번호가 위쪽에 누워 자리를 비킬 필요가 없습니다. */
+  #sideL{left:49px}
   #sideR{right:10px}
   body.board-left #sideL,html.board-left #sideL{left:10px}
-  body.board-left #sideR,html.board-left #sideR{right:88px}
+  body.board-left #sideR,html.board-left #sideR{right:49px}
   html.rail-h #sideL{left:10px}
   html.rail-h #sideR{right:10px}
-  body.board-full #sideL,html.board-full #sideL{left:10px}
-  body.board-full #sideR,html.board-full #sideR{right:10px}
   /* 서재를 보는 동안에는 감춥니다 — 고를 자료가 아직 없습니다 */
   body.lib-open .sideBar,html.lib-open .sideBar{display:none!important}
   .sideBar button{width:58px;height:58px;min-height:58px;padding:0;
@@ -383,7 +385,7 @@ try{
   @media (max-width:1180px){
     .sideBar button{width:48px;height:48px;min-height:48px}
     .sideBar button svg{width:28px;height:28px}
-    #sideL{left:84px} #sideR{right:6px}
+    #sideL{left:45px} #sideR{right:6px}
     html.rail-h #sideL{left:6px}
   }
   #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
@@ -420,6 +422,10 @@ try{
   #pop button.on{border-color:var(--chalk);box-shadow:0 0 0 3px rgba(245,213,71,.3)}
   body.faux-full{position:fixed;inset:0;width:100vw;height:100vh;z-index:9990}
   html.faux-full,body.faux-full{overflow:hidden!important}
+  /* 전체화면에서도 쪽 번호 목록(왼쪽)과 위 막대는 무조건 보여야 합니다 —
+     보통은 숨겨지지 않지만, 혹시 가려지는 경우에 대비한 보험입니다 */
+  html:fullscreen aside,body.faux-full aside,html.faux-full aside,
+  html:fullscreen #topbar,body.faux-full #topbar,html.faux-full #topbar{visibility:visible!important}
   @supports (height:100dvh){ body.faux-full{height:100dvh} }
   .offscreen{position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0}
   #ghost{position:fixed;z-index:70;display:none;pointer-events:none;
@@ -575,8 +581,8 @@ try{
     #dock{display:flex}
     .pageBtn{display:inline-flex}
     #dock .mono.pageBtn{display:inline-block}
-    aside{width:56px}
-    aside .p{margin:4px 7px;height:40px}
+    aside{width:28px}
+    aside .p{margin:4px 3px;height:40px}
     #board{flex:0 0 50%}
     #board .boardTop{padding:7px 9px;gap:7px}
     #board .hint{display:none}
@@ -748,6 +754,7 @@ try{
     <button id="btnRotate" title="누를 때마다 페이지가 90도씩 돌아갑니다">⟳ 회전하기</button>
 
     <button id="btnSplit" title="오른쪽에 칠판을 엽니다">▥ 칠판</button>
+    <button id="btnBoardClearAll" class="mini" hidden title="칠판의 모든 쪽을 한 번에 지웁니다">칠판 전체 비우기</button>
     <button class="icon tool" data-label="지우개" id="btnEraser2" data-tool="eraser"
             title="지우개 — 반대쪽에서도 쓸 수 있게 오른쪽 끝에도 놓았습니다">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
@@ -763,6 +770,10 @@ try{
   <path d="M4 23.4 h18" stroke="#8b97a5" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="3 3"/>
       </svg>
     </button>
+  </div>
+
+  <div class="grp" id="closeGrp">
+    <button id="btnHeaderClose" class="quit" title="이 자료를 닫고 서재로 돌아갑니다">✕ 닫기</button>
   </div>
 
   <span class="saved" id="toolNow" hidden>펜</span>
@@ -4109,6 +4120,16 @@ $('btnBoardClear').onclick=async()=>{
     toast('빈 칠판 쪽을 없앨습니다');
   }else toast('칠판을 비웠습니다');
 };
+$('btnBoardClearAll').onclick=async()=>{
+  const pages=BD.pages||1;
+  if(pages<=1&&!BD.strokes.length&&!(BD.imgs||[]).length){toast('칠판이 비어 있습니다');return}
+  if(!await askConfirm(`칠판의 모든 쪽(${pages}쪽)을 한 번에 지웁니다. 계속할까요?`))return;
+  snap('bd');
+  for(let p=2;p<=pages;p++){try{await Store.delNote(boardKey(p))}catch(e){}}
+  BD.page=1;BD.pages=1;BD.strokes=[];BD.imgs=[];BD.sel=null;
+  S.edited=true;bdPageInfo();bdRedraw();await bdSave();
+  toast('칠판을 전체 비웠습니다');
+};
 
 /* ══════════════════════════════════════════════════════════
    5. 화면 구성
@@ -4550,23 +4571,13 @@ buildSideTools();
 
 $('btnFinger').onclick=()=>setFinger(!S.fingerDraws,true);
 $('btnLaser').onclick=e=>{const b=e.currentTarget;setTool('laser',b);openPop(b,'laser')};
-/* 전체화면 유지 — 한 번 켜 두면 다음에 열 때도, 중간에 풀려도 다시 들어갑니다.
-   브라우저 규칙상 화면을 한 번 눌러야(사용자 동작) 다시 전체화면이 됩니다. */
+/* 전체화면 유지 — "전체화면" 단추를 눌렀을 때만 켜고 끕니다. */
 const FULL_KEY='pn.keepFull';
 function wantFull(){try{return localStorage.getItem(FULL_KEY)==='1'}catch(e){return false}}
 function setWantFull(v){try{localStorage.setItem(FULL_KEY,v?'1':'0')}catch(e){}}
-function fsSupported(){
-  const el=document.documentElement;
-  return typeof el.requestFullscreen==='function'||typeof el.webkitRequestFullscreen==='function';
-}
-function goFull(){
-  /* 아이패드는 진짜 전체화면이 없어, 부르면 그 자리에서 예외를 던졌습니다 */
-  if(!fsSupported()){fauxFull(true);return Promise.resolve()}
-  return document.documentElement.requestFullscreen({navigationUI:'hide'})
-    .catch(()=>toast('F11 키를 눌러 전체화면으로 바꿔 주세요'));
-}
 /* 자료만 닫고 서재로 — 앱은 그대로 열려 있습니다 */
 $('btnClose2').onclick=()=>$('btnClose').click();
+$('btnHeaderClose').onclick=()=>$('btnClose').click();
 $('brandHome').onclick=()=>{ if(S.doc)$('btnClose').click(); };   /* 로고를 누르면 서재로 */
 $('btnClose').onclick=async()=>{
   if(!S.doc){toast('열려 있는 자료가 없습니다');return}
@@ -4647,15 +4658,12 @@ document.addEventListener('fullscreenchange',()=>{
   const on=!!document.fullscreenElement;
   if(on)fauxFull(false);
   updFullBtn();
-  if(!on&&wantFull())toast('전체화면이 풀렸습니다 — 화면을 한 번 누르면 다시 들어갑니다');
+  if(!on&&wantFull()){setWantFull(false);toast('전체화면이 풀렸습니다 — 다시 켜려면 전체화면 단추를 눌러 주세요')}
   if(S.doc)setTimeout(()=>{renderPage()},250);
   if(S.doc)setTimeout(()=>{renderPage()},700);
 });
-/* 전체화면을 켜 둔 상태라면 아무 곳이나 누를 때 복귀 */
-document.addEventListener('pointerdown',()=>{
-  if(!fsSupported())return;      /* 아이패드 — 들어갈 수 없는데 누를 때마다 시도했습니다 */
-  if(wantFull()&&!document.fullscreenElement)goFull();
-},true);
+/* 전체화면은 "전체화면" 단추를 눌렀을 때만 켜집니다 — 아무 데나 눌러서
+   저절로 다시 켜지면 뜻하지 않게 전체화면이 되어 버려, 그 안내만 띄웁니다. */
 function curKey(){return (S.tool==='hl'||S.tool==='laser'||S.tool==='eraser')?S.tool:'pen'}
 function curSize(){return S.sizes[curKey()]}
 function showSize(){
@@ -4753,6 +4761,7 @@ $('btnRotate').onclick=async()=>{
 function syncBoardCtl(){
   const bc=$('boardCtl');if(bc){bc.hidden=!S.split;bc.style.display=S.split?'flex':'none'}
   const sb=$('splitBar');if(sb){const on=S.split&&S.splitMode!==2;sb.hidden=!on;sb.style.display=on?'flex':'none'}
+  const ca=$('btnBoardClearAll');if(ca)ca.hidden=!S.split;
 }
 /* 경계선을 끌어 칠판 폭을 조절합니다 (화면의 20%~75%) */
 (()=>{
