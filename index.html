@@ -858,7 +858,7 @@ try{
     <!-- 칠판·칠판바탕은 필기도구와 함께 오른쪽 끝에 둡니다 (자리는 CSS order 로). -->
     <button id="btnBoardBg" title="칠판 바탕을 바꿉니다" style="display:none">칠판 바탕</button>
     <button id="btnSplit" title="오른쪽에 칠판을 엽니다">▥ 칠판</button>
-    <button class="icon tool" data-label="지우개" id="btnEraser" data-tool="eraser" title="지우개 — 옆 ▾ 를 누르면 굵기">
+    <button class="icon tool" data-label="지우개" id="btnEraser" data-tool="eraser" title="지우개 — 옆 ▾ 를 누르면 전체 지우기">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true" fill="none"
            stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
         <g transform="translate(5.6 18.4) rotate(-45)">
@@ -4868,7 +4868,9 @@ function openPop(anchor,tool){
   });
   if(colorRow.children.length>1)pop.appendChild(colorRow);   /* 이름표만 있으면 두지 않습니다 */
   const steps=SIZE_STEPS[key];
-  if(steps){
+  /* 지우개는 굵기를 고르지 않습니다 — 지우개 단추 하나, 전체 지우기 하나면
+     충분하다고 하여, 굵기 네 칸 고르던 줄을 없애고 '전체 지우기'만 남겼습니다. */
+  if(steps&&tool!=='eraser'){
     const sizeRow=document.createElement('div');sizeRow.className='popRow sizeRow';
     lab(sizeRow,'굵기');
     steps.forEach(v=>{
@@ -4881,23 +4883,23 @@ function openPop(anchor,tool){
       b.onclick=()=>{S.sizes[key]=v;showSize();showShapeBtn();closePop();saveToolPrefs();toast(`굵기 ${v}`)};
       sizeRow.appendChild(b);
     });
-    /* 지우개는 굵기 옆, 줄 가장 오른쪽에 '전체 지우기' 를 바로 둡니다 —
-       한 획씩 문지르지 않고 이 쪽을 통째로 비우고 싶을 때가 많습니다. */
-    if(tool==='eraser'){
-      const cb=document.createElement('button');
-      cb.className='clearAllBtn';
-      cb.textContent='🧹 전체 지우기';
-      cb.title='이 쪽의 필기를 모두 지웁니다';
-      /* 칠판만 보고 있으면(PDF 없이) 칠판을, 아니면 PDF 쪽을 비웁니다 —
-         PDF 일 때나 칠판일 때나 '전체 지우기' 가 똑같이 먹혀야 합니다. */
-      cb.onclick=()=>{
-        closePop();
-        if(S.split&&!S.doc)$('btnBoardClear').click();
-        else $('btnClear').click();
-      };
-      sizeRow.appendChild(cb);
-    }
     pop.appendChild(sizeRow);
+  }
+  if(tool==='eraser'){
+    const eraseRow=document.createElement('div');eraseRow.className='popRow sizeRow';
+    const cb=document.createElement('button');
+    cb.className='clearAllBtn';
+    cb.textContent='🧹 전체 지우기';
+    cb.title='이 쪽의 필기를 모두 지웁니다';
+    /* 칠판만 보고 있으면(PDF 없이) 칠판을, 아니면 PDF 쪽을 비웁니다 —
+       PDF 일 때나 칠판일 때나 '전체 지우기' 가 똑같이 먹혀야 합니다. */
+    cb.onclick=()=>{
+      closePop();
+      if(S.split&&!S.doc)$('btnBoardClear').click();
+      else $('btnClear').click();
+    };
+    eraseRow.appendChild(cb);
+    pop.appendChild(eraseRow);
   }
   /* '다듬기' 스위치는 뺐습니다 — 기능 자체를 없앴으므로, 켜 두어도
      아무 일도 일어나지 않아 오히려 헷갈렸습니다. 필기는 쓴 그대로입니다. */
@@ -4956,8 +4958,9 @@ function addCaret(btn,tool){
   const c=document.createElement('button');
   c.type='button';c.className='toolMore';
   c.textContent='▾';
-  c.setAttribute('aria-label',`${TOOL_NAME[t]||''} 색·굵기 고르기`);
-  c.title=`${TOOL_NAME[t]||''} 색·굵기`;
+  const sub=t==='eraser'?'전체 지우기':'색·굵기';
+  c.setAttribute('aria-label',`${TOOL_NAME[t]||''} ${sub} 고르기`);
+  c.title=`${TOOL_NAME[t]||''} ${sub}`;
   try{c.style.order=getComputedStyle(btn).order}catch(e){}
   c.addEventListener('click',e=>{
     e.preventDefault();e.stopPropagation();
@@ -6332,7 +6335,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.65';
+const APP_VER='25.66';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
