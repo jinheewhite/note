@@ -873,9 +873,17 @@ try{
       </svg>
     </button>
     <button class="icon eraseAll" id="btnEraseAll" title="전체 지우기 — 지금 보는 쪽을 한 번에 지웁니다">
-      <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true" fill="currentColor" stroke="none">
-        <path d="M13 2.6 L14.9 9.1 L21.4 11 L14.9 12.9 L13 19.4 L11.1 12.9 L4.6 11 L11.1 9.1 Z"/>
-        <path d="M20.6 15.6 L21.6 18.6 L24.6 19.6 L21.6 20.6 L20.6 23.6 L19.6 20.6 L16.6 19.6 L19.6 18.6 Z" opacity=".75"/>
+      <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
+        <text x="13" y="7.5" text-anchor="middle" font-size="7.5" font-weight="800" fill="#b3404f">All</text>
+        <g transform="translate(13 18) scale(.9)" stroke="#5c4526" stroke-width="1" stroke-linejoin="round">
+          <path d="M-12.7 -2.8 L2.3 2.8 L2.3 7 L-12.7 1.4 Z" fill="#b58a52"/>
+          <path d="M12.7 -1.4 L2.3 2.8 L2.3 7 L12.7 2.8 Z" fill="#9c7440"/>
+          <path d="M-12.7 -0.2 L2.3 5.4 L2.3 7 L-12.7 1.4 Z" fill="#eef1f5"/>
+          <path d="M12.7 1.2 L2.3 5.4 L2.3 7 L12.7 2.8 Z" fill="#dfe4ea"/>
+          <path d="M-2.3 -7 L12.7 -1.4 L2.3 2.8 L-12.7 -2.8 Z" fill="#d8b483"/>
+          <path d="M5.2 -4.2 Q0 -8 -5.2 0" fill="none" stroke="#5c4526" stroke-width="5" stroke-linecap="round"/>
+          <path d="M5.2 -4.2 Q0 -8 -5.2 0" fill="none" stroke="#c9a271" stroke-width="3" stroke-linecap="round"/>
+        </g>
       </svg>
     </button>
     <span class="swatches" id="swatches"></span>
@@ -960,9 +968,17 @@ try{
       </svg>
     </button>
     <button class="icon eraseAll" id="btnEraseAll2" title="전체 지우기 — 지금 보는 쪽을 한 번에 지웁니다">
-      <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true" fill="currentColor" stroke="none">
-        <path d="M13 2.6 L14.9 9.1 L21.4 11 L14.9 12.9 L13 19.4 L11.1 12.9 L4.6 11 L11.1 9.1 Z"/>
-        <path d="M20.6 15.6 L21.6 18.6 L24.6 19.6 L21.6 20.6 L20.6 23.6 L19.6 20.6 L16.6 19.6 L19.6 18.6 Z" opacity=".75"/>
+      <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
+        <text x="13" y="7.5" text-anchor="middle" font-size="7.5" font-weight="800" fill="#b3404f">All</text>
+        <g transform="translate(13 18) scale(.9)" stroke="#5c4526" stroke-width="1" stroke-linejoin="round">
+          <path d="M-12.7 -2.8 L2.3 2.8 L2.3 7 L-12.7 1.4 Z" fill="#b58a52"/>
+          <path d="M12.7 -1.4 L2.3 2.8 L2.3 7 L12.7 2.8 Z" fill="#9c7440"/>
+          <path d="M-12.7 -0.2 L2.3 5.4 L2.3 7 L-12.7 1.4 Z" fill="#eef1f5"/>
+          <path d="M12.7 1.2 L2.3 5.4 L2.3 7 L12.7 2.8 Z" fill="#dfe4ea"/>
+          <path d="M-2.3 -7 L12.7 -1.4 L2.3 2.8 L-12.7 -2.8 Z" fill="#d8b483"/>
+          <path d="M5.2 -4.2 Q0 -8 -5.2 0" fill="none" stroke="#5c4526" stroke-width="5" stroke-linecap="round"/>
+          <path d="M5.2 -4.2 Q0 -8 -5.2 0" fill="none" stroke="#c9a271" stroke-width="3" stroke-linecap="round"/>
+        </g>
       </svg>
     </button>
   </div>
@@ -1122,7 +1138,7 @@ try{
       <div><b>펜 옆 ▾ 단추</b><span>색과 굵기를 고르는 창이 열립니다 (형광펜·레이저·도형도)</span></div>
       <div><b>펜 아래 자국</b><span>지금 고른 색과 굵기가 그대로 보입니다</span></div>
       <div><b>지우개</b><span>닿은 곳만 지웁니다 — 굵기는 고정이라 크게 지워집니다</span></div>
-      <div><b>지우개 옆 ✨ 단추</b><span>지금 보는 쪽(또는 칠판)을 한 번에 지웁니다</span></div>
+      <div><b>지우개 옆 All 단추</b><span>지금 보는 쪽(또는 칠판)을 한 번에 지웁니다</span></div>
       <div><b>↩ 되돌리기</b><span>방금 한 일을 되돌립니다 (Ctrl+Z) — 지운 것도 되살아납니다</span></div>
     </div>
     <h4 class="guideH">도형</h4>
@@ -2059,6 +2075,14 @@ const pdfCv=$('pdfCv'),inkCv=$('inkCv'),fxCv=$('fxCv'),
       pctx=pdfCv.getContext('2d'),ictx=inkCv.getContext('2d'),fctx=fxCv.getContext('2d');
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400)}
+/* 서재(lib-open) 는 body 뿐 아니라 html 에도 함께 달아야 합니다 — 위쪽 막대를
+   숨기는 CSS가 'html.full-min:not(.lib-open)' 도 같이 보는데, html 에
+   lib-open 이 없으면 서재에서도 위쪽 막대가 숨어 버려(이미 자료는 닫혔는데)
+   전체화면을 끌 방법도 프로그램을 끌 방법도 안 보이게 됩니다. */
+function setLibOpen(v){
+  document.body.classList.toggle('lib-open',!!v);
+  document.documentElement.classList.toggle('lib-open',!!v);
+}
 /* auto=true 는 켤 때 저절로 뜬 안내입니다 — 잠깐 보여 주고 알아서 닫습니다.
    ? 로 직접 부른 안내는 누를 때까지 그대로 둡니다. */
 function showGuide(auto){
@@ -2276,7 +2300,7 @@ async function loadPdf(bytes,name,id){
   goView();
   if(sheetEl)sheetEl.style.visibility='';
   /* 이제 PDF 가 화면에 있습니다 — 도구막대도 지금 함께 나타납니다 */
-  document.body.classList.remove('lib-open');
+  setLibOpen(false);
   if(typeof revealSideL==='function')revealSideL();
   if(typeof autoGoFull==='function')autoGoFull();      /* 화면을 크게 — 성공하면 updFullBtn 이 위쪽 막대도 치웁니다 */
   setTool('hand',$('btnHand'));                       /* 자료를 열면 기본은 '이동' — 열자마자 그어지지 않게 */
@@ -5233,9 +5257,12 @@ $('btnClose').onclick=async()=>{
   syncBoardCtl();
   $('dockPage').textContent='– / –';
   $('fileName').textContent='파일 없음';
-  $('rail').innerHTML='';
+  /* '모양표'도 함께 지웁니다 — 안 지우면, 닫았다 쪽수가 같은 자료를 다시
+     열었을 때 buildRail() 이 "모양이 안 바뀌었다" 여기고 다시 안 그려
+     쪽 번호 줄이 빈 채로 남았습니다. */
+  $('rail').innerHTML='';delete $('rail').dataset.sig;
   $('pageInfo').textContent='– / –';
-  const w=$('welcome');w.hidden=false;w.style.display='';  document.body.classList.add('lib-open');
+  const w=$('welcome');w.hidden=false;w.style.display='';  setLibOpen(true);
   await renderFolders();await renderRecent();
   btn.textContent=label;btn.disabled=false;
   if(!hasInk)toast('자료를 닫았습니다');
@@ -5531,7 +5558,7 @@ $('btnSplit').onclick=()=>{
 function openBoardOnly(){
   S.fileName='칠판';$('fileName').textContent='칠판';
   $('welcome').hidden=true;$('welcome').style.display='none';
-  document.body.classList.remove('lib-open');
+  setLibOpen(false);
   if(typeof revealSideL==='function')revealSideL();
   if(typeof autoGoFull==='function')autoGoFull();
   applySplitMode(2);
@@ -5709,7 +5736,7 @@ async function pickFolder(file){
 async function renderRecent(){
   /* 서재를 보고 있는지 표시합니다. 처음 앱을 열 때는 서재가 원래부터
      떠 있어 '켜는 코드'가 돌지 않으므로, 그릴 때마다 맞춰 줍니다. */
-  document.body.classList.toggle('lib-open',!S.doc);
+  setLibOpen(!S.doc);
   const all=(await Store.allFiles()).filter(x=>x&&!String(x.id).startsWith('__'));
   const list=$('recentList'),grid=$('folderGrid');
   const addCard=()=>{
@@ -6292,7 +6319,7 @@ function showQuitScreen(){
     return;
   }
   const w=$('welcome');
-  w.hidden=false;w.style.display='';  document.body.classList.add('lib-open');
+  w.hidden=false;w.style.display='';  setLibOpen(true);
   w.innerHTML=
     '<h1>저장을 마쳤습니다</h1>'+
     '<p>필기와 파일이 모두 저장되었습니다.</p>'+
@@ -6332,7 +6359,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.68';
+const APP_VER='25.69';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
