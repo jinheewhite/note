@@ -297,9 +297,8 @@ try{
   aside .p .mark{width:5px;height:5px;border-radius:50%;background:transparent}
   aside .p.jump{color:var(--chalk);font-weight:700;border:1px solid var(--line)}
   aside .p.has .mark{background:var(--chalk)}
-  /* 한 쪽뿐인 자료는 넘길 쪽이 없어 번호 줄이 그냥 자리만 차지합니다 — 숨깁니다.
-     두 쪽부터는 꼭 보여야 하므로 그때는 다시 켜집니다(JS의 one-page 클래스). */
-  body.one-page aside,html.one-page aside{display:none}
+  /* 한 쪽뿐이어도 쪽 번호 줄은 그대로 둡니다 — 몇 쪽짜리든 왼쪽에 쪽 번호가
+     늘 있어야 헷갈리지 않는다고 하여, 숨기던 것을 그만뒀습니다. */
   /* 쪽 번호 줄 맨 위·맨 아래에 붙어 따라다니는 ▲▼ — 30쪽 넘는 자료에서
      번호를 굴려 찾지 않고 바로 앞/뒤 쪽으로 넘깁니다. */
   aside .railNav{position:sticky;z-index:3;flex:0 0 auto;margin:0 4px;height:34px;min-height:0;
@@ -471,7 +470,7 @@ try{
   /* 세로 쪽 번호 줄(아래 aside, 39px) 바로 오른쪽에 붙여 둡니다 — 전에는 left:8px
      라 쪽 번호를 덮어 '지금 몇 쪽'이 안 보였습니다. (도형이 겹치면 노란 손잡이로 끌어 옮길 수 있습니다.) */
   #sideL{left:45px}
-  html.rail-h #sideL,html.one-page #sideL{left:6px}
+  html.rail-h #sideL{left:6px}
   /* 서재를 보는 동안에는 감춥니다 — 고를 자료가 아직 없습니다 */
   body.lib-open .sideBar,html.lib-open .sideBar{display:none!important}
   /* 오른쪽 막대는 쓰지 않습니다 — 아래 도구막대가 오른쪽에 있어 겹칩니다.
@@ -551,13 +550,13 @@ try{
        붙입니다 (아래 규칙이 이깁니다). */
     #sideL{left:45px}
   }
-  /* 쪽 번호가 가로로 눕는(rail-h) 동안이나 한 쪽뿐(one-page)이라 줄 자체가
-     없을 때는 화면 끝으로 당겨 옵니다. (진짜 화면 끝(0~6px)은 피합니다 —
-     전자칠판 일부 기종은 그 가장자리를 누르면 전체화면을 빠져나가는 몸짓으로
-     읽어, 손잡이가 거기 있으면 누를 때마다 전체화면이 풀렸습니다.) 전체화면·
-     칠판 단독 중에도 쪽 번호 줄은(두 쪽 이상이면) 그대로 남아 있으므로
-     따로 당기지 않습니다. */
-  html.rail-h #sideL,html.one-page #sideL{left:6px}
+  /* 쪽 번호가 가로로 눕는(rail-h) 동안, 줄이 위로 옮겨가 왼쪽이 비므로
+     화면 끝으로 당겨 옵니다. (진짜 화면 끝(0~6px)은 피합니다 — 전자칠판
+     일부 기종은 그 가장자리를 누르면 전체화면을 빠져나가는 몸짓으로 읽어,
+     손잡이가 거기 있으면 누를 때마다 전체화면이 풀렸습니다.) 쪽 번호 줄은
+     한 쪽뿐이어도, 전체화면·칠판 단독 중에도 늘 왼쪽에 그대로 있으므로
+     그 밖에는 따로 당기지 않습니다. */
+  html.rail-h #sideL{left:6px}
   #pop{position:fixed;z-index:60;display:none;gap:8px;padding:10px;
     contain:layout style;pointer-events:auto;isolation:isolate;
     background:var(--ink-2);border:1px solid var(--line);border-radius:14px;
@@ -4544,10 +4543,6 @@ function railSig(){
   return `${h}|${from}-${to}|${S.pages}`;
 }
 function buildRail(){
-  /* 한 쪽뿐이면 넘길 쪽이 없으니 번호 줄 자체가 필요 없습니다 —
-     두 쪽부터는 꼭 보여야 하므로 그때는 켭니다. */
-  document.body.classList.toggle('one-page',S.pages<=1);
-  document.documentElement.classList.toggle('one-page',S.pages<=1);
   const rail=$('rail');
   const sig=railSig();
   if(rail.dataset.sig!==sig){
@@ -6335,7 +6330,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.66';
+const APP_VER='25.67';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
