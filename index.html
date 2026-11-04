@@ -138,6 +138,9 @@ try{
   /* ✋(이동)은 필기도구와 한 덩어리로 오른쪽 끝에 세웁니다 —
      혼자 왼쪽 끝에 떨어져 있어 '도구에 이동이 없다' 고 하셨습니다 */
   #grpHand{order:4;border-right:0;padding-right:0;margin-right:0}
+  /* 이동 옆 ✕ — 위쪽 막대의 '자료 닫기'와 같은 뜻이라, 같은 빨강 상자로 또렷하게 */
+  #btnHandClose{margin-left:6px;background:#5a2330;border-color:#7d3244;color:#ffd9df;font-weight:700}
+  #btnHandClose:hover{background:#7d3244}
   .size-wrap{order:1}
   #rightGrp{order:2;border-right:1px solid var(--line)}
   /* 필기도구 묶음은 자투리 공간을 전부 왼쪽으로 밀어 화면 오른쪽 끝에 딱 붙입니다 */
@@ -242,10 +245,15 @@ try{
      그림 속에 박혀 있던 잿빛들도 전부 지금 색을 따라오게 합니다. */
   .tool{color:#fff}
   .tool.on{color:#16212c}
-  .tool svg [fill]:not([fill="none"]),
-  .sideBar button svg [fill]:not([fill="none"]){fill:currentColor}
-  .tool svg [stroke]:not([stroke="none"]),
-  .sideBar button svg [stroke]:not([stroke="none"]){stroke:currentColor}
+  .tool svg [fill]:not([fill="none"]){fill:currentColor}
+  .tool svg [stroke]:not([stroke="none"]){stroke:currentColor}
+  /* 왼쪽 막대는 더는 이 규칙을 안 받습니다 — 전체 지우기의 나무색·펠트색이
+     아래 막대와 똑같이 살아 있어야, 두 막대의 지우개가 서로 달라 보이지 않습니다 */
+  /* 마우스를 올리면 '고르면 이렇게 됩니다' 를 미리 보여줍니다 — 전체 지우기
+     단추의 반전 효과가 좋다고 하여, 아래 막대 모든 단추에 같은 뜻으로 둡니다.
+     (지우기·닫기처럼 제 색이 따로 있는 단추는 저마다의 hover 를 그대로 씁니다) */
+  header .tool:not(.on):hover{background:#fff;border-color:#fff;color:#16212c}
+  header button.icon:not(.tool):not(.eraseAll):not(#btnHandClose):hover{background:#fff;border-color:#fff;color:#16212c}
   #btnHand.tool{font-size:20px}
   #btnCut.tool{font-size:20px}
   /* 오른쪽 끝 지우개 — 왼쪽 지우개와 켜진 표시가 같아 보이게 */
@@ -466,10 +474,10 @@ try{
     max-height:calc(100vh - 12px);overflow-y:auto;overflow-x:hidden;
     scrollbar-width:none;-ms-overflow-style:none;
     display:flex;flex-direction:column;gap:6px;padding:6px;
-    /* 캔바처럼 — 흰 알약 통 하나에 색 있는 그림만 담습니다.
-       테두리는 거의 안 보이게 하고, 그림자로 살짝 떠 있게 합니다. */
-    background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:22px;
-    box-shadow:0 10px 24px rgba(0,0,0,.20), 0 2px 6px rgba(0,0,0,.10)}
+    /* 흰 PDF 위에 떠 있다 보니 흰 통은 경계가 안 보였습니다 — 아래 막대와
+       같은 짙은 판(--ink-2)으로 바꿔, 종이가 무슨 색이든 또렷이 떠 보이게 합니다. */
+    background:var(--ink-2);border:1px solid var(--line);border-radius:22px;
+    box-shadow:0 10px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.18)}
   /* 수평은 왼쪽 끝, 수직은 가운데. (쪽번호 줄 위에 살짝 걸칠 수 있지만,
      아담해서 대부분의 쪽번호는 그대로 눌립니다.) */
   /* 세로 쪽 번호 줄(아래 aside, 39px) 바로 오른쪽에 붙여 둡니다 — 전에는 left:8px
@@ -492,31 +500,22 @@ try{
     justify-content:center;font-size:21px;opacity:.9;transition:opacity .12s}
   .sideBar button:hover{opacity:1}
   .sideBar button svg{width:27px;height:27px;display:block}
-  /* 틀(테두리)은 없앱니다 — 캔바처럼 그림만 떠 있게 */
-  .sideBar button{background:transparent;border-color:transparent;color:#4a5a6b;
+  /* 틀(테두리)은 없앱니다 — 아래 막대와 같은 뜻으로, 짙은 판 위에 흰 그림만 떠 있게 */
+  .sideBar button{background:transparent;border-color:transparent;color:#fff;
     border-radius:12px;opacity:1}
-  /* 그림에 아주 옅은 그림자를 줘서 살짝 입체로 보이게 합니다 */
-  .sideBar button svg{filter:drop-shadow(0 1px 1.5px rgba(20,30,45,.22))}
-  .sideBar button:hover{background:#f2f4f8}
-  /* 고른 도구 — 옅은 연보라 자리표만. 그림 색은 그대로 둡니다
-     (캔바도 고른 펜이 여전히 빨간 펜입니다) */
-  .sideBar button.tool.on{background:#efeafd;border-color:transparent;box-shadow:none}
-  /* 도구마다 제 색 — 흰 바탕이라 색이 살아납니다.
-     연필·형광펜·레이저는 지금 고른 잉크 색을 그대로 씁니다(showColor). */
-  .sideBar button[data-tool="eraser"]{color:#5b6b7b}
-  .sideBar button[data-tool="hand"]{color:#3b82f6}
-  .sideBar button[data-act="undo"]{color:#7a8797}
+  .sideBar button:hover{background:#fff;color:#16212c}
+  /* 고른 도구 — 아래 막대와 같은 흰 알약. 잉크 색 있는 도구(펜·형광펜·레이저)는
+     showColor() 가 알아서 제 색을 그대로 둡니다 */
+  .sideBar button.tool.on{background:#fff;border-color:#fff;color:#16212c;
+    box-shadow:0 3px 10px rgba(0,0,0,.40),0 0 0 3px rgba(255,255,255,.28)}
   /* 전체화면 3단계(PDF만) — 노란 2단계와 또렷이 다르게, 빨간 느낌으로 */
   .sideBar #btnFull2.stage3{background:#5a2330;color:#ffd9df;border-color:transparent}
   .sideBar #btnFull2.stage3:hover{background:#7d3244}
   /* 닫기 — 늘 손이 닿는 자리지만, 눌러서 바로 자료가 닫히므로 다른 도구와 살짝 떨어뜨리고 옅은 빨강으로 구분합니다 */
-  .sideBar .quit2{margin-top:6px;padding-top:10px;border-top:1px solid rgba(20,30,45,.1);color:#b3404f}
-  .sideBar .quit2:hover{background:#fbe4e8;color:#8a2435}
-  /* 도구 옆 ▾ (색·굵기) — 흰 바탕과 같은 색이라 있는 줄 몰랐다고 하여,
-     옅은 회색 통 + 짙은 글자로 또렷하게 보이게 했습니다 */
-  .sideBar button.toolMore{background:#eef1f5;border-color:transparent;
-    color:#45525e;font-weight:800}
-  .sideBar button.toolMore:hover{background:#dde3ea;color:#1f2a33}
+  .sideBar .quit2{margin-top:6px;padding-top:10px;border-top:1px solid var(--line);color:#e8949e}
+  .sideBar .quit2:hover{background:#5a2330;border-color:#7d3244;color:#ffd9df}
+  .sideBar button.toolMore{color:var(--chalk);font-weight:800}
+  .sideBar button.toolMore:hover{background:var(--slate);color:var(--text)}
   .sideBar button[disabled]{opacity:.45}
   /* 손잡이를 둘로 나눴습니다 — 전자펜·손가락은 '탭' 에도 떨림이 있어
      (마우스처럼 딱 멈춰 있지 않습니다), 접기(탭)와 옮기기(끌기)를 한
@@ -524,23 +523,25 @@ try{
      봅니다), 그 아래는 옮기기 전용(끌기만 봅니다)으로 나눴습니다. */
   .sideBar .sideGrip{width:44px;height:38px;min-height:38px;padding:0;
     font-size:20px;font-weight:800;line-height:1;border-radius:12px 12px 4px 4px;
-    background:#f2f4f8;border-color:transparent;color:#4a5a6b;opacity:1;
+    background:var(--ink-3);border-color:transparent;color:var(--text);opacity:1;
     cursor:pointer}
-  .sideBar .sideGrip:hover{background:#e7ebf1;color:#1f2a33}
+  .sideBar .sideGrip:hover{background:var(--slate);color:#fff}
   .sideBar .sideGrip svg{filter:none}
   /* 옮기기 전용 손잡이(✥) — 접기 손잡이 바로 아래, 한 통처럼 붙여 둡니다.
      접기 손잡이와 크기를 맞추고, 파란색(이동 도구와 같은 색)으로 또렷이
      구분해 — 둘 다 '그냥 작고 옅은 글자' 라 못 찾겠다는 말에 키웠습니다. */
   .sideBar .sideMoveBtn{width:44px;height:38px;min-height:38px;padding:0;margin-top:-4px;
     font-size:21px;font-weight:800;line-height:1;border-radius:4px 4px 12px 12px;
-    background:#e7f0ff;border-color:transparent;color:#2a6fd6;opacity:1;
+    background:#1e3a5c;border-color:transparent;color:#7ab3ff;opacity:1;
     cursor:move;touch-action:none}
-  .sideBar .sideMoveBtn:hover{background:#d5e6ff;color:#1b4fa0}
+  .sideBar .sideMoveBtn:hover{background:#2a4d73;color:#9ecbff}
   /* 접으면 도구 단추들은 숨고, 접기·옮기기 손잡이 둘만 남습니다 —
      접은 채로도 옮길 수 있어야, 화면 맨 아래까지 끌어 내릴 수 있습니다. */
-  .sideBar.hid{padding:6px;gap:6px;background:rgba(255,255,255,.94);border-color:rgba(0,0,0,.06)}
+  .sideBar.hid{padding:6px;gap:6px;background:var(--ink-2);border-color:var(--line)}
   .sideBar.hid button{display:none}
-  .sideBar.hid .sideGrip,.sideBar.hid .sideMoveBtn{display:flex}
+  .sideBar.hid .sideGrip,.sideBar.hid .sideMoveBtn,.sideBar.hid .quit2{display:flex}
+  /* 접힌 채로도 닫기는 늘 손이 닿아야 하므로, 옮기기 손잡이 바로 밑에 그대로 둡니다 */
+  .sideBar.hid .quit2{margin-top:0;padding-top:0;border-top:none}
   .sideBar.hid .sideGrip{width:44px;height:48px;min-height:48px;font-size:24px}
   /* 접힌 왼쪽 막대의 "도구" 글자 손잡이 — 화살표보다 작은 글자라야 44px 안에 한 줄로 들어갑니다 */
   .sideBar.hid .sideGrip.sideGripLabel{font-size:14px;letter-spacing:-.3px;white-space:nowrap}
@@ -857,6 +858,8 @@ try{
         <path d="M16.4 12 V7.4 a1.7 1.7 0 0 1 3.4 0 V15.4 c0 4-2.7 6.9-6.6 6.9 -2.8 0-4.5-1.4-5.9-3.4 L4.8 15.2 a1.8 1.8 0 0 1 2.8-2.2 L9.6 15.2"/>
       </svg>
     </button>
+    <!-- 이동이 막대 맨 끝이라, 닫기도 여기 둬 늘 손이 닿게 합니다 (왼쪽 막대의 ✕와 같은 뜻) -->
+    <button class="icon" id="btnHandClose" title="이 자료를 닫고 서재로 돌아갑니다">✕</button>
   </div>
   <div class="grp" id="tools">
     <!-- 칠판·칠판바탕은 필기도구와 함께 오른쪽 끝에 둡니다 (자리는 CSS order 로). -->
@@ -874,7 +877,7 @@ try{
     </button>
     <button class="icon eraseAll" id="btnEraseAll" title="전체 지우기 — 지금 보는 쪽을 한 번에 지웁니다">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
-        <text x="13" y="7.5" text-anchor="middle" font-size="7.5" font-weight="800" fill="#b3404f">All</text>
+        <text x="13" y="7.5" text-anchor="middle" font-size="7.5" font-weight="800" fill="#fff">All</text>
         <g transform="translate(13 18) scale(.9)" stroke="#5c4526" stroke-width="1" stroke-linejoin="round">
           <path d="M-12.7 -2.8 L2.3 2.8 L2.3 7 L-12.7 1.4 Z" fill="#b58a52"/>
           <path d="M12.7 -1.4 L2.3 2.8 L2.3 7 L12.7 2.8 Z" fill="#9c7440"/>
@@ -969,7 +972,7 @@ try{
     </button>
     <button class="icon eraseAll" id="btnEraseAll2" title="전체 지우기 — 지금 보는 쪽을 한 번에 지웁니다">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true">
-        <text x="13" y="7.5" text-anchor="middle" font-size="7.5" font-weight="800" fill="#b3404f">All</text>
+        <text x="13" y="7.5" text-anchor="middle" font-size="7.5" font-weight="800" fill="#fff">All</text>
         <g transform="translate(13 18) scale(.9)" stroke="#5c4526" stroke-width="1" stroke-linejoin="round">
           <path d="M-12.7 -2.8 L2.3 2.8 L2.3 7 L-12.7 1.4 Z" fill="#b58a52"/>
           <path d="M12.7 -1.4 L2.3 2.8 L2.3 7 L12.7 2.8 Z" fill="#9c7440"/>
@@ -3845,7 +3848,7 @@ function cutStrokes(list,toScreen,x,y,r){
   return changed?out:null;
 }
 function erase(x,y){
-  const r=Math.max(16,curSize()*2.2);
+  const r=eraseR();
   const out=cutStrokes(S.strokes,(st,q)=>toP(q[0],q[1]),x,y,r);
   if(out){S.strokes=out;S.edited=true;S.eraseHit=true;redraw()}
 }
@@ -4447,7 +4450,7 @@ bdCv.addEventListener('pointerup',bdEnd);
 bdCv.addEventListener('pointercancel',bdEnd);
 bdCv.addEventListener('lostpointercapture',bdEnd);
 function bdErase(x,y){
-  const r=Math.max(16,curSize()*2.2);
+  const r=eraseR();
   const out=cutStrokes(BD.strokes,(st,q)=>bdPt(st,q),x,y,r);
   if(out){BD.strokes=out;S.edited=true;BD.eraseHit=true;bdRedraw()}
 }
@@ -4701,7 +4704,19 @@ const CUR_ART={
     <line x1="16.8" y1="8.7" x2="18.4" y2="7.1" stroke-width="1.7" opacity=".8"/>
   </g>
   <circle cx="20.4" cy="5.2" r="5" fill="COL" opacity=".18"/>
-  <circle cx="20.4" cy="5.2" r="2.7" fill="COL"/>`,hx:26,hy:6, col:()=>S.colors.laser}
+  <circle cx="20.4" cy="5.2" r="2.7" fill="COL"/>`,hx:26,hy:6, col:()=>S.colors.laser},
+  /* 이동 — 흰 바탕이든 짙은 바탕이든 보이도록, 짙은 테두리 위에 흰 손을 겹쳐 그립니다.
+     지금 쥔 손가락 끝(손목 쪽)이 아니라 손바닥 가운데를 기준점으로 둡니다. */
+  hand:{body:`<g fill="none" stroke="#1a2430" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9.6 13 V6.6 a1.7 1.7 0 0 1 3.4 0 V11.6"/>
+    <path d="M13 11.6 V5.2 a1.7 1.7 0 0 1 3.4 0 V11.6"/>
+    <path d="M16.4 12 V7.4 a1.7 1.7 0 0 1 3.4 0 V15.4 c0 4-2.7 6.9-6.6 6.9 -2.8 0-4.5-1.4-5.9-3.4 L4.8 15.2 a1.8 1.8 0 0 1 2.8-2.2 L9.6 15.2"/>
+  </g>
+  <g fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9.6 13 V6.6 a1.7 1.7 0 0 1 3.4 0 V11.6"/>
+    <path d="M13 11.6 V5.2 a1.7 1.7 0 0 1 3.4 0 V11.6"/>
+    <path d="M16.4 12 V7.4 a1.7 1.7 0 0 1 3.4 0 V15.4 c0 4-2.7 6.9-6.6 6.9 -2.8 0-4.5-1.4-5.9-3.4 L4.8 15.2 a1.8 1.8 0 0 1 2.8-2.2 L9.6 15.2"/>
+  </g>`,hx:12,hy:13, col:()=>null}
 };
 function toolSVG(tool,size){
   const a=CUR_ART[tool];if(!a)return null;
@@ -4710,23 +4725,26 @@ function toolSVG(tool,size){
          a.body.replace(/currentColor/g,col)+'</svg>';
 }
 /* 지우개 그림 크기 — 실제로 지워지는 넓이에 맞춥니다.
-   erase()·bdErase() 가 반지름 max(16, 굵기*2.2) 로 지우므로, 지름은 그 두 배입니다.
+   erase()·bdErase() 가 반지름 max(16, 굵기*3) 로 지우므로, 지름은 그 두 배입니다.
+   보통 손바닥으로 지우는 크기에 맞춰, 전에는 *2.2 였던 것을 키웠습니다.
    가는 지우개를 고르면 그림도 작아지고, 굵은 지우개를 고르면 커집니다. */
-function eraseR(){return Math.max(16,curSize()*2.2)}
+function eraseR(){return Math.max(16,curSize()*3)}
 function eraserPx(){return Math.round(eraseR()*2)}
+/* 펜·형광펜·레이저·이동도 지우개처럼 도구 모양 커서를 씁니다 — 전에는
+   십자가(펜) 나 브라우저 기본 손(이동, 작아서 찾기 힘들다고 하셨습니다) 이었습니다. */
 function applyCursor(){
   const targets=[inkCv,bdCv].filter(Boolean);
-  if(S.tool==='eraser'){                       /* 지우개만 지우개 모양 커서 */
-    /* 크롬은 128px 을 넘는 커서 그림을 통째로 버립니다 — 커서가 아예 사라지지
-       않도록 여기서만 줄입니다. 손·펜으로 쓸 때 뜨는 그림(ghost)은 제 크기 그대로입니다. */
-    const px=Math.min(120,eraserPx());
-    const svg=toolSVG('eraser',px);
-    const a=CUR_ART.eraser, k=px/32;           /* hx·hy 는 크기 32 기준입니다 */
+  const t=S.tool, a=CUR_ART[t];
+  if(a){
+    /* 지우개만 굵기에 맞춰 커지고, 나머지는 알아보기 좋은 고정 크기입니다.
+       크롬은 128px 을 넘는 커서 그림을 통째로 버리므로 여기서 묶어 둡니다. */
+    const px=t==='eraser'?Math.min(120,eraserPx()):56;
+    const svg=toolSVG(t,px);
+    const k=px/32;                           /* hx·hy 는 크기 32 기준입니다 */
     const url=svg?`url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") ${Math.round(a.hx*k)} ${Math.round(a.hy*k)}, crosshair`:'crosshair';
     targets.forEach(el=>el.style.cursor=url);return;
   }
-  const c=S.tool==='hand'?'grab':'crosshair';  /* 나머지는 보통 커서 */
-  targets.forEach(el=>el.style.cursor=c);
+  targets.forEach(el=>el.style.cursor='crosshair');   /* 도형·오리기는 그대로 */
 }
 /* 손·펜으로 쓸 때는 접촉점에 도구 그림을 띄웁니다 */
 const ghost=document.createElement('div');
@@ -4834,10 +4852,10 @@ function showColor(){
   for(const key of ['pen','hl','laser']){
     document.querySelectorAll(`[data-tool="${key}"]`).forEach(b=>{
       const sv=b.querySelector('svg');
-      /* 아래 도구막대는 고르면 흰 알약 위라 짙게 뒤집습니다.
-         왼쪽 도구상자는 캔바처럼, 골라도 제 색(빨간 펜은 빨간 펜) 그대로입니다. */
-      const inSide=!!(b.closest&&b.closest('.sideBar'));
-      if(sv)sv.style.color=(!inSide&&b.classList.contains('on'))?'#1a1a12':S.colors[key];
+      /* 골랐으면 흰 알약 위라 제 잉크색 그대로(빨간 펜은 빨간 펜), 안 골랐으면
+         흰색 — 검정 잉크를 안 고른 채로 짙은 막대 색 그대로 두면 막대와
+         구분이 안 됐습니다. 아래 막대·왼쪽 도구상자 모두 같은 규칙입니다. */
+      if(sv)sv.style.color=b.classList.contains('on')?S.colors[key]:'#fff';
       /* 자국만은 고른 색 그대로 — 빨간 펜이면 연필 아래도 빨갛습니다 */
       const ink=b.querySelector('.penInk');
       if(ink)ink.setAttribute('stroke',S.colors[key]);
@@ -5217,6 +5235,7 @@ function goFull(){
 }
 /* 자료만 닫고 서재로 — 앱은 그대로 열려 있습니다 */
 $('btnClose2').onclick=()=>$('btnClose').click();
+$('btnHandClose').onclick=()=>$('btnClose').click();
 $('brandHome').onclick=()=>{ if(S.doc||S.split)$('btnClose').click(); };   /* 로고를 누르면 서재로 */
 $('btnClose').onclick=async()=>{
   if(!S.doc&&!S.split){toast('열려 있는 자료가 없습니다');return}
@@ -6359,7 +6378,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.69';
+const APP_VER='25.72';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
