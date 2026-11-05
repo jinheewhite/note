@@ -371,8 +371,16 @@ try{
   canvas{-webkit-user-drag:none;user-select:none}
   #fxCv{position:absolute;inset:0;pointer-events:none}
   .row2{display:flex;flex:1;min-height:0;min-width:0}
-  #board{flex:0 0 var(--boardW);width:var(--boardW);max-width:none;display:flex;flex-direction:column;
+  #board{position:relative;flex:0 0 var(--boardW);width:var(--boardW);max-width:none;display:flex;flex-direction:column;
     background:#f7f8fa;min-width:0;order:2}
+  /* 칠판 전용 모두 지우기 — 아래 도구모음의 "지우개 옆 All"은 PDF 쪽만 지우므로,
+     칠판 구석에 따로 둡니다. 필기를 가리지 않게 살짝 투명하게 두다가, 손이
+     가까워지면(hover) 또렷해집니다. */
+  #btnBoardClearCorner{position:absolute;right:4px;bottom:4px;z-index:5;
+    padding:5px 10px;border-radius:14px;background:#fff;color:#8a2435;
+    font-size:11px;font-weight:600;line-height:1.3;text-align:center;opacity:.6;
+    box-shadow:0 2px 10px rgba(0,0,0,.25);transition:opacity .15s}
+  #btnBoardClearCorner:hover,#btnBoardClearCorner:focus{opacity:1}
   #splitBar{flex:0 0 20px;order:1;cursor:ew-resize;background:var(--ink-2);
     border-left:1px solid var(--line);border-right:1px solid var(--line);
     display:flex;align-items:center;justify-content:center;touch-action:none;
@@ -863,7 +871,7 @@ try{
   </div>
   <div class="grp" id="tools">
     <!-- 칠판·칠판바탕은 필기도구와 함께 오른쪽 끝에 둡니다 (자리는 CSS order 로). -->
-    <button id="btnBoardBg" title="칠판 바탕을 바꿉니다" style="display:none">칠판 바탕</button>
+    <button id="btnBoardBg" title="칠판 바탕을 바꿉니다" style="display:none">칠판색</button>
     <button id="btnSplit" title="오른쪽에 칠판을 엽니다">▥ 칠판</button>
     <button class="icon tool" data-label="지우개" id="btnEraser" data-tool="eraser" title="지우개">
       <svg viewBox="0 0 26 26" width="32" height="32" aria-hidden="true" fill="none"
@@ -955,9 +963,9 @@ try{
     <span class="mono" id="zoomInfo" hidden>100%</span>
     <button class="icon" id="btnMagIn" title="누를 때마다 확대됩니다">🔍＋</button>
     <button class="icon" id="btnMagOut" title="누를 때마다 축소됩니다">🔍−</button>
-    <button id="btnFitW" title="화면 폭에 꽉 채웁니다">↔ 폭맞춤</button>
-    <button id="btnFitP" title="쪽 전체가 보이게 맞춥니다">⧉ 쪽맞춤</button>
-    <button id="btnRotate" title="누를 때마다 페이지가 90도씩 돌아갑니다">⟳ 회전하기</button>
+    <button id="btnFitW" title="화면 폭에 꽉 채웁니다">↔ 폭</button>
+    <button id="btnFitP" title="쪽 전체가 보이게 맞춥니다">⧉ 쪽</button>
+    <button id="btnRotate" title="누를 때마다 페이지가 90도씩 돌아갑니다">⟳ 회전</button>
 
     <button class="icon tool" data-label="지우개" id="btnEraser2" data-tool="eraser"
             title="지우개 — 반대쪽에서도 쓸 수 있게 오른쪽 끝에도 놓았습니다">
@@ -1012,6 +1020,7 @@ try{
   <div id="splitBar" hidden title="끌어서 칠판 폭을 조절합니다"></div>
   <div id="board" hidden>
     <canvas id="bdCv"></canvas>
+    <button id="btnBoardClearCorner" title="칠판만 지웁니다 (PDF에는 영향 없음)">칠판ALL<br>지우기</button>
   </div>
 
   <div id="stage">
@@ -4561,6 +4570,8 @@ $('btnBoardClear').onclick=async()=>{
     toast('빈 칠판 쪽을 없앨습니다');
   }else toast('칠판을 비웠습니다');
 };
+/* 칠판 구석의 전용 지우기 — PDF·split 상태와 상관없이 늘 칠판만 지웁니다 */
+$('btnBoardClearCorner').onclick=()=>$('btnBoardClear').click();
 $('btnBoardClearAll').onclick=async()=>{
   const pages=BD.pages||1;
   if(pages<=1&&!BD.strokes.length&&!(BD.imgs||[]).length){toast('칠판이 비어 있습니다');return}
@@ -4963,7 +4974,7 @@ $('btnEraser2').onclick=e=>setTool('eraser',e.currentTarget);
    쪽을 비웁니다. 칠판만 보고 있으면(PDF 없이) 칠판을, 아니면 PDF 쪽을 —
    PDF 일 때나 칠판일 때나 똑같이 먹혀야 합니다. */
 function eraseAllClick(){
-  if(S.split&&!S.doc)$('btnBoardClear').click();
+  if(!S.doc)$('btnBoardClear').click();
   else $('btnClear').click();
 }
 $('btnEraseAll').onclick=eraseAllClick;
@@ -5131,7 +5142,7 @@ function revealSideL(){
   const box=$('sideL');if(!box)return;
   try{localStorage.removeItem(sidePosKey('L'))}catch(e){}
   applySidePos('L');                 /* 저장된 자리 지우고 CSS 기본(가운데)으로 */
-  setSideHid('L',sideHidden('L'));   /* 기억해 둔 접힘 상태 그대로 (기본은 접힘) */
+  setSideHid('L',false,true);        /* 열 때마다 항상 펼친 채로 — 접힘 기억은 건드리지 않음 */
   box.classList.remove('unfold');void box.offsetWidth;   /* 애니메이션 다시 태우기 */
   box.classList.add('unfold');
 }
@@ -6378,7 +6389,7 @@ function renderWhere(){
   };
 }
 /* ── 업데이트 ── */
-const APP_VER='25.72';
+const APP_VER='25.73';
 /* 회전 기준이 바뀌어, 예전에 손으로 돌려 둔 값은 한 번만 초기화합니다 */
 try{
   if(localStorage.getItem('pn.rotReset')!=='1'){
